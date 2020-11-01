@@ -168,14 +168,15 @@ Another nice ability is skipping/continuing a loop iteration.
        (finally-return (nreverse my-collection)))
 
 ;; Expands to:
-(let ((g970 (number-sequence 1 20))
+(let ((g1069 (number-sequence 1 20))
+      (i nil)
       (my-collection nil))
   (let* ((_))
     (cl-block nil
-      (while (and g970)
+      (while (and g1069)
         (cl-tagbody
          (progn
-           (setq i (pop g970))
+           (setq i (pop g1069))
            (when (zerop (mod i 10))
              (go continue-tag))
            (when (cl-evenp i)

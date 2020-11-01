@@ -71,12 +71,15 @@ Optionally needs LOOP-NAME for block returns."
           (`(do . ,body)
            (add-instruction `(loop-body . (progn ,@body))))
           (`(expr ,var ,val)
-           (add-instruction `(loop-body . (setq ,var ,val))))
+           (add-instruction `(loop-body . (setq ,var ,val)))
+           ;; Want to make sure VAR is lexically bound.
+           (add-instruction `(updates-initial . (,var nil))))
 
 ;;;;; Iteration Clauses
           (`(list ,var ,val)
            (let ((val-holder (gensym)))
              (add-instruction `(value-holders . (,val-holder ,val)) )
+             (add-instruction `(updates-initial . (,var nil)))
              (add-instruction `(loop-body . (setq ,var (pop ,val-holder))))
              (add-instruction `(pre-conditions . ,val-holder))))
           (`(seq ,var ,val)
@@ -84,6 +87,7 @@ Optionally needs LOOP-NAME for block returns."
            ;; Destructive version:
            (let ((val-holder (gensym)))
              (add-instruction `(value-holders . (,val-holder ,val)))
+             (add-instruction `(updates-initial . (,var nil)))
              (add-instruction
               `(loop-body . (setq ,var (seq-elt ,val-holder 0)
                                   ,val-holder (seq-drop ,val-holder 1))))
@@ -168,7 +172,9 @@ Things to note:
          (with-forms) ; WITH values and initial values
          ;; Holds lists, increment counters, and other values not given a name.
          (value-holders)
-         ;; Explicitly named inits that will be updated in order.
+         ;; Explicitly named inits that will be updated in order.  This is
+         ;; useful for lexically scoping variables, and for declaring an initial
+         ;; value before a different value assigned in the loop.
          (updates-initial)
          ;; The loop is a while loop. Pre-conditions are things like whether a
          ;; temporary list is null.
