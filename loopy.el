@@ -20,19 +20,16 @@
 
 (require 'cl-lib)
 
-(cl-defstruct loopy-instructions
-  with-and-init-forms updates returns)
-
-(cl-defstruct loopy-updates
-  start-val update-expr end-val)
-
-(defun loopy--parse-with-forms (with-and-init-forms)
-  "Remove the \"with\" and return list of forms in WITH-AND-INIT-FORMS.
-This list is substituted into a LET binding."
-  (let ((parsed))
-    (dolist (form with-and-init-forms (nreverse parsed))
-      (push (list (cl-second form) (cl-third form))
-            parsed))))
+;; TODO: Prefer ((with a 1) (with b 2)) or (with (a 1) (b 2))?
+(defun loopy--parse-with-forms (with-forms)
+  "Remove the \"with\" and return list of forms in WITH-FORMS.
+This list is substituted into a LET* binding."
+  (cdr with-forms)
+  ;; (let ((parsed))
+  ;;   (dolist (form with-forms (nreverse parsed))
+  ;;     (push (list (cl-second form) (cl-third form))
+  ;;           parsed)))
+  )
 
 (defun loopy-parse-when-forms (condition forms &optional loop-name)
   "Parse when forms by wrapping in CONDITION specific body forms in FORMS.
@@ -171,7 +168,7 @@ Things to note:
                                  1)
                               (cadr arg)
                             (cdr arg))))
-       ((eq (caar arg) 'with)
+       ((memq (car arg) '(with let*))
         (setq with-args arg))
        (t ; Body forms have the most variety.
         (setq loop-body-args arg))))
