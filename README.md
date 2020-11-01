@@ -291,7 +291,7 @@ condition, then the loop runs forever.
   many iterations. `var` starts at 0, and is increased by 1 each time.
 
   Remember that the incrementing happens where the `repeat` command is used in
-  the loop body; it is not treated different from other commands. This can be
+  the loop body; it is not treated as different from other commands. This can be
   changed, it feels too weird.
 
   ```elisp
@@ -321,7 +321,7 @@ the loop).
          (finally-return reversed))
   ```
 
-Conditionals:
+### Conditionals
 
 - `(when COND SEXPS)`: Conditionally run binding `SEXPS`. A sexp can be one of
   the body forms in this list.
@@ -357,7 +357,19 @@ Conditionals:
                (finally-return (list evens odds)))
         ```
 
-Skipping or leaving the loop:
+### Skipping or Leaving the Loop
+
+The commands to break/leave a loop are perhaps a bit much, currently. There
+isn't much reason to have a slight difference between `return` (where the return
+value is optional) and `return-with` (where it is not).
+
+I will probably change this so that `return` means "return with a value" and
+`break` or `leave` means "return without a value", which is a clearer
+distinction. These are all `cl-return-from` underneath.
+
+There is currently only one way to leave a named loop: `leave-named-loop`. Using
+a return value with it is optional.
+
 
 - `(skip|continue)`: Go to next loop iteration. Can be `(skip)` or `(continue)`.
 
@@ -406,10 +418,5 @@ Skipping or leaving the loop:
                   ;; infinite.
                   (return))))))
   ```
-
-The last category could be cleaned up a bit.
-
-
-
 
 [sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
