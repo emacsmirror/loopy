@@ -73,7 +73,7 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction
               `(loop-body . (setq ,var (seq-elt ,val-holder 0)
                                   ,val-holder (seq-drop ,val-holder 1))))
-             (add-instruction `(pre-conditions . ,val-holder)))
+             (add-instruction `(pre-conditions . (not (seq-empty-p ,val-holder)))))
            ;; ;; Non-destructive version:
            ;; (let ((val-holder (gensym))
            ;;       (index-holder (gensym)))
