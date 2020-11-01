@@ -46,6 +46,29 @@ Wrapped forms are things that would occur in the loop body, including returns."
     (push `(loop-body . (,wrapper ,condition ,@loop-body)) full-instructions)
     full-instructions))
 
+(defun loopy--parse-cond-forms (forms &optional loop-name)
+  "Parse FORMS where the `car' is a conditon. Use COND forms for IF-ELSE.
+Optionally needs LOOP-NAME for block returns.
+Wrapped forms are things that would occur in the loop body, including returns.
+
+This takes the `cdr' of the COND form (i.e., doesn't start with \"cond\")."
+  (let ((full-instructions)
+        (cond-body))
+    (dolist (cond-and-body forms)
+      (let ((condition (car cond-and-body))
+            (sub-instructions (loopy--parse-body-forms (cdr cond-and-body)
+                                                       loop-name))
+            (instructions-for-wrapping))
+        (dolist (instruction sub-instructions)
+          (cl-case (car instruction)
+            ('loop-body
+             (push (cdr instruction) instructions-for-wrapping))
+            (t (push instruction full-instructions))))
+        (push (cons condition instructions-for-wrapping)
+              cond-body)))
+    (push `(loop-body . ,(cons 'cond (nreverse cond-body))) full-instructions)
+    full-instructions))
+
 (defun loopy--parse-body-forms (forms &optional loop-name)
   "Get update and continue conditions from FORMS.
 Optionally needs LOOP-NAME for block returns."
@@ -86,11 +109,19 @@ Optionally needs LOOP-NAME for block returns."
            ;;                                          (length ,val-holder)))))
            )
 
-          ;; A conditional WHEN form. Searched for special forms.
+;;;; Conditional Body Forms
+;;;;; when
           (`(when ,cond . ,body)
            (mapc #'add-instruction
-                 (loopy-parse-when-forms cond body loop-name)))
                  (loopy--parse-conditional-forms 'when cond body loop-name)))
+;;;;; if
+          (`(if ,cond . ,body)
+           (mapc #'add-instruction
+                 (loopy--parse-conditional-forms 'if body loop-name)))
+;;;;; cond
+          (`(cond . ,body)
+           (mapc #'add-instruction
+                 (loopy--parse-cond-forms body loop-name)))
 
           ;; Control Flow
           ((or '(skip) '(continue))
