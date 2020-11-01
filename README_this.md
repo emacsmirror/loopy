@@ -1,4 +1,4 @@
-# About
+# Loopy: An Emacs Looping Library
 
 Loopy is a macro meant for iterating and looping. It is similar in usage
 to `cl-loop` but uses sexps rather than keywords.
@@ -92,9 +92,23 @@ There are 4 possible arguments to the `loopy` macro:
 Parts 1, 2, and 4 are optional. Part 3 is recommended.
 
 An expression starts with a command, followed by arguments if needed.
-Here is the current list of valid iterations and expressions:
 
-Generic
+A generic example is
+
+``` elisp
+(loopy (with (first-var 2)
+             (second-var 3))
+       ((seq el [1 2 3 4 5 6 7])
+        ;; Could also use (do (cond ...)).
+        (when (zerop (mod el first-var))
+          (do (message "Multiple of 2: %d" el)))
+        (when (zerop (mod el second-var))
+          (do (message "Multiple of 3: %d" el)))
+        (prepend reversed el))
+       (finally-return reversed))
+```
+
+### Generic
 - `(do SEXPS)`:   Evaluate multiple sexps, like a `progn`.
 
   ```elisp
@@ -102,7 +116,7 @@ Generic
           (do (message "%d" i))))
   ```
 
-Assignment Before Loop:
+### Assignment Before Loop
 
 - `(with|let* (SEXPS))`:   Bind `SEXPS` as if in a `let*` binding.
 
@@ -112,7 +126,7 @@ Assignment Before Loop:
            (do (message "%d" (+ a b i)))))
    ```
 
-Assignment and iteration:
+### Assignment and iteration
 
 - `(expr var val)`: Bind `var` to expression `val` in each iteration.
 
@@ -165,7 +179,7 @@ Conditionals:
                                   some-threes)))
    ```
 
-- `(cond )`:   Like a `cond`. Use for IF-ELIF-ELSE things.
+- `(cond )`: Like a `cond`. Use for IF-ELIF-ELSE things.
 
   ```elisp
         (loopy ((list i (number-sequence 1 10))
@@ -189,7 +203,7 @@ Skipping or leaving the loop:
          (finally-return (nreverse my-collection)))
   ```
 
-- `(return|leave|break)` :   Leave the current loop with an optional return value.
+- `(return|leave|break)`:   Leave the current loop with an optional return value.
 
   ```elisp
   (loopy ((with j 0))
@@ -228,21 +242,6 @@ Skipping or leaving the loop:
 
 The last category could be cleaned up a bit.
 
-A generic example is
-
-``` elisp
-(loopy (with (first-var 2)
-             (second-var 3)
-             )
-       ((seq el [1 2 3 4 5 6 7])
-        ;; Could also use (do (cond ...)).
-        (when (zerop (mod el first-var))
-          (do (message "Multiple of 2: %d" el)))
-        (when (zerop (mod el second-var))
-          (do (message "Multiple of 3: %d" el)))
-        (prepend reversed el))
-       (finally-return reversed))
-```
 
 ## Things to Do
 
