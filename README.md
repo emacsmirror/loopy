@@ -153,6 +153,8 @@ Here is how one could (currently) do it with `loopy`.
       (cl-return-from nil (list (nreverse line-nums) (nreverse data-nums))))))
 ```
 
+This expansion is probably less efficient than what `cl-loop` does.
+
 The expansion shows that there is room for improvement, but it's a nice start,
 is easy to read, and does what I want. I believe that the value of the macro
 increases for longer loop bodies with several conditional commands.
@@ -187,9 +189,6 @@ skipping/continuing a loop iteration.
       nil
       (cl-return-from nil (nreverse my-collection)))))
 ```
-
-This expansion is probably less efficient than what `cl-loop` does.
-
 
 ## How to use
 
