@@ -62,7 +62,8 @@
   2. A list of declarations using ~with~ or ~let~. These are evaluated in order
      as in ~let*~, and are set before running the loop body.
   3. A list of iterations and expressions for the loop body.
-  4. A final return statement, like ~finally return~ in ~cl-loop~.
+  4. A final return statement, like ~finally return~ in ~cl-loop~. The loop
+     always returns =nil= unless declared otherwise.
 
   Parts 1, 2, and 4 are optional. Part 3 is recommended.
 
@@ -71,24 +72,127 @@
 
   - Generic:
     - ~(do SEXPS)~ :: Evaluate multiple sexps, like a ~progn~.
+      #+begin_src emacs-lisp
+        (loopy ((list i '(1 2 3))
+                (do (message "%d" i))))
+      #+end_src
+  - Assignment Before Loop:
+    - ~(with|let* (SEXPS))~ :: Bind =SEXPS= as if in a ~let*~ binding.
+      #+begin_src emacs-lisp
+        (loopy (with (a 5) (b 6))
+               ((list i '(1 2 3))
+                (do (message "%d" (+ a b i)))))
+      #+end_src
   - Assignment and iteration:
     - ~(expr var val)~ :: Bind ~var~ to expression ~val~ in each iteration.
+      #+begin_src emacs-lisp
+        (loopy ((list i '(1 2 3))
+                (expr j (* i 2))
+                (do (message "%d" j))))
+      #+end_src
     - ~(seq var val)~ :: Iterate through the sequence ~val~, binding each element
       to ~var~. The loop ends when the sequence is empty.
+      #+begin_src emacs-lisp
+        (loopy ((seq i [1 2 3])
+                (do (message "%d" i))))
+      #+end_src
   - Accumulation (for Convenience)
     - ~(prepend var val)~ :: Repeatedly ~push~ =val= into =var=.
+      #+begin_src emacs-lisp
+        (loopy ((seq i [1 2 3])
+                (prepend reversed i))
+               (finally-return reversed))
+      #+end_src
   - Conditionals:
-    - ~(when SEXPS)~ :: Conditionally run binding ~SEXPS~. A sexp can be one of
+    - ~(when COND SEXPS)~ :: Conditionally run binding ~SEXPS~. A sexp can be one of
       the body forms in this list.
+      #+begin_src emacs-lisp
+        (loopy ((seq i [1 2 3])
+                (when (cl-oddp i)
+                  (prepend reversed-odds i)))
+               (finally-return reversed-odds))
+      #+end_src
+    - ~(if COND SEXPS)~ :: Like an ~if~ body.
+      #+begin_src emacs-lisp
+        (loopy ((seq i [1 2 3 4 5 6 7 8 9 10])
+                (if (cl-oddp i)
+                    (prepend reversed-odds i)
+                  (prepend reversed-evens i)
+                  (prepend some-threes 3)))
+               (finally-return (list reversed-odds
+                                     reversed-evens
+                                     some-threes)))
+      #+end_src
+    - ~(cond )~ :: Like a ~cond~. Use for IF-ELIF-ELSE things.
+      #+begin_src emacs-lisp
+        (loopy ((list i (number-sequence 1 10))
+                (cond
+                 ((cl-evenp i)
+                  (prepend evens i))
+                 (t (prepend odds i))))
+               (finally-return (list evens odds)))
+      #+end_src
+
   - Skipping or leaving the loop:
     - ~(skip|continue)~ :: Go to next loop iteration. Can be ~(skip)~ or
       ~(continue)~.
-    - ~(return|leave|break)~ :: Leave the current loop.
-    - ~(return-with|leave-with|break-with)~ :: Leave current loop and return a value.
+      #+begin_src emacs-lisp
+        (loopy ((seq i (number-sequence 1 20))
+                (when (zerop (mod i 10))
+                  (skip))
+                (when (cl-evenp i)
+                  (prepend my-collection i)))
+               (finally-return (nreverse my-collection)))
+      #+end_src
+    - ~(return|leave|break)~ :: Leave the current loop with an optional return value.
+      #+begin_src emacs-lisp
+        (loopy ((with j 0))
+       ((do (cl-incf j))
+        (when (> j 5)
+          (return j))))
+      #+end_src
+    - ~(return-with|leave-with|break-with)~ :: Leave current loop and return a
+      value. Unlike the above, the return value is required.
+      #+begin_src emacs-lisp
+        (loopy ((with j 0))
+       ((do (cl-incf j))
+        (when (> j 5)
+          (return-with j))))
+      #+end_src
     - ~(leave-named-loop name val)~ :: Leave the loop named =name= (as with
       ~cl-return-from~)
+      #+begin_src emacs-lisp
+        (loopy
+         outer ; Don't quote name.
+         ((list outer-i (number-sequence 1 10))
+          (expr ret-loop
+                (loopy inner
+                       ((expr inner-sum (+ outer-i 10))
+                        (when (> inner-sum 15)
+                          ;; Don't quote name.
+                          (leave-named-loop outer outer-i))
+                        ;; Note: Without explicit return, inner loop is
+                        ;; infinite.
+                        (return))))))
+      #+end_src
 
   The last category could be cleaned up a bit.
+
+  A generic example is
+
+  #+begin_src emacs-lisp
+        (loopy (with (first-var 2)
+                     (second-var 3)
+                     )
+               ((seq el [1 2 3 4 5 6 7])
+                ;; Could also use (do (cond ...)).
+                (when (zerop (mod el first-var))
+                  (do (message "Multiple of 2: %d" el)))
+                (when (zerop (mod el second-var))
+                  (do (message "Multiple of 3: %d" el)))
+                (prepend reversed el))
+               (finally-return reversed))
+  #+end_src
 
 * Things to Do
   Here are some things that would be nice to have, though `loopy` should already
