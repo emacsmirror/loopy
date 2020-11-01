@@ -181,6 +181,29 @@ Multiple of 2: 4
 Multiple of 2: 6
 Multiple of 3: 6")))
 
+;;;; Unless
+(ert-deftest multi-unless-prepend-test ()
+  (should
+   (string=
+    (loopy (with (first-var 2)
+                 (second-var 3))
+           ((seq el [1 2 3 4 5 6 7])
+            ;; Could also use (do (cond ...)).
+            (unless (zerop (mod el first-var))
+              (prepend msg-coll (message "Not multiple of 2: %d" el)))
+            (unless (zerop (mod el second-var))
+              (prepend msg-coll (message "Not multiple of 3: %d" el))))
+           (finally-return (string-join (nreverse msg-coll) "\n")))
+    "Not multiple of 2: 1
+Not multiple of 3: 1
+Not multiple of 3: 2
+Not multiple of 2: 3
+Not multiple of 3: 4
+Not multiple of 2: 5
+Not multiple of 3: 5
+Not multiple of 2: 7
+Not multiple of 3: 7")))
+
 ;;;; Cond FORMS
 (ert-deftest parse-cond-form ()
   (should (equal (loopy--parse-cond-forms '(((= a 1)

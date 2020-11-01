@@ -105,6 +105,10 @@ Optionally needs LOOP-NAME for block returns."
            (mapc #'add-instruction
                  (loopy--parse-conditional-forms 'when cond body loop-name)))
 ;;;;; if
+          (`(unless ,cond . ,body)
+           (mapc #'add-instruction
+                 (loopy--parse-conditional-forms 'unless cond body loop-name)))
+
           (`(if ,cond . ,body)
            (mapc #'add-instruction
                  (loopy--parse-conditional-forms 'if cond body loop-name)))
