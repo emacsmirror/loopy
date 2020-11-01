@@ -135,7 +135,7 @@ Optionally needs LOOP-NAME for block returns."
            (add-instruction `(loop-body . (cl-return-from ,loop-name ,val))))
 
           (`(leave-named-loop ,named . ,val)
-           (add-instruction `(loop-body . (cl-return-from ,named ,val))))
+           (add-instruction `(loop-body . (cl-return-from ,named ,(car val)))))
 
           ;; Accumulation
           (`(prepend ,var ,val)
