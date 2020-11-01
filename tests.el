@@ -133,7 +133,8 @@
           (prepend my-collection i)))
        (finally-return (nreverse my-collection)))
 
-;;; Conditonals
+;;; Conditionals
+;;;; When
 (ert-deftest multi-when-prepend-test ()
   (should
    (string=

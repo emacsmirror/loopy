@@ -9,17 +9,15 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'pcase)
+(require 'seq)
 
-;; TODO: Prefer ((with a 1) (with b 2)) or (with (a 1) (b 2))?
+;;;; Included parsing functions.
+
 (defun loopy--parse-with-forms (with-forms)
   "Remove the \"with\" and return list of forms in WITH-FORMS.
 This list is substituted into a LET* binding."
-  (cdr with-forms)
-  ;; (let ((parsed))
-  ;;   (dolist (form with-forms (nreverse parsed))
-  ;;     (push (list (cl-second form) (cl-third form))
-  ;;           parsed)))
-  )
+  (cdr with-forms))
 
 (defun loopy--parse-conditional-forms (wrapper condition forms &optional loop-name)
   "Parse FORMS, wrapping loop-body instructions in a WRAPPER with CONDITION.
@@ -37,7 +35,7 @@ Wrapped forms are things that would occur in the loop body, including returns."
     full-instructions))
 
 (defun loopy--parse-cond-forms (forms &optional loop-name)
-  "Parse FORMS where the `car' is a conditon. Use COND forms for IF-ELSE.
+  "Parse FORMS where the `car' is a condition.  Use COND forms for IF-ELSE.
 Optionally needs LOOP-NAME for block returns.
 Wrapped forms are things that would occur in the loop body, including returns.
 
@@ -68,11 +66,14 @@ Optionally needs LOOP-NAME for block returns."
       ;; `push'.
       (cl-flet ((add-instruction (instr) (push instr instructions)))
         (pcase form
+;;;;; Generic body clauses
           ;; A DO form for a generic lisp body. Not searched for special forms.
           (`(do . ,body)
            (add-instruction `(loop-body . (progn ,@body))))
           (`(expr ,var ,val)
            (add-instruction `(loop-body . (setq ,var ,val))))
+
+;;;;; Iteration Clauses
           (`(list ,var ,val)
            (let ((val-holder (gensym)))
              (add-instruction `(value-holders . (,val-holder ,val)) )
@@ -99,12 +100,14 @@ Optionally needs LOOP-NAME for block returns."
            ;;                                          (length ,val-holder)))))
            )
 
-;;;; Conditional Body Forms
-;;;;; when
+;;;;; Conditional Body Forms
+          ;; Since these can contain other commands/clauses, it's easier if they
+          ;; have their own parsing functions, which call back into this one to
+          ;; parse sub-clauses.
           (`(when ,cond . ,body)
            (mapc #'add-instruction
                  (loopy--parse-conditional-forms 'when cond body loop-name)))
-;;;;; if
+
           (`(unless ,cond . ,body)
            (mapc #'add-instruction
                  (loopy--parse-conditional-forms 'unless cond body loop-name)))
@@ -112,12 +115,12 @@ Optionally needs LOOP-NAME for block returns."
           (`(if ,cond . ,body)
            (mapc #'add-instruction
                  (loopy--parse-conditional-forms 'if cond body loop-name)))
-;;;;; cond
+
           (`(cond . ,body)
            (mapc #'add-instruction
                  (loopy--parse-cond-forms body loop-name)))
 
-          ;; Control Flow
+;;;;; Exit and Return Clauses
           ((or '(skip) '(continue))
            (add-instruction '(loop-body . (go continue-tag))))
 
@@ -131,7 +134,7 @@ Optionally needs LOOP-NAME for block returns."
           (`(leave-named-loop ,named . ,val)
            (add-instruction `(loop-body . (cl-return-from ,named ,(car val)))))
 
-          ;; Accumulation
+;;;;; Accumulation Clauses
           (`(prepend ,var ,val)
            (add-instruction `(updates-initial . (,var nil)))
            (add-instruction `(loop-body . (push ,val ,var))))
