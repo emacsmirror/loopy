@@ -106,7 +106,7 @@ Optionally needs LOOP-NAME for block returns."
 
           ;; Accumulation
           (`(prepend ,var ,val)
-           (add-instruction `(with-and-init-forms . (,var nil)))
+           (add-instruction `(updates-initial . (,var nil)))
            (add-instruction `(loop-body . (push ,val ,var))))
 
           (_
@@ -139,9 +139,10 @@ Things to note:
          (return-args)
 
          ;; -- Vars for processing loop clauses --
-         (with-and-init-forms) ; WITH values and initial values
+         (with-forms) ; WITH values and initial values
          ;; Holds lists, increment counters, and other values not given a name.
          (value-holders)
+         ;; Explicitly named inits that will be updated in order.
          (updates-initial)
          ;; The loop is a while loop. Pre-conditions are things like whether a
          ;; temporary list is null.
@@ -174,7 +175,7 @@ Things to note:
         (setq loop-body-args arg))))
 
     ;; Process clauses.
-    (setq with-and-init-forms (loopy--parse-with-forms with-args))
+    (setq with-forms (loopy--parse-with-forms with-args))
     (setq final-return return-args)
     ;; An instruction is (PLACE-TO-ADD . THING-TO-ADD).
     ;; Things added are expanded in place.
@@ -182,8 +183,8 @@ Things to note:
       ;; Do it this way instead of with set, cause was getting errors about void
       ;; variables.
       (cl-case (car instruction)
-        ('with-and-init-forms
-         (push (cdr instruction) with-and-init-forms))
+        ('with-forms
+         (push (cdr instruction) with-forms))
         ('value-holders
          (push (cdr instruction) value-holders))
         ('updates-initial
@@ -206,20 +207,21 @@ Things to note:
             loop-body))
 
     ;; (message "Pre-cond: %s" pre-conditions)
-    `(let (,@(or (append with-and-init-forms value-holders)
+    `(let (,@(or (append value-holders updates-initial)
                  '((_))))
-       (cl-block ,name-arg
-         (while ,(if pre-conditions
-                     (cons 'and pre-conditions)
-                   t)
-           (cl-tagbody
-            ;; Note: `push'-ing things into the instruction list in
-            ;;       `loopy--parse-body-forms' and then reading them back and
-            ;;       then pushing into `loop-body' counters out the flipped
-            ;;       order normally caused by `push'.
-            (progn ,@loop-body)
-            continue-tag))
-         (cl-return-from ,name-arg ,final-return)))))
+       (let* (,@(or with-forms '((_))))
+         (cl-block ,name-arg
+           (while ,(if pre-conditions
+                       (cons 'and pre-conditions)
+                     t)
+             (cl-tagbody
+              ;; Note: `push'-ing things into the instruction list in
+              ;;       `loopy--parse-body-forms' and then reading them back and
+              ;;       then pushing into `loop-body' counters out the flipped
+              ;;       order normally caused by `push'.
+              (progn ,@loop-body)
+              continue-tag))
+           (cl-return-from ,name-arg ,final-return))))))
 
 (provide 'loopy)
 ;;; loopy.el ends here
