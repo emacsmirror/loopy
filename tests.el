@@ -112,14 +112,20 @@
                     ((list i (number-sequence 1 10))
                      (when (> i 5)
                        (leave-named-loop outer i)))))))
+(ert-deftest leave-outer-named ()
+  (should (eq 6
+              (loopy
+               outer
+               ((list outer-i (number-sequence 1 10))
+                (expr ret-loop
+                      (loopy inner
+                             ((expr inner-sum (+ outer-i 10))
+                              (when (> inner-sum 15)
+                                (leave-named-loop outer outer-i))
+                              ;; Note: Without explicit return, inner loop is
+                              ;; infinite.
+                              (return)))))))))
 
-(loopy outer
-       ((list outer-i (number-sequence 1 10))
-        (expr ret-loop (loopy inner
-                              ((expr inner-sum (+ outer-i 10))
-                               (when (> inner-sum 15)
-                                 (leave-named-loop 'outer outer-i))
-                               )))))
 (loopy ((seq i (number-sequence 1 20))
         (when (zerop (mod i 10))
           (skip))
