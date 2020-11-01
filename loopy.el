@@ -194,10 +194,10 @@ Things to note:
        ((symbolp arg)
         (setq name-arg arg))
        ((memq (car arg) '(finally-return final-return return))
-        (setq final-return (if (= (length (cdr arg))
-                                  1)
-                               (cadr arg)
-                             (cdr arg))))
+        (setq final-return
+              (if (= 1 (length (cdr arg)))
+                  (cadr arg)
+                (cons 'list (cdr arg)))))
        ((memq (car arg) '( finally-do final-do do
                            finally-progn final-progn progn))
         (setq final-do (if (= (length (cdr arg))
@@ -255,6 +255,8 @@ Things to note:
               continue-tag))
            (progn ,@final-do)
            (cl-return-from ,name-arg ,final-return))))))
+           ,(when final-return
+              (list 'cl-return-from name-arg final-return)))))))
 
 (provide 'loopy)
 ;;; loopy.el ends here
