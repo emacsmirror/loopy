@@ -202,7 +202,7 @@ Things to note:
                            finally-progn final-progn progn))
         (setq final-do (cdr arg)))
        ((memq (car arg) '(with let*))
-        (setq with-forms arg))
+        (setq with-forms (loopy--parse-with-forms arg)))
        (t
         ;; Body forms have the most variety.
         ;; An instruction is (PLACE-TO-ADD . THING-TO-ADD).
