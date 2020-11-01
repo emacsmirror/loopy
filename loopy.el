@@ -139,7 +139,7 @@ Optionally needs LOOP-NAME for block returns."
            (add-instruction `(loop-body . (cl-return-from ,named ,(car val)))))
 
 ;;;;; Accumulation Clauses
-          (`(prepend ,var ,val)
+          ((or `(prepend ,var ,val) `(push ,var ,val) `(push-into ,var ,val))
            (add-instruction `(updates-initial . (,var nil)))
            (add-instruction `(loop-body . (push ,val ,var))))
           (`(collect ,var ,val)
