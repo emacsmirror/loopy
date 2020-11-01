@@ -103,6 +103,16 @@ Optionally needs LOOP-NAME for block returns."
            ;;   (add-instruction `(pre-conditions . (= ,index-holder
            ;;                                          (length ,val-holder)))))
            )
+          (`(repeat ,count)
+           (let ((val-holder (gensym)))
+             (add-instruction `(value-holders . (,val-holder 0)))
+             (add-instruction `(loop-body . (cl-incf ,val-holder)))
+             (add-instruction `(pre-conditions . (< ,val-holder ,count)))))
+
+          (`(repeat ,var ,count)
+           (add-instruction `(value-holders . (,var 0)))
+           (add-instruction `(loop-body . (cl-incf ,var)))
+           (add-instruction `(pre-conditions . (< ,var ,count))))
 
 ;;;;; Conditional Body Forms
           ;; Since these can contain other commands/clauses, it's easier if they
