@@ -36,11 +36,12 @@ The general idea has been developed, but the current lack of convenience
 features means that this library is still in the early stages. Here are some
 things that would be nice:
 
-- Accumulation clauses that are supported by `cl-loop`. `with` and
-  `expr` covers this, but it could be more convenient.
 - Iteration clauses that are supported by `cl-loop`. `seq` can iterate
   through sequences, but `cl-loop` does more.
-- Have other conditionals like `unless`, `etc`.
+  - A few are unneeded, such as the `for` statements that can instead be done
+    using `number-sequence`.
+- De-structuring can be useful, but this can be done using repeated `expr`
+  commands.
 
 ## How does it compare to other approaches?
 
@@ -156,7 +157,8 @@ The expansion shows that there is room for improvement, but it's a nice start,
 is easy to read, and does what I want. I believe that the value of the macro
 increases for longer loop bodies with several conditional commands.
 
-Another nice ability is skipping/continuing a loop iteration.
+Another nice ability, one that I'm not sure `cl-loop` has, is
+skipping/continuing a loop iteration.
 
 ``` elisp
 ;; Returns even numbers that aren't multiples of 10.
@@ -191,17 +193,20 @@ This expansion is probably less efficient than what `cl-loop` does.
 
 ## How to use
 
-There are 4 possible arguments to the `loopy` macro:
+There are a few possible arguments to the `loopy` macro:
 
 1. A name for the loop.
 2. A list of declarations using `with` or `let*`. These are evaluated in order
    as in `let*`, and are set before running the loop body.
 3. A list of iterations and expressions for the loop body. A loop is
    infinite unless a clause makes it not so.
-4. A final return statement, like `finally return` in `cl-loop`. The
+4. A final `do` clause, in case you want to do further processing after the loop
+   is completed.
+5. A final return statement, like `finally return` in `cl-loop`. The
     loop always returns `nil` unless declared otherwise.
 
-Parts 1, 2, and 4 are optional. Part 3 is recommended.
+All arguments are technically optional, but you should at least have a loop
+body.
 
 An expression starts with a command, followed by arguments if needed.
 
@@ -220,8 +225,12 @@ A generic example is
        (finally-return reversed))
 ```
 
-### Generic
-- `(do SEXPS)`:   Evaluate multiple sexps, like a `progn`.
+### Generic Evaluation
+- `(do|progn SEXPS)`: Evaluate multiple sexps, like a `progn`. You cannot
+  include arbitrary code in the loop body, except for the conditions of the
+  conditional commands (`when`, `unless`, `if`, and `cond`) and in a `do`
+  command. Doing otherwise will result in errors, as the macro will attempt to
+  interpret such code as a command.
 
   ```elisp
   (loopy ((list i '(1 2 3))
@@ -230,7 +239,7 @@ A generic example is
 
 ### Assignment Before Loop
 
-- `(with|let* (SEXPS))`:   Bind `SEXPS` as if in a `let*` binding.
+- `(with|let* (SEXPS))`: Bind `SEXPS` as if in a `let*` binding.
 
    ```elisp
    (loopy (with (a 5) (b 6))
@@ -240,7 +249,11 @@ A generic example is
 
 ### Assignment and iteration
 
-- `(expr var val)`: Bind `var` to expression `val` in each iteration.
+The iteration commands determine when the loop ends. If no command sets that
+condition, then the loop runs forever.
+
+- `(expr var val)`: Bind `var` to expression `val` in each iteration. This is
+  the `for var = val` of `loopy`, but it can occur in more places.
 
   ```elisp
   (loopy ((list i '(1 2 3))
@@ -248,17 +261,57 @@ A generic example is
           (do (message "%d" j))))
   ```
 
-- `(seq var val)`:  Iterate through the sequence `val`, binding each element to
-  `var`. The loop ends when the sequence is empty.
+- `(seq var val)`: Iterate through the sequence `val`, binding `var` to the
+  first element in the sequence. Afterwards, that element is dropped from the
+  sequence. The loop ends when the sequence is empty.
 
   ```elisp
   (loopy ((seq i [1 2 3])
           (do (message "%d" i))))
   ```
 
-Accumulation (for Convenience)
+- `(list var val)`:  Iterate through the sequence `val`, binding `var` to the
+  value returned by `pop`. The loop ends when the list is empty.
 
-- `(prepend var val)`: Repeatedly `push` `val` into `var`.
+  ```elisp
+  (loopy ((list i (number-sequence 1 10 3)) ; Inclusive, so '(1 4 7 10).
+          (do (message "%d" i))))
+  ```
+
+- `(repeat number)`: Add a condition that the loop should stop after this many
+  iterations.
+
+  ```elisp
+    (loopy ((repeat 3)
+          (do (message "Messaged three times."))))
+  ```
+
+- `(repeat var number)`: Add a condition that the loop should stop after this
+  many iterations. `var` starts at 0, and is increased by 1 each time. Remember
+  that the incrementation happens where the `repeat` command is used in the loop
+  body; it is not treated different from the other commands. This can be
+  changed, it feels too weird.
+
+  ```elisp
+  ;; Here, `repeat' comes before `do', so `i' is incremented before the
+  ;; `message'. This shows "1\n", "2\n", "3\n".
+  (loopy ((repeat i 3)
+          (do (message "%d" i))))
+
+  ;; Here, `repeat' comes after `do', so `i' is incremented before the
+  ;; `message'. This shows "0\n", "1\n", "2\n".
+  (loopy ((do (message "%d" i))
+          (repeat i 3)))
+  ```
+
+### Accumulation (for Convenience)
+
+Unlike in `cl-loop`, the presence of an accumulation does not imply a return
+value. You must provide a variable in which to store the accumulated value. If
+you wish, you can then return the value of that variable (either early, or after
+the loop).
+
+- `(prepend|push|push-into var val)`: Repeatedly `push` `val` into `var`.
 
   ```elisp
   (loopy ((seq i [1 2 3])
