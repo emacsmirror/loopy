@@ -44,7 +44,7 @@
             (finally-return (nreverse together)))
    #+end_src
 
-   `cl-loop` does not allow the easy grouping of statements under a `when`
+   ~cl-loop~ does not allow the easy grouping of statements under a ~when~
    condition. Another nice ability is skipping/continuing a loop iteration.
 
    #+begin_src emacs-lisp
@@ -54,6 +54,29 @@
              (when (cl-evenp i)
                (prepend my-collection i)))
             (finally-return (nreverse my-collection)))
+   #+end_src
+
+   This currently expands readably (more or less) to the below, which is simple
+   enough to make debugging and relatively easy. Generated variables are used where
+   needed.
+
+   This expansion is probably less efficient than what ~cl-loop~ does.
+
+   #+begin_src emacs-lisp
+     (let ((g1270 (number-sequence 1 20))
+           (my-collection nil))
+       (let* ((_))
+         (cl-block nil
+           (while (and g1270)
+             (cl-tagbody
+              (progn
+                (setq i (pop g1270))
+                (when (zerop (mod i 10))
+                  (go continue-tag))
+                (when (cl-evenp i)
+                  (push i my-collection)))
+              continue-tag))
+           (nreverse my-collection))))
    #+end_src
 
 * How to use
