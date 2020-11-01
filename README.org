@@ -1,0 +1,104 @@
+#+title: Loopy: An Elisp Looping Library
+
+* About
+  Loopy is a macro meant for iterating and looping. It is similar in usage to
+  ~cl-loop~ but uses sexps rather than keywords.
+
+  It’s in the early stages.
+
+** How does it compare to other approaches?
+   Currently, it is more limited in many respects. It does not have as many
+   convenience features (though these can be added) and it’s structure is more
+   limited.
+
+   Below is an example. You can see that they are similar.
+
+   #+begin_src emacs-lisp
+
+     (require 'cl-lib)
+        (cl-loop with some-thing = 5
+                 for i in (number-sequence 1 100)
+                 do (message "I is %s" i)
+                 when (> (+ i 5) 20)
+                 return "Done")
+
+        (require 'loopy)
+        (loopy ((with some-thing 5))
+               ((list i (number-sequence 1 100))
+                (do (message "I is %s" i))
+                (when (> (+ i 5) 20)
+                  (return "Done"))))
+
+   #+end_src
+
+   The main benefit of Loopy is clearer grouping of constructs under
+   conditionals while still using a clean syntax, such as in the
+   below example.
+
+   #+begin_src emacs-lisp
+     (loopy ((list i (number-sequence 1 20))
+             (when (cl-evenp i)
+               (expr once i)
+               (expr twice (* 2 i))
+               (prepend together (cons once twice))))
+            (finally-return (nreverse together)))
+   #+end_src
+
+   `cl-loop` does not allow the easy grouping of statements under a `when`
+   condition. Another nice ability is skipping/continuing a loop iteration.
+
+   #+begin_src emacs-lisp
+     (loopy ((list i (number-sequence 1 20))
+             (when (zerop (mod i 10))
+               (skip))
+             (when (cl-evenp i)
+               (prepend my-collection i)))
+            (finally-return (nreverse my-collection)))
+   #+end_src
+
+* How to use
+  There are 4 possible arguments to the ~loopy~ macro:
+  1. A name for the loop.
+  2. A list of declarations using ~with~.
+  3. A list of iterations and expressions for the loop body.
+  4. A final return statement, like ~finally return~ in ~cl-loop~.
+
+  Parts 1, 2, and 4 are optional. Part 3 is recommended.
+
+  An expression starts with a command, followed by arguments if needed. Here is
+  the current list of valid iterations and expressions:
+
+  - Generic:
+    - ~(do SEXPS)~ :: Evaluate multiple sexps, like a ~progn~.
+  - Assignment and iteration:
+    - ~(expr var val)~ :: Bind ~var~ to expression ~val~ in each iteration.
+    - ~(seq var val)~ :: Iterate through the sequence ~val~, binding each element
+      to ~var~. The loop ends when the sequence is empty.
+  - Accumulation (for Convenience)
+    - ~(prepend var val)~ :: Repeatedly ~push~ =val= into =var=.
+  - Conditionals:
+    - ~(when SEXPS)~ :: Conditionally run binding ~SEXPS~. A sexp can be one of
+      the body forms in this list.
+  - Skipping or leaving the loop:
+    - ~(skip|continue)~ :: Go to next loop iteration. Can be ~(skip)~ or
+      ~(continue)~.
+    - ~(return|leave|break)~ :: Leave the current loop.
+    - ~(return-with|leave-with|break-with)~ :: Leave current loop and return a value.
+    - ~(leave-named-loop name val)~ :: Leave the loop named =name= (as with
+      ~cl-return-from~)
+
+  The last category could be cleaned up a bit.
+
+* Things to Do
+  Here are some things that would be nice to have, though `loopy` should already
+  be able to generally do things (if not conveniently, syntax-wise).
+
+  - Accumulation clauses that are supported by ~cl-loop~. ~with~ and ~expr~
+    covers this, but it could be more convenient.
+  - Iteration clauses that are supported by ~cl-loop~. ~seq~ can iterate
+    through sequences, but ~cl-loop~ does more.
+  - Have other conditionals like ~if-else~, ~unless~, ~etc~.
+
+# Local Variables:
+# sentence-end-double-space: nil
+# End:
