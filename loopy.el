@@ -200,10 +200,7 @@ Things to note:
                 (cons 'list (cdr arg)))))
        ((memq (car arg) '( finally-do final-do do
                            finally-progn final-progn progn))
-        (setq final-do (if (= (length (cdr arg))
-                              1)
-                           (cadr arg)
-                         (cdr arg))))
+        (setq final-do (cdr arg)))
        ((memq (car arg) '(with let*))
         (setq with-forms arg))
        (t
@@ -253,8 +250,8 @@ Things to note:
               ;;       order normally caused by `push'.
               (progn ,@loop-body)
               continue-tag))
-           (progn ,@final-do)
-           (cl-return-from ,name-arg ,final-return))))))
+           ,(when final-do
+              (cons 'progn final-do))
            ,(when final-return
               (list 'cl-return-from name-arg final-return)))))))
 
