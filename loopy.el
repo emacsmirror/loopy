@@ -31,8 +31,8 @@ This list is substituted into a LET* binding."
   ;;           parsed)))
   )
 
-(defun loopy-parse-when-forms (condition forms &optional loop-name)
-  "Parse when forms by wrapping in CONDITION specific body forms in FORMS.
+(defun loopy--parse-conditional-forms (wrapper condition forms &optional loop-name)
+  "Parse FORMS, wrapping loop-body instructions in a WRAPPER with CONDITION.
 Optionally needs LOOP-NAME for block returns.
 Wrapped forms are things that would occur in the loop body, including returns."
   (let ((full-instructions)
@@ -43,7 +43,7 @@ Wrapped forms are things that would occur in the loop body, including returns."
         ('loop-body
          (push (cdr instruction) loop-body))
         (t (push instruction full-instructions))))
-    (push `(loop-body . (when ,condition ,@loop-body)) full-instructions)
+    (push `(loop-body . (,wrapper ,condition ,@loop-body)) full-instructions)
     full-instructions))
 
 (defun loopy--parse-body-forms (forms &optional loop-name)
@@ -90,6 +90,7 @@ Optionally needs LOOP-NAME for block returns."
           (`(when ,cond . ,body)
            (mapc #'add-instruction
                  (loopy-parse-when-forms cond body loop-name)))
+                 (loopy--parse-conditional-forms 'when cond body loop-name)))
 
           ;; Control Flow
           ((or '(skip) '(continue))
