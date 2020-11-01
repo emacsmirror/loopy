@@ -16,18 +16,18 @@
    #+begin_src emacs-lisp
 
      (require 'cl-lib)
-        (cl-loop with some-thing = 5
-                 for i in (number-sequence 1 100)
-                 do (message "I is %s" i)
-                 when (> (+ i 5) 20)
-                 return "Done")
+     (cl-loop with some-thing = 5
+              for i in (number-sequence 1 100)
+              do (message "I is %s" i)
+              when (> (+ i 5) 20)
+              return "Done")
 
-        (require 'loopy)
-        (loopy ((with some-thing 5))
-               ((list i (number-sequence 1 100))
-                (do (message "I is %s" i))
-                (when (> (+ i 5) 20)
-                  (return "Done"))))
+     (require 'loopy)
+     (loopy (with (some-thing 5))
+            ((list i (number-sequence 1 100))
+             (do (message "I is %s" i))
+             (when (> (+ i 5) 20)
+               (return "Done"))))
 
    #+end_src
 
@@ -61,7 +61,8 @@
   1. A name for the loop.
   2. A list of declarations using ~with~ or ~let~. These are evaluated in order
      as in ~let*~, and are set before running the loop body.
-  3. A list of iterations and expressions for the loop body.
+  3. A list of iterations and expressions for the loop body. A loop is infinite
+     unless a clause makes it not so.
   4. A final return statement, like ~finally return~ in ~cl-loop~. The loop
      always returns =nil= unless declared otherwise.
 
@@ -202,7 +203,7 @@
     covers this, but it could be more convenient.
   - Iteration clauses that are supported by ~cl-loop~. ~seq~ can iterate
     through sequences, but ~cl-loop~ does more.
-  - Have other conditionals like ~if-else~, ~unless~, ~etc~.
+  - Have other conditionals like ~unless~, ~etc~.
 
 # Local Variables:
 # sentence-end-double-space: nil
