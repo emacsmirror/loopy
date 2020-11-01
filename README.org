@@ -59,7 +59,8 @@
 * How to use
   There are 4 possible arguments to the ~loopy~ macro:
   1. A name for the loop.
-  2. A list of declarations using ~with~.
+  2. A list of declarations using ~with~ or ~let~. These are evaluated in order
+     as in ~let*~, and are set before running the loop body.
   3. A list of iterations and expressions for the loop body.
   4. A final return statement, like ~finally return~ in ~cl-loop~.
 
