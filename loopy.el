@@ -96,8 +96,9 @@ Optionally needs LOOP-NAME for block returns."
           ((or '(skip) '(continue))
            (add-instruction '(loop-body . (go continue-tag))))
 
-          ((or `(return) `(leave) `(break))
-           (add-instruction `(loop-body . (cl-return-from ,loop-name))))
+          ((or `(return . ,rest) `(leave . ,rest) `(break . ,rest))
+           (add-instruction `(loop-body . (cl-return-from ,loop-name ,
+                                            (car rest)))))
 
           ((or `(return-with ,val) `(leave-with ,val) `(break-with ,val))
            (add-instruction `(loop-body . (cl-return-from ,loop-name ,val))))
