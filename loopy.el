@@ -4,16 +4,6 @@
 ;;; Commentary:
 ;; Loop has general construct:
 ;;
-;; (loopy (NO UPDATES)
-;;         (UPDATES)
-;;         (RETURNS))
-;;
-;; - NO-UPDATES is things declared in parallel with WITH.
-;; - UPDATES is things updated in the loop with FOR or an accumulation.
-;;   UPDATES determines exist clauses.  When there's nothing left, eval the
-;;   returns.
-;; - RETURNS is what is returned.
-;;
 
 
 ;;; Code:
@@ -165,11 +155,7 @@ Optionally needs LOOP-NAME for block returns."
 Things to note:
 - Return values are explicit.  If you want one, give one.
 - Body clauses are of the form (CMD VAR VAL)."
-  (let* (;; Vars to handle macro arguments.
-         (name-arg)
-         (with-args)
-         (loop-body-args)
-         (return-args)
+  (let* ((name-arg) ; Name of loop.  Used for early return.
 
          ;; -- Vars for processing loop clauses --
          (with-forms) ; WITH values and initial values
@@ -187,6 +173,9 @@ Things to note:
          ;; Post-conditions are things that could cause the loop to exit after
          ;; an iteration, somewhat like a do-while loop.
          (post-conditions)
+         ;; One might wish to perform some final processing after the loop is
+         ;; completed, but before a value is returned.
+         (final-do)
          ;; Returns should be explicit. There is only one return value, but it
          ;; can be a list of things, if a list of things is given in the
          ;; FINAL-RETURN clause.
@@ -197,41 +186,44 @@ Things to note:
       (cond
        ((symbolp arg)
         (setq name-arg arg))
-       ((memq (car arg) '(finally-return final-return))
-        (setq return-args (if (= (length (cdr arg))
-                                 1)
-                              (cadr arg)
-                            (cdr arg))))
+       ((memq (car arg) '(finally-return final-return return))
+        (setq final-return (if (= (length (cdr arg))
+                                  1)
+                               (cadr arg)
+                             (cdr arg))))
+       ((memq (car arg) '( finally-do final-do do
+                           finally-progn final-progn progn))
+        (setq final-do (if (= (length (cdr arg))
+                              1)
+                           (cadr arg)
+                         (cdr arg))))
        ((memq (car arg) '(with let*))
-        (setq with-args arg))
-       (t ; Body forms have the most variety.
-        (setq loop-body-args arg))))
-
-    ;; Process clauses.
-    (setq with-forms (loopy--parse-with-forms with-args))
-    (setq final-return return-args)
-    ;; An instruction is (PLACE-TO-ADD . THING-TO-ADD).
-    ;; Things added are expanded in place.
-    (dolist (instruction (loopy--parse-body-forms loop-body-args name-arg))
-      ;; Do it this way instead of with set, cause was getting errors about void
-      ;; variables.
-      (cl-case (car instruction)
-        ('with-forms
-         (push (cdr instruction) with-forms))
-        ('value-holders
-         (push (cdr instruction) value-holders))
-        ('updates-initial
-         (push (cdr instruction) updates-initial))
-        ('pre-conditions
-         (push (cdr instruction) pre-conditions))
-        ('loop-body
-         (push (cdr instruction) loop-body))
-        ('post-conditions
-         (push (cdr instruction) post-conditions))
-        ('final-return
-         (push (cdr instruction) final-return))
-        (t
-         (error "loopy: Unknown body instruction: %s" instruction))))
+        (setq with-forms arg))
+       (t
+        ;; Body forms have the most variety.
+        ;; An instruction is (PLACE-TO-ADD . THING-TO-ADD).
+        ;; Things added are expanded in place.
+        (dolist (instruction (loopy--parse-body-forms arg name-arg))
+          ;; Do it this way instead of with `set', cause was getting errors
+          ;; about void variables.
+          (cl-case (car instruction)
+            ;; ('with-forms
+            ;;  (push (cdr instruction) with-forms))
+            ('value-holders
+             (push (cdr instruction) value-holders))
+            ('updates-initial
+             (push (cdr instruction) updates-initial))
+            ('pre-conditions
+             (push (cdr instruction) pre-conditions))
+            ('loop-body
+             (push (cdr instruction) loop-body))
+            ('post-conditions
+             (push (cdr instruction) post-conditions))
+            ;; This shouldn't be affected by the body clauses.
+            ;; ('final-return
+            ;;  (push (cdr instruction) final-return))
+            (t
+             (error "loopy: Unknown body instruction: %s" instruction)))))))
 
     ;; Add post condition checks if needed.
     (when post-conditions
@@ -254,6 +246,7 @@ Things to note:
               ;;       order normally caused by `push'.
               (progn ,@loop-body)
               continue-tag))
+           (progn ,@final-do)
            (cl-return-from ,name-arg ,final-return))))))
 
 (provide 'loopy)
