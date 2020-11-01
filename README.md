@@ -201,9 +201,10 @@ There are a few possible arguments to the `loopy` macro:
 3. A list of iterations and expressions for the loop body. A loop is
    infinite unless a clause makes it not so.
 4. A final `do` clause, in case you want to do further processing after the loop
-   is completed.
-5. A final return statement, like `finally return` in `cl-loop`. The
-    loop always returns `nil` unless declared otherwise.
+   is completed. This can be `do`, `finally-do`, `progn`, or `finally-progn`.
+5. A final return statement, like `finally return` in `cl-loop`. This can be
+   `return` or `finally-return`. The loop always returns `nil` unless declared
+   otherwise.
 
 All arguments are technically optional, but you should at least have a loop
 body.
@@ -287,9 +288,10 @@ condition, then the loop runs forever.
   ```
 
 - `(repeat var number)`: Add a condition that the loop should stop after this
-  many iterations. `var` starts at 0, and is increased by 1 each time. Remember
-  that the incrementation happens where the `repeat` command is used in the loop
-  body; it is not treated different from the other commands. This can be
+  many iterations. `var` starts at 0, and is increased by 1 each time.
+
+  Remember that the incrementing happens where the `repeat` command is used in
+  the loop body; it is not treated different from other commands. This can be
   changed, it feels too weird.
 
   ```elisp
