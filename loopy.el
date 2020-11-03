@@ -138,15 +138,18 @@ Optionally needs LOOP-NAME for block returns."
           ((or '(skip) '(continue))
            (add-instruction '(loop-body . (go continue-tag))))
 
-          ((or `(return . ,rest) `(leave . ,rest) `(break . ,rest))
-           (add-instruction `(loop-body . (cl-return-from ,loop-name ,
-                                            (car rest)))))
-
-          ((or `(return-with ,val) `(leave-with ,val) `(break-with ,val))
+          (`(return ,val)
            (add-instruction `(loop-body . (cl-return-from ,loop-name ,val))))
 
-          (`(leave-named-loop ,named . ,val)
-           (add-instruction `(loop-body . (cl-return-from ,named ,(car val)))))
+          (`(return-from ,name ,val)
+           (add-instruction `(loop-body . (cl-return-from ,name ,val))))
+
+          ((or '(leave) '(break))
+           (add-instruction `(loop-body . (cl-return-from ,loop-name nil))))
+
+          ((or `(leave-from ,name) `(break-from ,name))
+           (add-instruction `(loop-body . (cl-return-from ,name nil))))
+
 
 ;;;;; Accumulation Clauses
           ((or `(prepend ,var ,val) `(push ,var ,val) `(push-into ,var ,val))
