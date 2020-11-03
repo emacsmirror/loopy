@@ -284,22 +284,24 @@ Things to note:
     ;; (message "Pre-cond: %s" pre-conditions)
     `(let (,@(or (append value-holders updates-initial)
                  '((_))))
-       (let* (,@(or with-forms '((_))))
-         (cl-block ,name-arg
-           (while ,(if pre-conditions
-                       (cons 'and pre-conditions)
-                     t)
-             (cl-tagbody
-              ;; Note: `push'-ing things into the instruction list in
-              ;;       `loopy--parse-body-forms' and then reading them back and
-              ;;       then pushing into `loop-body' counters out the flipped
-              ;;       order normally caused by `push'.
-              (progn ,@loop-body)
-              continue-tag))
-           ,(when final-do
-              (cons 'progn final-do))
-           ,(when final-return
-              (list 'cl-return-from name-arg final-return)))))))
+       (let* (,@(or with-forms '((_)))
+              (early-return
+               (cl-block ,name-arg
+                 (while ,(if pre-conditions
+                             (cons 'and pre-conditions)
+                           t)
+                   (cl-tagbody
+                    ;; Note: `push'-ing things into the instruction list in
+                    ;;       `loopy--parse-body-forms' and then reading them back and
+                    ;;       then pushing into `loop-body' counters out the flipped
+                    ;;       order normally caused by `push'.
+                    (progn ,@loop-body)
+                    continue-tag)))))
+
+         ,(when final-do (cons 'progn final-do))
+         ,(if final-return
+              '(or early-return ,final-return)
+            'early-return)))))
 
 (provide 'loopy)
 ;;; loopy.el ends here
