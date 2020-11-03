@@ -295,9 +295,11 @@ Things to note:
               ;;       then pushing into `loop-body' counters out the flipped
               ;;       order normally caused by `push'.
               (progn ,@loop-body)
-              continue-tag)))
-         ,(when final-do (cons 'progn final-do))
-         ,(when final-return final-return)))))
+              continue-tag))
+           ,(when final-do
+              (cons 'progn final-do))
+           ,(when final-return
+              (list 'cl-return-from name-arg final-return)))))))
 
 (provide 'loopy)
 ;;; loopy.el ends here
