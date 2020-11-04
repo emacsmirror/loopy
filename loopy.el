@@ -348,7 +348,7 @@ Things to note:
 
     ;; Add post condition checks if needed.
     (when loopy--post-conditions
-      (push `(unless (and ,@post-conditions)
+      (push `(unless (and ,@loopy--post-conditions)
                (cl-return-from ,loopy--name-arg))
             loopy--loop-body))
 
