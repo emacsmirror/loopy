@@ -195,7 +195,7 @@ Optionally needs LOOP-NAME for block returns."
 
 ;;;;; Exit and Return Clauses
           ((or '(skip) '(continue))
-           (add-instruction '(loopy--loop-body . (go continue-tag))))
+           (add-instruction '(loopy--loop-body . (go loopy--continue-tag))))
 
           (`(return ,val)
            (add-instruction `(loopy--loop-body . (cl-return-from ,loop-name ,val))))
@@ -352,25 +352,40 @@ Things to note:
                (cl-return-from ,loopy--name-arg))
             loopy--loop-body))
 
-    ;; (message "Pre-cond: %s" loopy--pre-conditions)
+    ;; Note: `let'/`let*' will signal an error if we accidentally substitute
+    ;;       `nil' as the variable declaration, since it will assume we are
+    ;;       trying to redefine a constant.  To avoid that, we just bind `_' to
+    ;;       `nil', which is used (at least in `pcase') as a throw-away symbol.
     `(let (,@(or (append loopy--value-holders loopy--updates-initial)
                  '((_))))
-       (let* (,@(or loopy--with-forms '((_))))
-         (cl-block ,loopy--name-arg
-           (while ,(if loopy--pre-conditions
-                       (cons 'and loopy--pre-conditions)
-                     t)
-             (cl-tagbody
-              ;; Note: `push'-ing things into the instruction list in
-              ;;       `loopy--parse-body-forms' and then reading them back and
-              ;;       then pushing into `loopy--loop-body' counters out the flipped
-              ;;       order normally caused by `push'.
-              (progn ,@loop-body)
-              continue-tag))
-           ,(when loopy--final-do
-              (cons 'progn loopy--final-do))
-           ,(when loopy--final-return
-              (list 'cl-return-from loopy--name-arg loopy--final-return)))))))
+       (let* (,@(or loopy--with-forms '((_)))
+              ;; If we need to, capture early return, those that has less
+              ;; priority than a final return.
+              (loopy--early-return-capture
+               (cl-block ,loopy--name-arg
+                 ,@loopy--before-do
+                 (while ,(if loopy--pre-conditions
+                             (cons 'and loopy--pre-conditions)
+                           t)
+                   (cl-tagbody
+                    ;; Note: `push'-ing things into the instruction list in
+                    ;;       `loopy--parse-body-forms' and then reading them
+                    ;;       back and then pushing into `loopy--loop-body'
+                    ;;       counters out the flipped order normally caused by
+                    ;;       `push'.
+                    ,@loopy--loop-body
+                    loopy--continue-tag))
+                 ,@loopy--after-do
+                 ;; We don't want anything in `loopy--after-do' accidentally
+                 ;; giving us a return value, so we explicitly return nil.
+                 ;;
+                 ;; TODO: Is this actually needed?
+                 nil)))
+
+         ,@loopy--final-do
+         ,(if loopy--final-return
+              (list 'cl-return-from loopy--name-arg loopy--final-return)
+            'loopy--early-return-capture)))))
 
 (provide 'loopy)
 ;;; loopy.el ends here
