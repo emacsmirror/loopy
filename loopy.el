@@ -20,7 +20,7 @@
 
 This is a list of ((VAR1 VAL1) (VAR2 VAL2) ...).
 They are inserted into the variable declarations of a `let*' binding.
-They are created by passing (with (VAR1 VAL1) (VAR2 VAL2) ...) to `loopy'. ")
+They are created by passing (with (VAR1 VAL1) (VAR2 VAL2) ...) to `loopy'.")
 
 (defvar loopy--value-holders nil
   "Value Holders are implicit variables created automatically by loop commands.
@@ -55,13 +55,13 @@ For example, the command (list i my-list) effectively puts
 and so don't affect only the loop body.")
 
 (defvar loopy--post-conditions nil
-  "Post-conditions are things that could cause the loop to exit evaluating the loop body.
+  "Post-conditions that could cause the loop to exit evaluating the loop body.
 
 All expressions in the list must be true for the program to continue.
 This is similar to `do-while' in other languages.")
 
 (defvar loopy--after-do nil
-  "A list of expressions to run (in order) after the loop successfully completes.
+  "Expressions to run (in order) after the loop successfully completes.
 These run in a `progn'.")
 
 (defvar loopy--final-do nil
@@ -78,9 +78,10 @@ This list is substituted into a LET* binding."
   (cdr with-forms))
 
 (defun loopy--parse-conditional-forms (wrapper condition forms &optional loop-name)
-  "Parse FORMS, wrapping `loopy--loop-body' expressions in a WRAPPER with CONDITION.
-Optionally needs LOOP-NAME for block returns.
-Wrapped forms are things that would occur in the loop body, including returns."
+  "Parse FORMS, wrapping `loopy--loop-body' expressions in a conditional form.
+The instructions (e.g., return expressions) are wrapped with a
+WRAPPER with CONDITION.  Optionally needs LOOP-NAME for block
+returns."
   (let ((full-instructions)
         (sub-instructions (loopy--parse-body-forms forms loop-name))
         (loop-body))
@@ -343,7 +344,7 @@ Things to note:
             ;; ('loopy--final-return
             ;;  (push (cdr instruction) loopy--final-return))
             (t
-             (error "loopy: Unknown body instruction: %s" instruction)))))))
+             (error "Loopy: Unknown body instruction: %s" instruction)))))))
 
     ;; Add post condition checks if needed.
     (when loopy--post-conditions
