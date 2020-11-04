@@ -320,7 +320,10 @@ Things to note:
         ;; Body forms have the most variety.
         ;; An instruction is (PLACE-TO-ADD . THING-TO-ADD).
         ;; Things added are expanded in place.
-        (dolist (instruction (loopy--parse-body-forms arg loopy--name-arg))
+        (dolist (instruction (loopy--parse-body-forms (if (eq (car-safe arg) 'loop)
+                                                          (cdr arg)
+                                                        arg)
+                                                      loopy--name-arg))
           ;; Do it this way instead of with `set', cause was getting errors
           ;; about void variables.
           (cl-case (car instruction)
