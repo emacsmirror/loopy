@@ -92,7 +92,7 @@ Wrapped forms are things that would occur in the loop body, including returns."
     (push `(loopy--loop-body . (,wrapper ,condition ,@loop-body)) full-instructions)
     full-instructions))
 
-(defun loopy--parse-cond-forms (forms &optional loop-name)
+(defun loopy--parse-cond-form (forms &optional loop-name)
   "Parse FORMS where the `car' is a condition.  Use COND forms for IF-ELSE.
 Optionally needs LOOP-NAME for block returns.
 Wrapped forms are things that would occur in the loop body, including returns.
@@ -190,7 +190,7 @@ Optionally needs LOOP-NAME for block returns."
 
           (`(cond . ,body)
            (mapc #'add-instruction
-                 (loopy--parse-cond-forms body loop-name)))
+                 (loopy--parse-cond-form body loop-name)))
 
 ;;;;; Exit and Return Clauses
           ((or '(skip) '(continue))
