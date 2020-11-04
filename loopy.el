@@ -302,19 +302,19 @@ Things to note:
       (cond
        ((symbolp arg)
         (setq loopy--name-arg arg))
-       ((memq (car arg) '(finally-return final-return return))
+       ((memq (car-safe arg) '(finally-return final-return return))
         (setq loopy--final-return
               (if (= 1 (length (cdr arg)))
                   (cadr arg)
                 (cons 'list (cdr arg)))))
-       ((memq (car arg) '(before-do before-progn))
+       ((memq (car-safe arg) '(before-do before-progn))
         (setq loopy--before-do (cdr arg)))
-       ((memq (car arg) '(after-do after-progn))
+       ((memq (car-safe arg) '(after-do after-progn))
         (setq loopy--after-do (cdr arg)))
-       ((memq (car arg) '( finally-do final-do do
-                           finally-progn final-progn progn))
+       ((memq (car-safe arg) '( finally-do final-do do
+                                finally-progn final-progn progn))
         (setq loopy--final-do (cdr arg)))
-       ((memq (car arg) '(with let*))
+       ((memq (car-safe arg) '(with let*))
         (setq loopy--with-forms (loopy--parse-with-forms arg)))
        (t
         ;; Body forms have the most variety.
