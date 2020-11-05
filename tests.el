@@ -1,98 +1,35 @@
+(require 'cl-lib)
 (require 'ert)
+(require 'loopy "./loopy.el")
 
-(load-file "./loopy.el")
-(require 'loopy)
+;;; Outside the Loop
+;;;; Before Do
+;; `before-do' always runs, and occurs before the loop.
+(ert-deftest basic-before-do ()
+  (should (= 4
+             (loopy (with (i 3))
+                    (before-do (setq i (1+ i)))
+                    (loop (return i))))))
 
-
-(loopy ((with a 3)
-        (with b 7))
-       ((from-list i '(1 2 3 4 5 6 7))
-        (from-expr j (+ 1 1)))
-       ((collect (+ i b))
-        (collect (+ j a))))
-
-(loopy--parse-with-forms '((with a 3) (with b 4)))
-
-(loopy--parse-with-forms nil)
-
-(let )
-(dolist (i nil))
-
-(loopy ((with a 3)
-        (with b 6))
-       ((list i '(1 2 3))
-        (expr j (1+ i))
-        (collect c (list a b j)))
-       (return c))
+;;;; After Do - runs after loop is loop completed successfully
+(ert-deftest basic-after-do ()
+  (should (and (eq t (loopy (with (my-ret nil))
+                            (loop (list i '(1 2 3 4)))
+                            (after-do (setq my-ret t))
+                            (finally-return my-ret)))
+               (eq nil (loopy (with (my-ret nil))
+                              (loop (list i '(1 2 3 4))
+                                    (leave))
+                              (after-do (setq my-ret t))
+                              (finally-return my-ret))))))
 
 
-(loopy--parse-body-forms '((list x '(1 2 3))))
+;;; Iteration
+(loopy ((repeat 3)
+        (do (message "hi"))))
 
-(loopy--parse-body-forms '((do (message "cat")
-                              (+ 1 2))))
-
-(loopy-parse-when-forms '(= i 1)
-                        '((list i '(1 2 3))))
-
-(loopy--parse-body-forms nil '((when (= i 1)
-                                 (list i '(1 2 3))
-                                 (list b (number sequence 1 10)))))
-
-
-(loopy--parse-body-forms '((return-with 3)))
-
-(loopy--parse-body-forms '((seq i '(1 2 3))))
-
-((pre-conditions . g937) (loop-body setq i (seq-elt g937 g938)
-                                    g937 (seq-drop g937 1) g938 (1+ g938)) (value-holders g938
-                                    0) (value-holders g937 '(1 2 3)))
-
-(loopy--parse-body-forms '((when (= i 1)
-                             (do (1+ 2))
-                             (return-with 3)))
-                         'cat)
-
-(loopy ((seq i '(1 2 3))
-        (do (message "I %s" i)))
-       (finally-return i))
-
-(loopy my-loop
-       ((with something1 1)
-        (with something2 2))
-       ((list el (number-sequence 1 10)))
-       (finally-return el))
-
-(dolist (i '(1 2 3 4))
-  (cl-tagbody
-   (when (cl-evenp i) (go bye-msg))
-   hi-msg
-   (message "hi")
-   bye-msg
-   ;; (message "by")
-   ))
-
-(let ((prec ;; '(a b c)
-       ))
-  `(and ,@(or prec t)))
-
-
-(loopy nil
-       ((with something 3))
-       ((list i (number-sequence 1 10))
-        (when (cl-evep i)
-          (return i)))
-       ;; (finally-return 23)
-       )
-
-(loopy ((list i '(1 2 3))
-        (list j '(4 5 6))
-        (expr b i))
-       (final-return b))
-
-(loopy ((with j 0))
-       ((do (cl-incf j))
-        (when (> j 5)
-          (return-with j))))
+(loopy ((repeat i 3)
+        (do (message "%d" i))))
 
 
 ;;; Leaving, Returning, Skipping
@@ -107,11 +44,11 @@
                  '(2 4 6 8 12 14 16 18))))
 
 (ert-deftest leave-named ()
-  (should (= 6
-             (loopy outer
-                    ((list i (number-sequence 1 10))
-                     (when (> i 5)
-                       (leave-named-loop outer i)))))))
+(should (= 6
+            (loopy outer
+                ((list i (number-sequence 1 10))
+                    (when (> i 5)
+                    (leave-named-loop outer i)))))))
 (ert-deftest leave-outer-named ()
   (should (eq 6
               (loopy
@@ -135,6 +72,11 @@
 
 ;;; Conditionals
 ;;;; When
+
+(ert-deftest basic-when-parse ()
+  (should (equal (loopy--parse-conditional-forms 'when 't '((do (+ 1 1))))
+                 '((loopy--loop-body when t (progn (+ 1 1)))))))
+
 (ert-deftest multi-when-prepend-test ()
   (should
    (string=
@@ -223,3 +165,55 @@ Not multiple of 3: 7")))
                           (t (prepend odds i))))
                         (finally-return (list evens odds)))
                  '((10 8 6 4 2) (9 7 5 3 1)))))
+
+;;;; Final Instructions
+(loopy ((list i (number-sequence 1 10)))
+       (finally-do (message "Last i: %d" i)
+                   (message "Less 1: %d" (1- i))))
+
+(loopy ((list i (number-sequence 1 10)))
+       (finally-do 3))
+
+(loopy ((list i (number-sequence 1 10)))
+       (finally-return i))
+
+(loopy ((list i (number-sequence 1 10)))
+       (finally-return i 7))
+
+;;;; Changing the order of commands.
+(loopy ((list i '(1 2 3)))
+       (finally-return (+ i a))
+       (with (a 4)))
+
+;;;; Accumulation
+(should (equal '(3 2 1)
+               (loopy ((list j '(1 2 3))
+                       (prepend coll j))
+                      (finally-return coll))))
+
+(should (equal '(1 2 3)
+               (loopy ((list j '(1 2 3))
+                       (collect coll j))
+                      (finally-return coll))))
+
+(should (equal "catdog"
+               (loopy ((list j '("cat" "dog"))
+                       (concat coll j))
+                      (finally-return coll))))
+
+(loopy ((list i '(t nil t nil))
+        (count c i))
+       (return c))
+
+(loopy ((list i '(1 2 3))
+        (sum s i))
+       (return s))
+
+(loopy ((list i '((1 2 3) (4 5 6)))
+        (nconc l i))
+       (return l))
+
+;; Local Variables:
+;; flycheck-disabled-checkers: '(emacs-lisp-checkdoc)
+;; flycheck-emacs-lisp-load-path: '("./.")
+;; End:
