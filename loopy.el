@@ -384,7 +384,7 @@ Things to note:
 
          ,@loopy--final-do
          ,(if loopy--final-return
-              (list 'cl-return-from loopy--name-arg loopy--final-return)
+              loopy--final-return
             'loopy--early-return-capture)))))
 
 (provide 'loopy)
