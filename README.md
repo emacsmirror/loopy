@@ -17,7 +17,8 @@ It should be comparable with `cl-loop`, keeping in mind the following points:
 - Using an accumulation command does not imply a return value. Return values
   must be explicitly stated. The default return value is `nil`.
 
-The `loopy` macro has several possible arguments, each beginning with a keyword.
+In addition to a name for the loop, the `loopy` macro has several possible
+arguments, each beginning with a keyword.
 - `with` declares variables that are bound in order before and around the loop,
   like in a `let*` binding.
 - `before-do` is a list of normal Lisp expressions to run before the loop executes.
@@ -44,7 +45,8 @@ order. All of the arguments are technically optional, but having a loop without
 a body wouldn't be very useful.
 
 ``` elisp
-;; (loopy (with WITH-ARGS)
+;; (loopy NAME
+;;        (with WITH-ARGS)
 ;;        (before-do EXPR [EXPR …])
 ;;        (loop BODY-COMMAND [BODY-COMMAND …])
 ;;        (after-do EXPR [EXPR …])
@@ -52,7 +54,8 @@ a body wouldn't be very useful.
 ;;        (finally-return VAL [VAL …]))
 
 ;; Returns: '((2 4 6 8 10) (1 3 5 7 9))
-(loopy (with (success-p nil))
+(loopy my-loop
+       (with (success-p nil))
        (before-do (message "Beginning loop ..."))
        (loop (list i (number-sequence 1 10))
              (do (message "Checking number: %d" i))
@@ -79,8 +82,8 @@ Loopy is not feature complete. Here are some things that would be nice:
 
 ## How does it compare to other approaches?
 
-Loopy is similar in use to other looping libraries, except for its lack of
-convenience features and lack of extensibility.
+Loopy is similar in use to other looping libraries, except for its current lack
+of convenience features and extensibility.
 
 Below is a simple example of `loopy` vs `cl-loop`.
 
@@ -239,6 +242,19 @@ the arguments are list that begin with a keyword (allowing for conveniences).
 | finally-do     | finally-progn    | Always run Lisp expressions after loop exits.           |
 | finally-return | return           | Return a value, regardless of success.                  |
 
+
+Loop body commands are the meat of the `loopy` macro, and are described in the
+following sections.  A loop command inserts expressions into the loop body, but
+can also perform additional setup, such as initializing specified variables or
+creating extra ones. Many set up a condition for ending the loop.
+
+A loop ends when any condition required by a loop command evaluates to false. If
+no conditions are needed, the loop runs infinitely unless a return command is
+reached.
+
+Returns must be stated explicitly, either as an early return for in the loop
+body via the `return` command, or as a `finally-return` to the macro. `nil` is
+returned by default.
 
 ### Generic Evaluation
 - `(do|progn SEXPS)`: Evaluate multiple sexps, like a `progn`. You cannot
@@ -433,7 +449,13 @@ the same effect. These forms are provided for convenience.
 
 ## Extending with Personal Loop Commands
 
-To be implemented.
+To be implemented, but should be straight forward.
 
 
 [sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
+
+
+<!-- Local Variables: -->
+<!-- Would normally would grab H1 level, but we're using that for the title. -->
+<!-- eval: (setq-local selectrum-outline-formats (cons '(gfm-mode . "^##\\(?1:#*\\)[[:blank:]]*\\(?2:[[:alnum:]][^z-a]*\\)\\'") selectrum-outline-formats)) -->
+<!-- End: -->
