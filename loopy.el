@@ -365,9 +365,9 @@ Things to note:
     ;;       `nil' as the variable declaration, since it will assume we are
     ;;       trying to redefine a constant.  To avoid that, we just bind `_' to
     ;;       `nil', which is used (at least in `pcase') as a throw-away symbol.
-    `(let (,@(or (append loopy--value-holders loopy--updates-initial)
-                 '((_))))
-       (let* (,@(or loopy--with-forms '((_)))
+    `(let* (,@(or loopy--with-forms '((_)))
+            (let (,@(or (append loopy--value-holders loopy--updates-initial)
+                        '((_))))
               ;; If we need to, capture early return, those that has less
               ;; priority than a final return.
               (loopy--early-return-capture
