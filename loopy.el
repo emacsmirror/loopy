@@ -264,6 +264,16 @@ Optionally needs LOOP-NAME for block returns."
 Things to note:
 - Return values are explicit.  If you want one, give one.
 - Body clauses are of the form (CMD VAR VAL)."
+  (declare (debug (&optional ;; TODO: Is this correct?
+                   ([&or "with" "let*"] &rest (symbolp &optional form))
+                   ([&or "before-do" "before-progn" "before"] body)
+                   ([&optional "loop"]
+                    &rest [&or (symbolp &optional symbolp form) ; Covers most.
+                               ([&or "when" "if" "unless"] form body)
+                               ("cond" &rest (body))])
+                   ([&or "after-do" "after-progn" "after"] body)
+                   ([&or "finally-do" "finally-progn"] body)
+                   ([&or "finally-return" "return"] form &optional form))))
   (let* ((loopy--name-arg) ; Name of loop.  Used for early return.
 
          ;; -- Vars for processing loop clauses --
