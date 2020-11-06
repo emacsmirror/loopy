@@ -274,39 +274,20 @@ Things to note:
                    ([&or "after-do" "after-progn" "after"] body)
                    ([&or "finally-do" "finally-progn"] body)
                    ([&or "finally-return" "return"] form &optional form))))
-  (let* ((loopy--name-arg) ; Name of loop.  Used for early return.
+  (let (;; -- Top-level expressions other than loop body --
+        (loopy--name-arg)
+        (loopy--with-forms)
+        (loopy--before-do)
+        (loopy--after-do)
+        (loopy--final-do)
+        (loopy--final-return)
 
-         ;; -- Vars for processing loop clauses --
-         (loopy--with-forms) ; WITH values and initial values
-         ;; Holds lists, increment counters, and other values not given a name.
-         (loopy--value-holders)
-         ;; Explicitly named inits that will be updated in order.  This is
-         ;; useful for lexically scoping variables, and for declaring an initial
-         ;; value before a different value assigned in the loop.
-         (loopy--updates-initial)
-         ;; After declaring values in `loopy--with-forms', one might wish to do further
-         ;; processing before starting the loop.
-         (loopy--before-do)
-         ;; The loop is a while loop. Pre-conditions are things like whether a
-         ;; temporary list is null.
-         (loopy--pre-conditions)
-         ;; The loop body is whether DO expressions and variable updating happen.
-         ;; The order of evaluation is the same as the order that things were
-         ;; fed to the macro.
-         (loopy--loop-body)
-         ;; Post-conditions are things that could cause the loop to exit after
-         ;; an iteration, somewhat like a do-while loop.
-         (loopy--post-conditions)
-         ;; If the loop completes successfully, might what to do further
-         ;; processing.
-         (loopy--after-do)
-         ;; One might wish to perform some final processing after the loop is
-         ;; completed, but before a value is returned.
-         (loopy--final-do)
-         ;; Returns should be explicit. There is only one return value, but it
-         ;; can be a list of things, if a list of things is given in the
-         ;; FINAL-RETURN clause.
-         (loopy--final-return))
+        ;; -- Vars for processing loop clauses --
+        (loopy--value-holders)
+        (loopy--updates-initial)
+        (loopy--pre-conditions)
+        (loopy--loop-body)
+        (loopy--post-conditions))
 
     ;; Check what was passed to the macro.
     (dolist (arg body)
