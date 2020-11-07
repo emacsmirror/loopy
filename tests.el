@@ -68,6 +68,13 @@
                               (repeat i 3))
                              (finally-return coll))))))
 
+;;;; Seq
+(ert-deftest loopy-basic-seq-test ()
+  (should (loopy ((seq l '(1 2 3 4 5))
+                  (seq a [1 2 3 4 5])
+                  (if (/= l a)
+                      (return nil)))
+                 (return t))))
 
 ;;; Leaving, Returning, Skipping
 (ert-deftest mod-when-test ()

@@ -167,15 +167,23 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--pre-conditions . (< ,index-holder
                                                            (length ,val-holder))))))
           (`(seq ,var ,val)
-           ;; TODO: Destructively modify sequence or no?
-           ;; Destructive version:
-           (let ((val-holder (gensym)))
+           ;; Note: `cl-loop' just combines the logic for lists and arrays, and
+           ;;       just checks the type for each iteration, so we do that too.
+           (let ((val-holder (gensym))
+                 (index-holder (gensym)))
              (add-instruction `(loopy--value-holders . (,val-holder ,val)))
+             (add-instruction `(loopy--value-holders . (,index-holder 0)))
              (add-instruction `(loopy--updates-initial . (,var nil)))
              (add-instruction
-              `(loopy--loop-body . (setq ,var (seq-elt ,val-holder 0)
-                                         ,val-holder (seq-drop ,val-holder 1))))
-             (add-instruction `(loopy--pre-conditions . (not (seq-empty-p ,val-holder)))))
+              `(loopy--loop-body . (setq ,var (if (consp ,val-holder)
+                                                  (pop ,val-holder)
+                                                (aref ,val-holder ,index-holder))
+                                         ,index-holder (1+ ,index-holder))))
+             (add-instruction `(loopy--pre-conditions
+                                . (and ,val-holder
+                                       (or (consp ,val-holder)
+                                           (< ,index-holder
+                                              (length ,val-holder)))))))
            ;; ;; Non-destructive version:
            ;; (let ((val-holder (gensym))
            ;;       (index-holder (gensym)))
