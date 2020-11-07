@@ -191,6 +191,23 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--loop-body . (setq ,var (pop ,val-holder))))
              (add-instruction `(loopy--pre-conditions . ,val-holder))))
 
+          ;; TODO: Combine this with above?
+          (`(list-by ,var ,val ,func)
+           (let ((val-holder (gensym))
+                 ;; The function argument may or may not be quoted. We need it
+                 ;; to be unquoted for the syntax to work.
+                 ;; E.g., "(#'cdr val-holder)" won't work.
+                 (actual-func (if (and (consp func)
+                                       (memq (car func) '(quote function)))
+                                  (eval func)
+                                func)))
+             (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
+             (add-instruction `(loopy--explicit-vars . (,var nil)))
+             (add-instruction `(loopy--loop-body
+                                . (setq ,var (car ,val-holder)
+                                        ,val-holder (,actual-func ,val-holder))))
+             (add-instruction `(loopy--pre-conditions . ,val-holder))))
+
           (`(repeat ,count)
            (let ((val-holder (gensym)))
              (add-instruction `(loopy--implicit-vars . (,val-holder 0)))
