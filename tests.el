@@ -25,6 +25,13 @@
 
 
 ;;; Iteration
+;;;; Array
+(ert-deftest loopy-basic-array-test ()
+  (should (equal '(1 2 3)
+                 (loopy (loop (array i [1 2 3])
+                              (collect coll i))
+                        (return coll)))))
+
 ;;;; Expr
 (ert-deftest expr-dont-repeat ()
   "Make sure commands don't repeatedly create/declare the same variable."

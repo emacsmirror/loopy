@@ -154,6 +154,18 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--updates-initial . (,var nil)))
              (add-instruction `(loopy--loop-body . (setq ,var (pop ,val-holder))))
              (add-instruction `(loopy--pre-conditions . ,val-holder))))
+          (`(array ,var ,val)
+           (let ((val-holder (gensym))
+                 (index-holder (gensym)))
+             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
+             (add-instruction `(loopy--value-holders . (,index-holder 0)))
+             (add-instruction `(loopy--updates-initial . (,var nil)))
+             (add-instruction `(loopy--loop-body . (setq ,var
+                                                         (aref ,val-holder
+                                                               ,index-holder)
+                                                         ,index-holder (1+ ,index-holder))))
+             (add-instruction `(loopy--pre-conditions . (< ,index-holder
+                                                           (length ,val-holder))))))
           (`(seq ,var ,val)
            ;; TODO: Destructively modify sequence or no?
            ;; Destructive version:
