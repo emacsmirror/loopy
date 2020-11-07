@@ -70,6 +70,19 @@ These run in a `progn'.")
 (defvar loopy--final-return nil
   "What the macro finally returns.  This overrides any early return value.")
 
+;;;; Miscellaneous Functions
+(defun loopy--bound-p (var-name)
+  "Check if VAR-NAME (a symbol) is already bound for the macro.
+
+This can happen when multiple loop commands refer to the same
+variable, or when a variable is introduced via `with'.
+
+The variable can exist in `loopy--with-forms' or `loopy--updates-initial'."
+  (or (memq var-name (mapcar #'car loopy--with-forms))
+      (memq var-name (mapcar #'car loopy--updates-initial))
+      ;; (memq var-name (mapcar #'cadr loopy--value-holders))
+      ))
+
 ;;;; Included parsing functions.
 
 (defun loopy--parse-with-forms (with-forms)
@@ -246,7 +259,7 @@ Optionally needs LOOP-NAME for block returns."
            (error "Loopy: This form unkown: %s" form)))))
     instructions))
 
-
+;;;; The Macro Itself
 (cl-defmacro loopy (&rest body)
   "A loop is something like the following form.  BODY is up to 4 arguments.
 
@@ -289,6 +302,7 @@ Things to note:
         (loopy--loop-body)
         (loopy--post-conditions))
 
+;;;;; Interpreting the macro arguments.
     ;; Check what was passed to the macro.
     (dolist (arg body)
       (cond
@@ -318,21 +332,19 @@ Things to note:
           ;; Do it this way instead of with `set', cause was getting errors
           ;; about void variables.
           (cl-case (car instruction)
-            ;; ('loopy--with-forms
-            ;;  (push (cdr instruction) loopy--with-forms))
             ('loopy--value-holders
-             (push (cdr instruction) loopy--value-holders))
+             ;; Don't wont to accidentally rebind variables to `nil'.
+             (unless (loopy--bound-p (cadr instruction))
+               (push (cdr instruction) loopy--value-holders)))
             ('loopy--updates-initial
-             (push (cdr instruction) loopy--updates-initial))
+             (unless (loopy--bound-p (cadr instruction))
+               (push (cdr instruction) loopy--updates-initial)))
             ('loopy--pre-conditions
              (push (cdr instruction) loopy--pre-conditions))
             ('loopy--loop-body
              (push (cdr instruction) loopy--loop-body))
             ('loopy--post-conditions
              (push (cdr instruction) loopy--post-conditions))
-            ;; This shouldn't be affected by the body clauses.
-            ;; ('loopy--final-return
-            ;;  (push (cdr instruction) loopy--final-return))
             (t
              (error "Loopy: Unknown body instruction: %s" instruction)))))))
 
@@ -342,40 +354,40 @@ Things to note:
                (cl-return-from ,loopy--name-arg))
             loopy--loop-body))
 
+;;;;; Creating the returned code.
     ;; Note: `let'/`let*' will signal an error if we accidentally substitute
     ;;       `nil' as the variable declaration, since it will assume we are
     ;;       trying to redefine a constant.  To avoid that, we just bind `_' to
     ;;       `nil', which is used (at least in `pcase') as a throw-away symbol.
-    `(let* (,@(or loopy--with-forms '((_)))
-            (let (,@(or (append loopy--value-holders loopy--updates-initial)
-                        '((_))))
-              ;; If we need to, capture early return, those that has less
-              ;; priority than a final return.
-              (loopy--early-return-capture
-               (cl-block ,loopy--name-arg
-                 ,@loopy--before-do
-                 (while ,(if loopy--pre-conditions
-                             (cons 'and loopy--pre-conditions)
-                           t)
-                   (cl-tagbody
-                    ;; Note: `push'-ing things into the instruction list in
-                    ;;       `loopy--parse-body-forms' and then reading them
-                    ;;       back and then pushing into `loopy--loop-body'
-                    ;;       counters out the flipped order normally caused by
-                    ;;       `push'.
-                    ,@loopy--loop-body
-                    loopy--continue-tag))
-                 ,@loopy--after-do
-                 ;; We don't want anything in `loopy--after-do' accidentally
-                 ;; giving us a return value, so we explicitly return nil.
-                 ;;
-                 ;; TODO: Is this actually needed?
-                 nil)))
-
-         ,@loopy--final-do
-         ,(if loopy--final-return
-              loopy--final-return
-            'loopy--early-return-capture)))))
+    `(let* (,@(or loopy--with-forms '((_))))
+       (let (,@(or (append loopy--value-holders loopy--updates-initial)
+                   '((_))))
+         ;; If we need to, capture early return, those that has less
+         ;; priority than a final return.
+         (let ((loopy--early-return-capture
+                (cl-block ,loopy--name-arg
+                  ,@loopy--before-do
+                  (while ,(if loopy--pre-conditions
+                              (cons 'and loopy--pre-conditions)
+                            t)
+                    (cl-tagbody
+                     ;; Note: `push'-ing things into the instruction list in
+                     ;;       `loopy--parse-body-forms' and then reading them
+                     ;;       back and then pushing into `loopy--loop-body'
+                     ;;       counters out the flipped order normally caused by
+                     ;;       `push'.
+                     ,@loopy--loop-body
+                     loopy--continue-tag))
+                  ,@loopy--after-do
+                  ;; We don't want anything in `loopy--after-do' accidentally
+                  ;; giving us a return value, so we explicitly return nil.
+                  ;;
+                  ;; TODO: Is this actually needed?
+                  nil)))
+           ,@loopy--final-do
+           ,(if loopy--final-return
+                loopy--final-return
+              'loopy--early-return-capture))))))
 
 (provide 'loopy)
 ;;; loopy.el ends here
