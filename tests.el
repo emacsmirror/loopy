@@ -23,6 +23,13 @@
                               (after-do (setq my-ret t))
                               (finally-return my-ret))))))
 
+;;;; Before and After
+(ert-deftest loopy-basic-before-and-after-test ()
+  (should (= 3 (loopy (with (i 1))
+                      (before-do (cl-incf i))
+                      (loop (repeat 1))
+                      (after-do (cl-incf i))
+                      (finally-return i)))))
 
 ;;; Iteration
 ;;;; Array
