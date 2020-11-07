@@ -25,11 +25,41 @@
 
 
 ;;; Iteration
-(loopy ((repeat 3)
-        (do (message "hi"))))
+;;;; Expr
+(ert-deftest expr-dont-repeat ()
+  "Make sure commands don't repeatedly create/declare the same variable."
+  (should
+   (= 1 (with-temp-buffer
+          (prin1 (macroexpand '(loopy (loop (expr j 3)
+                                            (expr j 4)
+                                            (return j))))
+                 (current-buffer))
+          (goto-char (point-min))
+          (how-many "(j nil)")))))
 
-(loopy ((repeat i 3)
-        (do (message "%d" i))))
+;;;; List
+(ert-deftest loopy-basic-list-test ()
+  (should (eq 3 (loopy (loop (list i '(1 2 3)))
+                       ;; Same thing:
+                       ;; (after-do (cl-return i))
+                       (finally-return i)))))
+
+(ert-deftest loopy-basic-repeat-test ()
+  (should (= 3 (length (loopy (loop (repeat 3)
+                                    (list i (number-sequence 1 10))
+                                    (collect coll i))
+                              (finally-return coll))))))
+
+(ert-deftest loopy-basic-repeat-var-test ()
+  "Need to test order of execution and functionality."
+  (should (and (equal '(1 2 3)
+                      (loopy ((repeat i 3)
+                              (collect coll i))
+                             (finally-return coll)))
+               (equal '(0 1 2)
+                      (loopy ((collect coll i)
+                              (repeat i 3))
+                             (finally-return coll))))))
 
 
 ;;; Leaving, Returning, Skipping
@@ -44,11 +74,12 @@
                  '(2 4 6 8 12 14 16 18))))
 
 (ert-deftest leave-named ()
-(should (= 6
-            (loopy outer
-                ((list i (number-sequence 1 10))
-                    (when (> i 5)
-                    (leave-named-loop outer i)))))))
+  (should (= 6
+             (loopy outer
+                    ((list i (number-sequence 1 10))
+                     (when (> i 5)
+                       (leave-named-loop outer i)))))))
+
 (ert-deftest leave-outer-named ()
   (should (eq 6
               (loopy
@@ -149,7 +180,7 @@ Not multiple of 3: 7")))
 
 ;;;; Cond FORMS
 (ert-deftest parse-cond-form ()
-  (should (equal (loopy--parse-cond-forms '(((= a 1)
+  (should (equal (loopy--parse-cond-form '(((= a 1)
                                              (do (message "hi")))
                                             ((= b 2)
                                              (return 5))))
@@ -215,5 +246,5 @@ Not multiple of 3: 7")))
 
 ;; Local Variables:
 ;; flycheck-disabled-checkers: '(emacs-lisp-checkdoc)
-;; flycheck-emacs-lisp-load-path: '("./.")
+;; flycheck-emacs-lisp-load-path: (list "./.")
 ;; End:
