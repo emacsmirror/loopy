@@ -148,6 +148,24 @@ Optionally needs LOOP-NAME for block returns."
            (add-instruction `(loopy--updates-initial . (,var nil))))
 
 ;;;;; Iteration Clauses
+          ;; TODO:
+          ;; - traverse by function instead of `cdr'.
+          ;; - iterate and return refs for list, array, seq
+          ;; - obarrays?
+          ;; - key-codes/key-bindings and key-seqs?
+          ;; - overlays?
+          ;; - intervals of constant text properties?
+          ;; - initial value then later expression?
+          ;; -
+          ((or `(cdrs ,var ,val) `(cdr ,var ,val)
+               `(cons ,var ,val) `(conses ,var ,val))
+           (let ((val-holder (gensym)))
+             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
+             (add-instruction `(loopy--updates-initial . (,var nil)))
+             (add-instruction `(loopy--loop-body
+                                . (setq ,var ,val-holder
+                                        ,val-holder (cdr ,val-holder))))
+             (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
           (`(list ,var ,val)
            (let ((val-holder (gensym)))
              (add-instruction `(loopy--value-holders . (,val-holder ,val)))
