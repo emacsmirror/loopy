@@ -367,18 +367,18 @@ Things to note:
           ;; Do it this way instead of with `set', cause was getting errors
           ;; about void variables.
           (cl-case (car instruction)
-            ('loopy--implicit-vars
+            (loopy--implicit-vars
              ;; Don't wont to accidentally rebind variables to `nil'.
              (unless (loopy--bound-p (cadr instruction))
                (push (cdr instruction) loopy--implicit-vars)))
-            ('loopy--explicit-vars
+            (loopy--explicit-vars
              (unless (loopy--bound-p (cadr instruction))
                (push (cdr instruction) loopy--explicit-vars)))
-            ('loopy--pre-conditions
+            (loopy--pre-conditions
              (push (cdr instruction) loopy--pre-conditions))
-            ('loopy--loop-body
+            (loopy--loop-body
              (push (cdr instruction) loopy--loop-body))
-            ('loopy--post-conditions
+            (loopy--post-conditions
              (push (cdr instruction) loopy--post-conditions))
             (t
              (error "Loopy: Unknown body instruction: %s" instruction)))))))
