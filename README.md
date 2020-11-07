@@ -461,6 +461,8 @@ Here is a version using `loopy`:
     (user-error "selectrum-outline: No headings defined for %s." major-mode)))
 ```
 
+For a "translation table" of sorts from `cl-loop` to `loopy`, see the end of
+this document.
 
 ## How to use
 
@@ -685,6 +687,42 @@ the same effect. These forms are provided for convenience.
 ## Extending with Personal Loop Commands
 
 To be implemented, but should be straight forward.
+
+## Translating from `cl-loop`
+
+### For Clauses
+
+As Emacs has many functions that return lists, I decided to not implement an
+exact equivalent for every for-clause that `cl-loop` has.  Instead, one can just
+iterate through the return value of the appropriate function using the `list`
+command.
+
+| `cl-loop`                                     | `loop`                                         |
+|:----------------------------------------------|:-----------------------------------------------|
+| `for VAR from EXPR1 to EXPR2 by EXPR3`        | (list VAR (number-sequence EXPR1 EXPR2 EXPR3)) |
+| `for VAR in LIST`                             |                                                |
+| `for VAR in LIST by FUNCTION`                 |                                                |
+| `for VAR on LIST`                             | (cdrs VAR VAL)                                 |
+| `for VAR on LIST by FUNCTION`                 |                                                |
+| `for VAR in-ref LIST by FUNCTION`             |                                                |
+| `for VAR across ARRAY`                        | (array VAR ARRAY)                              |
+| `for VAR across-ref ARRAY`                    |                                                |
+| `for VAR being the elements of SEQUENCE`      | (sequence VAR SEQUENCE)                        |
+| `for VAR being the elements of-ref SEQUENCE`  |                                                |
+| `for VAR being the symbols [of OBARRAY]`      |                                                |
+| `for VAR being the hash-keys of HASH-TABLE`   | (list VAR (hash-table-keys HASH-TABLE))        |
+| `for VAR being the hash-values of HASH-TABLE` | (list VAR (hash-table-values HASH-TABLE))      |
+| `for VAR being the key-codes of KEYMAP`       |                                                |
+| `for VAR being the key-bindings of KEYMAP`    |                                                |
+| `for VAR being the key-seqs of KEYMAP`        |                                                |
+| `for VAR being the overlays [of BUFFER]`      |                                                |
+| `for VAR being the intervals [of BUFFER]`     |                                                |
+| `for VAR being the frames`                    | (list VAR (frame-list))                        |
+| `for VAR being the windows [of FRAME]`        | (list VAR (window-list FRAME))                 |
+| `for VAR being the buffers`                   | (list VAR (buffer-list))                       |
+| `for VAR = EXPR1 then EXPR2`                  |                                                |
+|                                               |                                                |
+
 
 
 [sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
