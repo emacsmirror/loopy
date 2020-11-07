@@ -4,9 +4,8 @@ Loopy is a macro meant for iterating and looping. It is similar in usage to
 `cl-loop` but uses symbolic expressions rather than keywords.
 
 It should be comparable with `cl-loop`, keeping in mind the following points:
-- I expect it to be less efficient than `cl-loop`, given that the macro
-  currently expands to something like how I would normally write generic code
-  (i.e., not specially optimized for each kind of loop.)
+- It is less efficient than `cl-loop`, as I have not tried to really optimize
+  the code it produces.
 - It has more flexible control flow commands, under which you can easily group
   several commands, including assignments. This is my main motivator for having
   this macro.
@@ -226,6 +225,242 @@ skipping/continuing a loop iteration.
       nil
       (cl-return-from nil (nreverse my-collection)))))
 ```
+
+A real-world example is a version the `selectrum-outline` command from the [Selectrum
+wiki](https://github.com/raxod502/selectrum/wiki/Useful-Commands#jumping-to-outline-headings).
+The command checks each line of text in the buffer against a chosen regular
+expression, a builds a list of completion candidates matching that
+expression.  It needs to find and format a candidate (including keeping track of
+the preceding higher-level headings) and pick a default candidate in one pass.
+
+Here is a version using the normal features of Elisp:
+
+``` elisp
+(defun selectrum-outline ()
+  "Jump to a heading.  Regexps are pre-defined.  Obeys narrowing."
+  (interactive)
+  ;; Signal a `user-error' if we don't have a regexp for this major mode.
+  (if-let ((heading-regexp (alist-get major-mode selectrum-outline-formats)))
+      (let ((selectrum-should-sort-p nil) ; Headings should stay in order of appearance.
+            ;; Get the basic information of each heading in the accessible
+            ;; portion of the buffer.
+            (buffer-lines (split-string (buffer-string) "\n"))
+            (line-number 0)
+            (line-number-format)
+
+            ;; Finding the default heading
+            (default-heading)
+            (current-line-number (line-number-at-pos (point)))
+
+            ;; Keeping track of the tree.
+            (backwards-prefix-list)
+            (prev-heading-text)
+            (prev-heading-level)
+
+            ;; Backwards result of the `dolist'. Will `nreverse'.
+            (formatted-headings))
+
+        (setq line-number-format
+              (concat "L%0"
+                      (number-to-string
+                       (length (number-to-string (length buffer-lines))))
+                      "d: "))
+
+        (save-match-data
+          (dolist (text-line buffer-lines)
+            ;; Increment line number when moving to next.
+            (cl-incf line-number)
+            (when (string-match heading-regexp text-line)
+              (let ((heading-text (match-string-no-properties 2 text-line))
+                    (heading-level
+                     (length (match-string-no-properties 1 text-line)))
+                    (formatted-heading))
+
+                ;; Want to make sure this has a correct value.
+                (when (null prev-heading-level)
+                  (setq prev-heading-level heading-level))
+
+                ;; Decide whether to update the prefix list and the previous
+                ;; heading level.
+                (cond
+                 ;; If we've moved to a greater level (further down the tree),
+                 ;; add the previous heading to the heading prefix list so
+                 ;; that we can prepend it to the current heading when
+                 ;; formatting.
+                 ((> heading-level prev-heading-level)
+                  (setq backwards-prefix-list (cons prev-heading-text
+                                                    backwards-prefix-list)
+                        prev-heading-level heading-level))
+                 ;; Otherwise, if we've moved to a lower level (higher up the
+                 ;; tree), and need to remove the most recently added prefix
+                 ;; from the list (i.e., go from '(c b a) back to '(b a)).
+                 ((< heading-level prev-heading-level)
+                  (setq backwards-prefix-list (last backwards-prefix-list
+                                                    heading-level)
+                        prev-heading-level heading-level))
+                 ;; Otherwise, do nothing.
+                 (t nil))
+
+                ;; Regardless of what happens, update the previous heading text.
+                (setq prev-heading-text heading-text)
+
+                ;; Decide whether the previous formatted heading was the
+                ;; default.
+                (when (and (null default-heading)
+                           (> (- line-number current-line-number) 0))
+                  (setq default-heading (car formatted-headings)))
+
+                ;; Finally, add to list of formatted headings.
+                ;; Create heading of form "L#: a/b/c" as:
+                ;; - having a text property holding the line number
+                ;; - prepended with a formatted line number,
+                ;;   with the face `completions-annotations'.
+                (push (propertize
+                       (concat (string-join (reverse backwards-prefix-list) "/")
+                               (and backwards-prefix-list "/")
+                               heading-text)
+                       'line-number line-number
+                       'selectrum-candidate-display-prefix
+                       (propertize
+                        (format line-number-format line-number)
+                        'face 'completions-annotations))
+                      formatted-headings)))))
+
+        ;; Now that candidates formatted, select from candidates.
+        (let ((chosen-heading
+               (selectrum-read "Jump to heading: "
+                               (nreverse formatted-headings)
+                               :default-candidate default-heading
+                               :history 'selectrum-outline-history
+                               :require-match t
+                               :no-move-default-candidate t)))
+          ;; Push mark, in case we want to return to current location.  This
+          ;; needs to happen /after/ the user has made it clear that they want
+          ;; to go somewhere.
+          (push-mark (point) t)
+          ;; Move to beginning of chosen line.
+          (forward-line (- (get-text-property 0 'line-number chosen-heading)
+                           current-line-number))
+          (beginning-of-line-text 1)))
+    (user-error "selectrum-outline: No headings defined for %s." major-mode)))
+
+```
+
+Here is a version using `loopy`:
+
+``` elisp
+(defun selectrum-outline-loopy ()
+  "Jump to a heading.  Regexps are pre-defined.  Obeys narrowing."
+  (interactive)
+  ;; Signal a `user-error' if we don't have a regexp for this major mode.
+  (if-let ((heading-regexp (alist-get major-mode selectrum-outline-formats)))
+      (let ((selectrum-should-sort-p))
+        )
+
+    (let ((selectrum-should-sort-p nil) ; Headings should stay in order of appearance.
+          ;; Get the basic information of each heading in the accessible
+          ;; portion of the buffer.
+          (buffer-lines (split-string (buffer-string) "\n"))
+          (line-number 0)
+          (line-number-format)
+
+          ;; Finding the default heading
+          (default-heading)
+          (current-line-number (line-number-at-pos (point)))
+
+          ;; Keeping track of the tree.
+          (backwards-prefix-list)
+          (prev-heading-text)
+          (prev-heading-level)
+
+          ;; Backwards result of the `dolist'. Will `nreverse'.
+          (formatted-headings))
+
+      (setq line-number-format
+            (concat "L%0"
+                    (number-to-string
+                     (length (number-to-string (length buffer-lines))))
+                    "d: "))
+
+      (save-match-data
+        (dolist (text-line buffer-lines)
+          ;; Increment line number when moving to next.
+          (cl-incf line-number)
+          (when (string-match heading-regexp text-line)
+            (let ((heading-text (match-string-no-properties 2 text-line))
+                  (heading-level
+                   (length (match-string-no-properties 1 text-line)))
+                  (formatted-heading))
+
+              ;; Want to make sure this has a correct value.
+              (when (null prev-heading-level)
+                (setq prev-heading-level heading-level))
+
+              ;; Decide whether to update the prefix list and the previous
+              ;; heading level.
+              (cond
+               ;; If we've moved to a greater level (further down the tree),
+               ;; add the previous heading to the heading prefix list so
+               ;; that we can prepend it to the current heading when
+               ;; formatting.
+               ((> heading-level prev-heading-level)
+                (setq backwards-prefix-list (cons prev-heading-text
+                                                  backwards-prefix-list)
+                      prev-heading-level heading-level))
+               ;; Otherwise, if we've moved to a lower level (higher up the
+               ;; tree), and need to remove the most recently added prefix
+               ;; from the list (i.e., go from '(c b a) back to '(b a)).
+               ((< heading-level prev-heading-level)
+                (setq backwards-prefix-list (last backwards-prefix-list
+                                                  heading-level)
+                      prev-heading-level heading-level))
+               ;; Otherwise, do nothing.
+               (t nil))
+
+              ;; Regardless of what happens, update the previous heading text.
+              (setq prev-heading-text heading-text)
+
+              ;; Decide whether the previous formatted heading was the
+              ;; default.
+              (when (and (null default-heading)
+                         (> (- line-number current-line-number) 0))
+                (setq default-heading (car formatted-headings)))
+
+              ;; Finally, add to list of formatted headings.
+              ;; Create heading of form "L#: a/b/c" as:
+              ;; - having a text property holding the line number
+              ;; - prepended with a formatted line number,
+              ;;   with the face `completions-annotations'.
+              (push (propertize
+                     (concat (string-join (reverse backwards-prefix-list) "/")
+                             (and backwards-prefix-list "/")
+                             heading-text)
+                     'line-number line-number
+                     'selectrum-candidate-display-prefix
+                     (propertize
+                      (format line-number-format line-number)
+                      'face 'completions-annotations))
+                    formatted-headings)))))
+
+      ;; Now that candidates formatted, select from candidates.
+      (let ((chosen-heading
+             (selectrum-read "Jump to heading: "
+                             (nreverse formatted-headings)
+                             :default-candidate default-heading
+                             :history 'selectrum-outline-history
+                             :require-match t
+                             :no-move-default-candidate t)))
+        ;; Push mark, in case we want to return to current location.  This
+        ;; needs to happen /after/ the user has made it clear that they want
+        ;; to go somewhere.
+        (push-mark (point) t)
+        ;; Move to beginning of chosen line.
+        (forward-line (- (get-text-property 0 'line-number chosen-heading)
+                         current-line-number))
+        (beginning-of-line-text 1)))
+    (user-error "selectrum-outline: No headings defined for %s." major-mode)))
+```
+
 
 ## How to use
 
@@ -455,7 +690,8 @@ To be implemented, but should be straight forward.
 [sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
 
 
-<!-- Local Variables: -->
 <!-- Would normally would grab H1 level, but we're using that for the title. -->
+<!-- Local Variables: -->
+<!-- flycheck-disabled-checkers: '(proselint) -->
 <!-- eval: (setq-local selectrum-outline-formats (cons '(gfm-mode . "^##\\(?1:#*\\)[[:blank:]]*\\(?2:[[:alnum:]][^z-a]*\\)\\'") selectrum-outline-formats)) -->
 <!-- End: -->
