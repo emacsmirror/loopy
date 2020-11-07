@@ -22,20 +22,25 @@ This is a list of ((VAR1 VAL1) (VAR2 VAL2) ...).
 They are inserted into the variable declarations of a `let*' binding.
 They are created by passing (with (VAR1 VAL1) (VAR2 VAL2) ...) to `loopy'.")
 
-(defvar loopy--value-holders nil
-  "Value Holders are implicit variables created automatically by loop commands.
+(defvar loopy--implicit-vars nil
+  "A list of variables and their values implicitly created by loop commands.
 
 This is a list of ((VAR1 VAL1) (VAR2 VAL2) ...).
 They are inserted into the variable declarations of a `let' binding.
 
-For example, using (list i '(1 2 3)) will create a value holder
+For example, using (list i '(1 2 3)) will create an implicit variable
 containing '(1 2 3).  This makes iteration easier.")
 
-(defvar loopy--updates-initial nil
-  "Explicitly named variables and their first values, updated in order.
+(defvar loopy--explicit-vars nil
+  "A list of variables and values explicitly named in loop commands.
+
+This is a list of ((VAR1 VAL1) (VAR2 VAL2) ...).
+They are inserted into the variable declarations of a `let' binding.
 
 This is useful for lexically scoping variables, and for declaring
-an initial value before a different value assigned in the loop.")
+an initial value before a different value assigned in the loop.
+
+For example, using (list i '(1 2 3)) will create an explicit variable `i'.")
 
 (defvar loopy--before-do nil
   "A list of expressions to evaluate before the loop starts.
@@ -77,10 +82,10 @@ These run in a `progn'.")
 This can happen when multiple loop commands refer to the same
 variable, or when a variable is introduced via `with'.
 
-The variable can exist in `loopy--with-forms' or `loopy--updates-initial'."
+The variable can exist in `loopy--with-forms' or `loopy--explicit-vars'."
   (or (memq var-name (mapcar #'car loopy--with-forms))
-      (memq var-name (mapcar #'car loopy--updates-initial))
-      ;; (memq var-name (mapcar #'cadr loopy--value-holders))
+      (memq var-name (mapcar #'car loopy--explicit-vars))
+      ;; (memq var-name (mapcar #'cadr loopy--implicit-vars))
       ))
 
 ;;;; Included parsing functions.
@@ -145,12 +150,12 @@ Optionally needs LOOP-NAME for block returns."
           (`(expr ,var ,val)
            (add-instruction `(loopy--loop-body . (setq ,var ,val)))
            ;; Want to make sure VAR is lexically bound.
-           (add-instruction `(loopy--updates-initial . (,var nil))))
+           (add-instruction `(loopy--explicit-vars . (,var nil))))
 
 ;;;;; Iteration Clauses
           ;; TODO:
-          ;; - traverse by function instead of `cdr'.
-          ;; - iterate and return refs for list, array, seq
+          ;; - traverse by function instead of `cdr'. Just add optional arg?
+          ;; - iterate and return refs for list, array, seq. Needs `cl-symbol-macrolet'?
           ;; - obarrays?
           ;; - key-codes/key-bindings and key-seqs?
           ;; - overlays?
@@ -159,9 +164,9 @@ Optionally needs LOOP-NAME for block returns."
           (`(array ,var ,val)
            (let ((val-holder (gensym))
                  (index-holder (gensym)))
-             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
-             (add-instruction `(loopy--value-holders . (,index-holder 0)))
-             (add-instruction `(loopy--updates-initial . (,var nil)))
+             (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
+             (add-instruction `(loopy--implicit-vars . (,index-holder 0)))
+             (add-instruction `(loopy--explicit-vars . (,var nil)))
              (add-instruction `(loopy--loop-body . (setq ,var
                                                          (aref ,val-holder
                                                                ,index-holder)
@@ -172,8 +177,8 @@ Optionally needs LOOP-NAME for block returns."
           ((or `(cdrs ,var ,val) `(cdr ,var ,val)
                `(cons ,var ,val) `(conses ,var ,val))
            (let ((val-holder (gensym)))
-             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
-             (add-instruction `(loopy--updates-initial . (,var nil)))
+             (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
+             (add-instruction `(loopy--explicit-vars . (,var nil)))
              (add-instruction `(loopy--loop-body
                                 . (setq ,var ,val-holder
                                         ,val-holder (cdr ,val-holder))))
@@ -181,19 +186,19 @@ Optionally needs LOOP-NAME for block returns."
 
           (`(list ,var ,val)
            (let ((val-holder (gensym)))
-             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
-             (add-instruction `(loopy--updates-initial . (,var nil)))
+             (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
+             (add-instruction `(loopy--explicit-vars . (,var nil)))
              (add-instruction `(loopy--loop-body . (setq ,var (pop ,val-holder))))
              (add-instruction `(loopy--pre-conditions . ,val-holder))))
 
           (`(repeat ,count)
            (let ((val-holder (gensym)))
-             (add-instruction `(loopy--value-holders . (,val-holder 0)))
+             (add-instruction `(loopy--implicit-vars . (,val-holder 0)))
              (add-instruction `(loopy--loop-body . (cl-incf ,val-holder)))
              (add-instruction `(loopy--pre-conditions . (< ,val-holder ,count)))))
 
           (`(repeat ,var ,count)
-           (add-instruction `(loopy--value-holders . (,var 0)))
+           (add-instruction `(loopy--implicit-vars . (,var 0)))
            (add-instruction `(loopy--loop-body . (cl-incf ,var)))
            (add-instruction `(loopy--pre-conditions . (< ,var ,count))))
 
@@ -202,9 +207,9 @@ Optionally needs LOOP-NAME for block returns."
            ;;       just checks the type for each iteration, so we do that too.
            (let ((val-holder (gensym))
                  (index-holder (gensym)))
-             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
-             (add-instruction `(loopy--value-holders . (,index-holder 0)))
-             (add-instruction `(loopy--updates-initial . (,var nil)))
+             (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
+             (add-instruction `(loopy--implicit-vars . (,index-holder 0)))
+             (add-instruction `(loopy--explicit-vars . (,var nil)))
              (add-instruction
               `(loopy--loop-body . (setq ,var (if (consp ,val-holder)
                                                   (pop ,val-holder)
@@ -255,35 +260,35 @@ Optionally needs LOOP-NAME for block returns."
 
 ;;;;; Accumulation Clauses
           ((or `(prepend ,var ,val) `(push ,var ,val) `(push-into ,var ,val))
-           (add-instruction `(loopy--updates-initial . (,var nil)))
+           (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--loop-body . (push ,val ,var))))
           (`(collect ,var ,val)
-           (add-instruction `(loopy--updates-initial . (,var nil)))
+           (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--loop-body . (setq ,var (append ,var
                                                                     (list ,val))))))
           (`(append ,var ,val)
-           (add-instruction `(loopy--updates-initial . (,var nil)))
+           (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--loop-body . (setq ,var (append ,var ,val)))))
           (`(concat ,var ,val)
-           (add-instruction `(loopy--updates-initial . (,var nil)))
+           (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--loop-body . (setq ,var (concat ,var ,val)))))
           (`(vconcat ,var ,val)
-           (add-instruction `(loopy--updates-initial . (,var nil)))
+           (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--loop-body . (setq ,var (vconcat ,var ,val)))))
           (`(count ,var ,val)
-           (add-instruction `(loopy--updates-initial . (,var 0)))
+           (add-instruction `(loopy--explicit-vars . (,var 0)))
            (add-instruction `(loopy--loop-body . (when ,val (cl-incf ,var)))))
           (`(sum ,var ,val)
-           (add-instruction `(loopy--updates-initial . (,var 0)))
+           (add-instruction `(loopy--explicit-vars . (,var 0)))
            (add-instruction `(loopy--loop-body . (setq ,var (+ ,var ,val)))))
           ((or `(max ,var ,val) `(maximize ,var ,val))
-           (add-instruction `(loopy--updates-initial . (,var -1.0e+INF)))
+           (add-instruction `(loopy--explicit-vars . (,var -1.0e+INF)))
            (add-instruction `(loopy--loop-body . (setq ,var (max ,var ,val)))))
           ((or `(min ,var ,val) `(minimize ,var ,val))
-           (add-instruction `(loopy--updates-initial . (,var 1.0e+INF)))
+           (add-instruction `(loopy--explicit-vars . (,var 1.0e+INF)))
            (add-instruction `(loopy--loop-body . (setq ,var (min ,var ,val)))))
           (`(nconc ,var ,val)
-           (add-instruction `(loopy--updates-initial . (,var nil)))
+           (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--loop-body . (setq ,var (nconc ,var ,val)))))
           (_
            (error "Loopy: This form unkown: %s" form)))))
@@ -326,8 +331,8 @@ Things to note:
         (loopy--final-return)
 
         ;; -- Vars for processing loop clauses --
-        (loopy--value-holders)
-        (loopy--updates-initial)
+        (loopy--implicit-vars)
+        (loopy--explicit-vars)
         (loopy--pre-conditions)
         (loopy--loop-body)
         (loopy--post-conditions))
@@ -362,13 +367,13 @@ Things to note:
           ;; Do it this way instead of with `set', cause was getting errors
           ;; about void variables.
           (cl-case (car instruction)
-            ('loopy--value-holders
+            ('loopy--implicit-vars
              ;; Don't wont to accidentally rebind variables to `nil'.
              (unless (loopy--bound-p (cadr instruction))
-               (push (cdr instruction) loopy--value-holders)))
-            ('loopy--updates-initial
+               (push (cdr instruction) loopy--implicit-vars)))
+            ('loopy--explicit-vars
              (unless (loopy--bound-p (cadr instruction))
-               (push (cdr instruction) loopy--updates-initial)))
+               (push (cdr instruction) loopy--explicit-vars)))
             ('loopy--pre-conditions
              (push (cdr instruction) loopy--pre-conditions))
             ('loopy--loop-body
@@ -390,7 +395,7 @@ Things to note:
     ;;       trying to redefine a constant.  To avoid that, we just bind `_' to
     ;;       `nil', which is used (at least in `pcase') as a throw-away symbol.
     `(let* (,@(or loopy--with-forms '((_))))
-       (let (,@(or (append loopy--value-holders loopy--updates-initial)
+       (let (,@(or (append loopy--implicit-vars loopy--explicit-vars)
                    '((_))))
          ;; If we need to, capture early return, those that has less
          ;; priority than a final return.
