@@ -150,7 +150,7 @@ Optionally needs LOOP-NAME for block returns."
 ;;;;; Iteration Clauses
           (`(list ,var ,val)
            (let ((val-holder (gensym)))
-             (add-instruction `(loopy--value-holders . (,val-holder ,val)) )
+             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
              (add-instruction `(loopy--updates-initial . (,var nil)))
              (add-instruction `(loopy--loop-body . (setq ,var (pop ,val-holder))))
              (add-instruction `(loopy--pre-conditions . ,val-holder))))

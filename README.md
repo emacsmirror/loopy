@@ -4,8 +4,8 @@ Loopy is a macro meant for iterating and looping. It is similar in usage to
 `cl-loop` but uses symbolic expressions rather than keywords.
 
 It should be comparable with `cl-loop`, keeping in mind the following points:
-- It is less efficient than `cl-loop`, as I have not tried to really optimize
-  the code it produces.
+- It is probably less efficient than `cl-loop`, though I am so far trying to
+  keep the same logic that `cl-loop` uses.
 - It has more flexible control flow commands, under which you can easily group
   several commands, including assignments. This is my main motivator for having
   this macro.
