@@ -156,22 +156,6 @@ Optionally needs LOOP-NAME for block returns."
           ;; - overlays?
           ;; - intervals of constant text properties?
           ;; - initial value then later expression?
-          ;; -
-          ((or `(cdrs ,var ,val) `(cdr ,var ,val)
-               `(cons ,var ,val) `(conses ,var ,val))
-           (let ((val-holder (gensym)))
-             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
-             (add-instruction `(loopy--updates-initial . (,var nil)))
-             (add-instruction `(loopy--loop-body
-                                . (setq ,var ,val-holder
-                                        ,val-holder (cdr ,val-holder))))
-             (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
-          (`(list ,var ,val)
-           (let ((val-holder (gensym)))
-             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
-             (add-instruction `(loopy--updates-initial . (,var nil)))
-             (add-instruction `(loopy--loop-body . (setq ,var (pop ,val-holder))))
-             (add-instruction `(loopy--pre-conditions . ,val-holder))))
           (`(array ,var ,val)
            (let ((val-holder (gensym))
                  (index-holder (gensym)))
@@ -184,6 +168,35 @@ Optionally needs LOOP-NAME for block returns."
                                                          ,index-holder (1+ ,index-holder))))
              (add-instruction `(loopy--pre-conditions . (< ,index-holder
                                                            (length ,val-holder))))))
+
+          ((or `(cdrs ,var ,val) `(cdr ,var ,val)
+               `(cons ,var ,val) `(conses ,var ,val))
+           (let ((val-holder (gensym)))
+             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
+             (add-instruction `(loopy--updates-initial . (,var nil)))
+             (add-instruction `(loopy--loop-body
+                                . (setq ,var ,val-holder
+                                        ,val-holder (cdr ,val-holder))))
+             (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
+
+          (`(list ,var ,val)
+           (let ((val-holder (gensym)))
+             (add-instruction `(loopy--value-holders . (,val-holder ,val)))
+             (add-instruction `(loopy--updates-initial . (,var nil)))
+             (add-instruction `(loopy--loop-body . (setq ,var (pop ,val-holder))))
+             (add-instruction `(loopy--pre-conditions . ,val-holder))))
+
+          (`(repeat ,count)
+           (let ((val-holder (gensym)))
+             (add-instruction `(loopy--value-holders . (,val-holder 0)))
+             (add-instruction `(loopy--loop-body . (cl-incf ,val-holder)))
+             (add-instruction `(loopy--pre-conditions . (< ,val-holder ,count)))))
+
+          (`(repeat ,var ,count)
+           (add-instruction `(loopy--value-holders . (,var 0)))
+           (add-instruction `(loopy--loop-body . (cl-incf ,var)))
+           (add-instruction `(loopy--pre-conditions . (< ,var ,count))))
+
           (`(seq ,var ,val)
            ;; Note: `cl-loop' just combines the logic for lists and arrays, and
            ;;       just checks the type for each iteration, so we do that too.
@@ -201,28 +214,7 @@ Optionally needs LOOP-NAME for block returns."
                                 . (and ,val-holder
                                        (or (consp ,val-holder)
                                            (< ,index-holder
-                                              (length ,val-holder)))))))
-           ;; ;; Non-destructive version:
-           ;; (let ((val-holder (gensym))
-           ;;       (index-holder (gensym)))
-           ;;   (add-instruction `(loopy--value-holders . (,val-holder ,val)))
-           ;;   (add-instruction `(loopy--value-holders . (,index-holder 0)) )
-           ;;   (add-instruction
-           ;;    `(loopy--loop-body . (setq ,var (seq-elt ,val-holder ,index-holder)
-           ;;                        ,index-holder (1+ ,index-holder))))
-           ;;   (add-instruction `(loopy--pre-conditions . (= ,index-holder
-           ;;                                          (length ,val-holder)))))
-           )
-          (`(repeat ,count)
-           (let ((val-holder (gensym)))
-             (add-instruction `(loopy--value-holders . (,val-holder 0)))
-             (add-instruction `(loopy--loop-body . (cl-incf ,val-holder)))
-             (add-instruction `(loopy--pre-conditions . (< ,val-holder ,count)))))
-
-          (`(repeat ,var ,count)
-           (add-instruction `(loopy--value-holders . (,var 0)))
-           (add-instruction `(loopy--loop-body . (cl-incf ,var)))
-           (add-instruction `(loopy--pre-conditions . (< ,var ,count))))
+                                              (length ,val-holder))))))))
 
 ;;;;; Conditional Body Forms
           ;; Since these can contain other commands/clauses, it's easier if they
