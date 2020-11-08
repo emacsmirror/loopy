@@ -359,12 +359,16 @@ Things to note:
                    ([&or "with" "let*"] &rest (symbolp &optional form))
                    ([&or "before-do" "before-progn" "before"] body)
                    ([&optional "loop"]
-                    &rest [&or (symbolp &optional symbolp form) ; Covers most.
+                    &rest [&or (symbolp ;; This one covers most commands.
+                                &optional
+                                symbolp
+                                form
+                                [&or symbolp function-form lambda-expr])
                                ([&or "when" "if" "unless"] form body)
                                ("cond" &rest (body))])
                    ([&or "after-do" "after-progn" "after"] body)
                    ([&or "finally-do" "finally-progn"] body)
-                   ([&or "finally-return" "return"] form &optional form))))
+                   ([&or "finally-return" "return"] form &optional [&rest form]))))
   (let (;; -- Top-level expressions other than loop body --
         (loopy--name-arg)
         (loopy--with-forms)
