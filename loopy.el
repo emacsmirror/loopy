@@ -304,16 +304,13 @@ Optionally needs LOOP-NAME for block returns."
 
 
 ;;;;; Accumulation Clauses
-          ((or `(prepend ,var ,val) `(push ,var ,val) `(push-into ,var ,val))
+          (`(append ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
-           (add-instruction `(loopy--loop-body . (push ,val ,var))))
+           (add-instruction `(loopy--loop-body . (setq ,var (append ,var ,val)))))
           (`(collect ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--loop-body . (setq ,var (append ,var
                                                                     (list ,val))))))
-          (`(append ,var ,val)
-           (add-instruction `(loopy--explicit-vars . (,var nil)))
-           (add-instruction `(loopy--loop-body . (setq ,var (append ,var ,val)))))
           (`(concat ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--loop-body . (setq ,var (concat ,var ,val)))))
@@ -323,9 +320,6 @@ Optionally needs LOOP-NAME for block returns."
           (`(count ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var 0)))
            (add-instruction `(loopy--loop-body . (when ,val (cl-incf ,var)))))
-          (`(sum ,var ,val)
-           (add-instruction `(loopy--explicit-vars . (,var 0)))
-           (add-instruction `(loopy--loop-body . (setq ,var (+ ,var ,val)))))
           ((or `(max ,var ,val) `(maximize ,var ,val))
            (add-instruction `(loopy--explicit-vars . (,var -1.0e+INF)))
            (add-instruction `(loopy--loop-body . (setq ,var (max ,var ,val)))))
@@ -335,6 +329,12 @@ Optionally needs LOOP-NAME for block returns."
           (`(nconc ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--loop-body . (setq ,var (nconc ,var ,val)))))
+          ((or `(push-into ,var ,val) `(prepend ,var ,val) `(push ,var ,val))
+           (add-instruction `(loopy--explicit-vars . (,var nil)))
+           (add-instruction `(loopy--loop-body . (push ,val ,var))))
+          (`(sum ,var ,val)
+           (add-instruction `(loopy--explicit-vars . (,var 0)))
+           (add-instruction `(loopy--loop-body . (setq ,var (+ ,var ,val)))))
           (_
            (error "Loopy: This form unkown: %s" form)))))
     instructions))
