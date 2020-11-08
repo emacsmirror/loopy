@@ -538,15 +538,10 @@ Lisp code.  `VAR` is an unquoted variable name.
           (do (message "%d" i))))
   ```
 
-#### Assignment and Iteration
-
-The iteration commands determine when the loop ends.  If no command sets that
-condition, then the loop runs forever.
-
 - `(expr VAR EXPR)`: Bind `VAR` to the value of `EXPR` in each iteration.
 
-  **NOTE**: Be aware that loops are lexically scoped, so this is not always the
-  same as `(do (setq VAR EXPR))`.
+  **NOTE**: Loops are lexically scoped, so this is not always the same as
+            `(do (setq VAR EXPR))`.
 
   ```elisp
   (loopy ((list i '(1 2 3))
@@ -554,14 +549,33 @@ condition, then the loop runs forever.
           (do (message "%d" j))))
   ```
 
-- `(seq VAR EXPR)`: Iterate through the sequence `val`, binding `var` to the
-  first element in the sequence.  Afterwards, that element is dropped from the
-  sequence.  The loop ends when the sequence is empty.
+#### Assignment and Iteration
+
+The iteration commands bind local variables and determine when the loop ends.
+If no command sets that condition, then the loop runs forever.
+
+Some commands take an optional function argument, which changes how iteration
+progresses.  This is represented by `[FUNC]`.
+
+- `(array VAR EXPR)`: Iterate through the elements of the array from `EXPR`.
 
   ```elisp
-  (loopy ((seq i [1 2 3])
+  (loopy ((array i [1 2 3])
           (do (message "%d" i))))
   ```
+
+- `(array-ref|arrayf VAR EXPR)`: Iterate through the elements of the array from
+  `EXPR`, binding `VAR` to a `setf`-able place.
+
+  ```elisp
+  (loopy (with (my-str "cat"))
+         (loop (array-ref i my-str)
+               (do (setf i ?a)))
+         (return my-str)) ; => "aaa"
+  ```
+
+- `(cons|conses VAR EXPR [FUNC])`: Iterate through the cons cells in the value
+  of `EXPR`.  Optionally, find the cons cells via `FUNC` instead of `cdr`.
 
 - `(list VAR EXPR [FUNC])`: Iterate through the list `EXPR`, binding `VAR` to
   each element in the list.  Optionally, update the list by `FUNC` instead of
@@ -599,6 +613,24 @@ condition, then the loop runs forever.
   (loopy ((repeat i 3)
           (do (message "%d" i))))
 
+  ```
+
+- `(seq VAR EXPR [FUNC])`: Iterate through the sequence `val`, binding `var` to the
+  elements of the sequence.
+
+  ```elisp
+  (loopy ((seq i [1 2 3])
+          (do (message "%d" i))))
+  ```
+
+- `(seq-ref|seqf VAR EXPR [FUNC])`: Iterate through the sequence `val`, binding `var`
+  to the elements of the sequence as a `setf`-able place.
+
+  ```elisp
+  (loopy (with (my-seq '(1 2 3 4)))
+                   (loop (seq-ref i my-seq)
+                         (do (setf i 7)))
+                   (return my-seq)) ; => '(7 7 7 7)
   ```
 
 #### Accumulation

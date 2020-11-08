@@ -278,7 +278,7 @@ Optionally needs LOOP-NAME for block returns."
                                            (< ,index-holder
                                               (length ,val-holder))))))))
 
-          (`(seq-ref ,var ,val)
+          ((or `(seq-ref ,var ,val) (seqf ,var ,val))
            (let ((val-holder (gensym))
                  (index-holder (gensym))
                  (length-holder (gensym)))
