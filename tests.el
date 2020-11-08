@@ -58,17 +58,13 @@
                       ;; (after-do (cl-return i))
                       (finally-return i)))))
 
-
-;; (cl-loop with my-list = '(1 2 3)
-;;          for i in-ref my-list
-;;          do (setf i 7)
-;;          finally return my-list)
-;;
-;; (cl-loop with my-list = '(1 2 3)
-;;          for i in my-list
-;;          ;; do (setf i 7)
-;;          collect i)
-
+;;;; List Ref
+(ert-deftest loopy-basic-list-ref-test ()
+  (should (equal  '(7 7 7)
+                  (loopy (with (my-list '(1 2 3)))
+                         (loop (list-ref i my-list)
+                               (do (setf i 7)))
+                         (return my-list)))))
 
 ;;;; Repeat
 (ert-deftest loopy-basic-repeat-test ()
