@@ -96,6 +96,18 @@
                       (return nil)))
                  (return t))))
 
+;;;; Seq Ref
+(ert-deftest loopy-basic-seq-ref-test ()
+  (should
+   (equal '(7 7 7 7)
+          (loopy (with (my-seq '(1 2 3 4)))
+                 (loop (seq-ref i my-seq)
+                       (do (setf i 7)))
+                 (return my-seq)))))
+
+(cl-loop for var being the elements of-ref '(1 2 3)
+         collect i)
+
 ;;; Leaving, Returning, Skipping
 (ert-deftest mod-when-test ()
   "Check WHEN processing."

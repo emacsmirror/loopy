@@ -277,6 +277,21 @@ Optionally needs LOOP-NAME for block returns."
                                            (< ,index-holder
                                               (length ,val-holder))))))))
 
+          (`(seq-ref ,var ,val)
+           (let ((val-holder (gensym))
+                 (index-holder (gensym))
+                 (length-holder (gensym)))
+             (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
+             (add-instruction `(loopy--implicit-vars . (,index-holder 0)))
+             (add-instruction `(loopy--explicit-generalized-vars
+                                . (,var (elt ,val-holder ,index-holder))))
+             (add-instruction `(loopy--latter-body
+                                . (setq ,index-holder (1+ ,index-holder))))
+             ;; TODO: Length of sequence not changing, so don't have to
+             ;;       recompute each time.
+             (add-instruction `(loopy--pre-conditions
+                                . (< ,index-holder (length ,val-holder))))))
+
 ;;;;; Conditional Body Forms
           ;; Since these can contain other commands/clauses, it's easier if they
           ;; have their own parsing functions, which call back into this one to
