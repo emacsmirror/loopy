@@ -301,6 +301,20 @@ Not multiple of 3: 7")))
         (nconc l i))
        (return l))
 
+;;; Extensions
+(cl-defun my-loopy-msg-command ((_ str &rest args))
+  "Take a `msg' command, return a message of STR and ARGS."
+  `((loopy--loop-body . (message ,str ,@args))))
+
+
+(make-local-variable 'loopy-custom-command-parsers)
+(push (cons 'msg #'my-loopy-msg-command)
+      loopy-custom-command-parsers)
+
+(loopy ((list i '(1 2 3))
+        (msg "N: %d" i)))
+
+
 ;; Local Variables:
 ;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)
 ;; flycheck-emacs-lisp-load-path: ("./.")

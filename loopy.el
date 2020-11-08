@@ -102,6 +102,26 @@ or `loopy--explicit-generalized-vars'."
       (memq var-name (mapcar #'car loopy--explicit-vars))
       (memq var-name (mapcar #'car loopy--explicit-generalized-vars))))
 
+;;;; Custom Commands and Parsing
+(defcustom loopy-custom-command-parsers nil
+  "An alist of pairs of a quoted command name and a parsing function.
+
+The parsing function is chosen based on the command name (such as
+`list' in `(list i my-list)').
+
+For example, to add a `when' command (if one didn't already
+exist), one could do
+
+\(add-to-list \'loopy-custom-command-parsers
+              (cons 'when #'my-loopy-parse-when-command))"
+  :group 'loopy
+  :type '(alist :key-type sexp :value-type function))
+
+(defun loopy--get-custom-command-parser (command)
+  "Get the parsing function for COMMAND from `loopy-custom-command-parsers'.
+This uses the command name (such as `list' in `(list i my-list)')."
+  (alist-get (car command) loopy-custom-command-parsers))
+
 ;;;; Included parsing functions.
 
 (defun loopy--parse-with-forms (with-forms)
@@ -357,8 +377,15 @@ Optionally needs LOOP-NAME for block returns."
           (`(sum ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var 0)))
            (add-instruction `(loopy--loop-body . (setq ,var (+ ,var ,val)))))
+
+;;;;; Custom commands
           (_
-           (error "Loopy: This form unkown: %s" form)))))))
+           (if-let ((command-parser (loopy--get-custom-command-parser form)))
+               (if-let ((custom-instructions (funcall command-parser form)))
+                   (mapc #'add-instruction custom-instructions)
+                 (error "Loopy: No instructions returned by command parser: %s"
+                        command-parser))
+             (error "Loopy: This form unkown: %s" form))))))))
 
 ;;;; The Macro Itself
 (cl-defmacro loopy (&rest body)
