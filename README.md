@@ -720,6 +720,5 @@ command.
 
 <!-- Would normally would grab H1 level, but we're using that for the title. -->
 <!-- Local Variables: -->
-<!-- flycheck-disabled-checkers: '(proselint) -->
-<!-- eval: (setq-local selectrum-outline-formats (cons '(gfm-mode . "^##\\(?1:#*\\)[[:blank:]]*\\(?2:[[:alnum:]][^z-a]*\\)\\'") selectrum-outline-formats)) -->
+<!-- flycheck-disabled-checkers: (proselint) -->
 <!-- End: -->
