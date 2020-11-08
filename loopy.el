@@ -219,13 +219,20 @@ Optionally needs LOOP-NAME for block returns."
                                 . (setq ,val-holder (,actual-func ,val-holder))))
              (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
 
-          (`(list-ref ,var ,list)
-           (let ((val-holder (gensym)))
+          ((or `(list-ref ,var ,list . ,func) `(listf ,var ,list . ,func))
+           (let ((val-holder (gensym))
+                 (actual-func (cond
+                               ((null func)
+                                'cdr)
+                               ((and (consp (car func))
+                                     (memq (caar func) '(quote function)))
+                                (eval (car func)))
+                               (t (car func)))))
              (add-instruction `(loopy--implicit-vars . (,val-holder ,list)))
              (add-instruction `(loopy--explicit-generalized-vars
                                 . (,var (car ,val-holder))))
              (add-instruction `(loopy--latter-body
-                                . (setq ,val-holder (cdr ,val-holder))))
+                                . (setq ,val-holder (,actual-func ,val-holder))))
              (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
 
           (`(repeat ,count)
