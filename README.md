@@ -1,6 +1,6 @@
 # Loopy: An Emacs Looping Library
 
-Loopy is a macro meant for iterating and looping. It is similar in usage to
+Loopy is a macro meant for iterating and looping.  It is similar in usage to
 `cl-loop` but uses symbolic expressions rather than keywords.
 
 It should be comparable with `cl-loop`, keeping in mind the following points:
@@ -11,17 +11,17 @@ It should be comparable with `cl-loop`, keeping in mind the following points:
   this macro.
 - It has a `skip` command to skip to skip the rest of the loop body and
   immediately start the next iteration (which I don't think `cl-loop` can
-  do). Of course, grouping the rest under a control-flow command, e.g., `when`,
+  do).  Of course, grouping the rest under a control-flow command, e.g., `when`,
   can achieve the same affect.
-- Using an accumulation command does not imply a return value. Return values
-  must be explicitly stated. The default return value is `nil`.
+- Using an accumulation command does not imply a return value.  Return values
+  must be explicitly stated.  The default return value is `nil`.
 
 In addition to a name for the loop, the `loopy` macro has several possible
 arguments, each beginning with a keyword.
 - `with` declares variables that are bound in order before and around the loop,
   like in a `let*` binding.
 - `before-do` is a list of normal Lisp expressions to run before the loop executes.
-- `loop` is a list of special commands that create the loop body. These commands
+- `loop` is a list of special commands that create the loop body.  These commands
   are described in detail in the section [How to Use](#how-to-use).
 - `after-do` is a list of normal Lisp expressions to run after the successful
   completion of the loop.
@@ -38,9 +38,9 @@ For example,
 - To just bind a variable to the result of a Lisp expression,
   use `(expr my-var (my-func))`
 
-Below is a full example of the arguments of the `loopy` macro. The top-level
+Below is a full example of the arguments of the `loopy` macro.  The top-level
 forms have a flexible-order, but meaning is clearest if they have the following
-order. All of the arguments are technically optional, but having a loop without
+order.  All of the arguments are technically optional, but having a loop without
 a body wouldn't be very useful.
 
 ``` elisp
@@ -71,8 +71,8 @@ a body wouldn't be very useful.
        (finally-return (list found-evens found-odds)))
 ```
 
-Loopy is not feature complete. Here are some things that would be nice:
-- Iteration clauses that are supported by `cl-loop`. `seq` can iterate
+Loopy is not feature complete.  Here are some things that would be nice:
+- Iteration clauses that are supported by `cl-loop`.  `seq` can iterate
   through sequences, but `cl-loop` does more.
   - A few are unneeded, such as the `for` statements that can instead be done
     using `number-sequence`.
@@ -115,7 +115,7 @@ conditionals while still using a clean syntax, such as in the below example.
 ```
 
 In my experience, `cl-loop` does not allow the easy grouping of assignment
-statements under a `when` condition. For example, below is something I would
+statements under a `when` condition.  For example, below is something I would
 like to try to do with `cl-loop`.
 
 I am aware that in this example the `for` statements aren't necessary and that
@@ -192,7 +192,7 @@ Here is how one could (currently) do it with `loopy`.
 This expansion is probably less efficient than what `cl-loop` does.
 
 The expansion shows that there is room for improvement, but it's a nice start,
-is easy to read, and does what I want. I believe that the value of the macro
+is easy to read, and does what I want.  I believe that the value of the macro
 increases for longer loop bodies with several conditional commands.
 
 Another nice ability, one that I'm not sure `cl-loop` has, is
@@ -257,7 +257,7 @@ Here is a version using the normal features of Elisp:
             (prev-heading-text)
             (prev-heading-level)
 
-            ;; Backwards result of the `dolist'. Will `nreverse'.
+            ;; Backwards result of the `dolist'.  Will `nreverse'.
             (formatted-headings))
 
         (setq line-number-format
@@ -373,7 +373,7 @@ Here is a version using `loopy`:
           (prev-heading-text)
           (prev-heading-level)
 
-          ;; Backwards result of the `dolist'. Will `nreverse'.
+          ;; Backwards result of the `dolist'.  Will `nreverse'.
           (formatted-headings))
 
       (setq line-number-format
@@ -467,7 +467,7 @@ this document.
 ## How to use
 
 `loopy` takes at most 7 arguments.  They are all technically optional, but a
-loop that does nothing isn't very useful. Except for a name for the loop, all of
+loop that does nothing isn't very useful.  Except for a name for the loop, all of
 the arguments are list that begin with a keyword (allowing for conveniences).
 
 | Keyword        | Other Names      | Usage                                                   |
@@ -481,23 +481,23 @@ the arguments are list that begin with a keyword (allowing for conveniences).
 
 
 Loop body commands are the meat of the `loopy` macro, and are described in the
-following sections.  A loop command inserts expressions into the loop body, but
+following sections.   A loop command inserts expressions into the loop body, but
 can also perform additional setup, such as initializing specified variables or
-creating extra ones. Many set up a condition for ending the loop.
+creating extra ones.  Many set up a condition for ending the loop.
 
-A loop ends when any condition required by a loop command evaluates to false. If
+A loop ends when any condition required by a loop command evaluates to false.  If
 no conditions are needed, the loop runs infinitely unless a return command is
 reached.
 
 Returns must be stated explicitly, either as an early return for in the loop
-body via the `return` command, or as a `finally-return` to the macro. `nil` is
+body via the `return` command, or as a `finally-return` to the macro.  `nil` is
 returned by default.
 
 ### Generic Evaluation
-- `(do|progn SEXPS)`: Evaluate multiple sexps, like a `progn`. You cannot
+- `(do|progn SEXPS)`: Evaluate multiple sexps, like a `progn`.  You cannot
   include arbitrary code in the loop body, except for the conditions of the
   conditional commands (`when`, `unless`, `if`, and `cond`) and in a `do`
-  command. Doing otherwise will result in errors, as the macro will attempt to
+  command.  Doing otherwise will result in errors, as the macro will attempt to
   interpret such code as a command.
 
   ```elisp
@@ -505,13 +505,13 @@ returned by default.
           (do (message "%d" i))))
   ```
 
-### Assignment and iteration
+### Assignment and Iteration
 
-The iteration commands determine when the loop ends. If no command sets that
+The iteration commands determine when the loop ends.  If no command sets that
 condition, then the loop runs forever.
 
-- `(expr var val)`: Bind `var` to expression `val` in each iteration. This is
-  the `for var = val` of `loopy`, but it can occur in more places. Be aware that
+- `(expr var val)`: Bind `var` to expression `val` in each iteration.  This is
+  the `for var = val` of `loopy`, but it can occur in more places.  Be aware that
   loops are lexically scoped, so this is not always the same as
   `(do (setq VAR VAL))`.
 
@@ -522,8 +522,8 @@ condition, then the loop runs forever.
   ```
 
 - `(seq var val)`: Iterate through the sequence `val`, binding `var` to the
-  first element in the sequence. Afterwards, that element is dropped from the
-  sequence. The loop ends when the sequence is empty.
+  first element in the sequence.  Afterwards, that element is dropped from the
+  sequence.  The loop ends when the sequence is empty.
 
   ```elisp
   (loopy ((seq i [1 2 3])
@@ -531,7 +531,7 @@ condition, then the loop runs forever.
   ```
 
 - `(list var val)`:  Iterate through the sequence `val`, binding `var` to the
-  value returned by `pop`. The loop ends when the list is empty.
+  value returned by `pop`.  The loop ends when the list is empty.
 
   ```elisp
   (loopy ((list i (number-sequence 1 10 3)) ; Inclusive, so '(1 4 7 10).
@@ -547,7 +547,7 @@ condition, then the loop runs forever.
   ```
 
 - `(repeat var number)`: Add a condition that the loop should stop after this
-  many iterations. `var` starts at 0, and is increased by 1 each time.
+  many iterations.  `var` starts at 0, and is increased by 1 each time.
 
   ```elisp
   (loopy ((repeat i 3)
@@ -558,7 +558,7 @@ condition, then the loop runs forever.
 ### Accumulation (for Convenience)
 
 Unlike in `cl-loop`, the presence of an accumulation does not imply a return
-value. You must provide a variable in which to store the accumulated value. If
+value.  You must provide a variable in which to store the accumulated value.  If
 you wish, you can then return the value of that variable (either early, or after
 the loop).
 
@@ -572,7 +572,7 @@ the loop).
 
 ### Conditionals
 
-- `(when COND SEXPS)`: Conditionally run binding `SEXPS`. A sexp can be one of
+- `(when COND SEXPS)`: Conditionally run binding `SEXPS`.  A sexp can be one of
   the body forms in this list.
 
   ```elisp
@@ -598,7 +598,7 @@ the loop).
                                   some-threes)))
    ```
 
-- `(cond )`: Like a `cond`. Use for IF-ELIF-ELSE things.
+- `(cond )`: Like a `cond`.  Use for IF-ELIF-ELSE things.
 
   ```elisp
         (loopy ((list i (number-sequence 1 10))
@@ -611,7 +611,7 @@ the loop).
 
 ### Skipping an Iteration
 
-- `(skip|continue)`: Go to next loop iteration. Can be `(skip)` or `(continue)`.
+- `(skip|continue)`: Go to next loop iteration.  Can be `(skip)` or `(continue)`.
 
   ```elisp
   (loopy ((seq i (number-sequence 1 20))
@@ -625,8 +625,8 @@ the loop).
 ### Leaving or Exiting the Loop Early
 
 The loop is contained in a `cl-block`, and these forms are all `cl-return-from`
-underneath. In fact, you could use `(do (cl-return-from NAME VAL))` to achieve
-the same effect. These forms are provided for convenience.
+underneath.  In fact, you could use `(do (cl-return-from NAME VAL))` to achieve
+the same effect.  These forms are provided for convenience.
 
 - `(return VAL)`:   Leave the current loop, returning value.
 
@@ -647,7 +647,7 @@ the same effect. These forms are provided for convenience.
                       (return-from outer-loop 'bad-val?)))))))
   ```
 
-- `(leave|break)`: Leave the loop. Return `nil`.
+- `(leave|break)`: Leave the loop.  Return `nil`.
 
   ``` elisp
   (loopy ((list i '(1 2 3 "cat" 4 5 6))
@@ -656,7 +656,7 @@ the same effect. These forms are provided for convenience.
             (leave))))
   ```
 
-- `(leave-from|break-from NAME)`: Leave the loop `NAME`. Return `nil`.
+- `(leave-from|break-from NAME)`: Leave the loop `NAME`.  Return `nil`.
 
   ``` elisp
   (loopy outer
