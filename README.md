@@ -493,10 +493,43 @@ Returns must be stated explicitly, either as an early return for in the loop
 body via the `return` command, or as a `finally-return` to the macro.  `nil` is
 returned by default.
 
-### Generic Evaluation
-- `(do|progn SEXPS)`: Evaluate multiple sexps, like a `progn`.  You cannot
-  include arbitrary code in the loop body, except for the conditions of the
-  conditional commands (`when`, `unless`, `if`, and `cond`) and in a `do`
+### Loop Body Commands
+
+A command can underneath be made of several instructions (which are described in
+detail in [Extending with Personal Loop Commands](#extending_with_personal_loop_commands)).
+Some examples are
+- Declare a given variable in a let form to make sure it's lexically scoped.
+- Declare a generated variable in a let form to contain a given value.
+- Add a condition for continuing/exiting the loop.
+- Add code to be run during the main loop body.
+- Add code to be run after the main loop body.
+
+The implementation details of commands generally shouldn't matter, except that
+code from commands is evaluated in the order it was found.  This means that
+attempting to do something like
+
+``` elisp
+(loopy (loop (collect coll (+ i 2))
+             (list i '(1 2 3)))
+       (return coll))
+```
+
+won't work, as `i` is assigned to after collecting `(+ i 2)` into `coll`.
+
+For convenience, the same command can have multiple names (such as `do` and
+`progn`), and some commands can take optional arguments (such as `list`).  In
+this section, alternative names are separated by a vertical bar (`do|progn`),
+and optional arguments are surround by brackets (`[EXPR]`).
+
+For consistency, `EXPR` below means a single Lisp expression.  `EXPRS` means
+multiple Lisp expressions, with `[EXPRS]` being equivalent to
+`[EXPR [EXPR [...]]]`.  `CMD` means a loop body command, as opposed to normal
+Lisp code.  `VAR` is an unquoted variable name.
+
+#### Generic Evaluation
+- `(do|progn EXPRS)`: Evaluate multiple Lisp expressions, like a `progn`.  You
+  cannot include arbitrary code in the loop body, except for the conditions of
+  the conditional commands (`when`, `unless`, `if`, and `cond`) and in a `do`
   command.  Doing otherwise will result in errors, as the macro will attempt to
   interpret such code as a command.
 
@@ -505,15 +538,15 @@ returned by default.
           (do (message "%d" i))))
   ```
 
-### Assignment and Iteration
+#### Assignment and Iteration
 
 The iteration commands determine when the loop ends.  If no command sets that
 condition, then the loop runs forever.
 
-- `(expr var val)`: Bind `var` to expression `val` in each iteration.  This is
-  the `for var = val` of `loopy`, but it can occur in more places.  Be aware that
-  loops are lexically scoped, so this is not always the same as
-  `(do (setq VAR VAL))`.
+- `(expr VAR EXPR)`: Bind `VAR` to the value of `EXPR` in each iteration.
+
+  **NOTE**: Be aware that loops are lexically scoped, so this is not always the
+  same as `(do (setq VAR EXPR))`.
 
   ```elisp
   (loopy ((list i '(1 2 3))
@@ -521,7 +554,7 @@ condition, then the loop runs forever.
           (do (message "%d" j))))
   ```
 
-- `(seq var val)`: Iterate through the sequence `val`, binding `var` to the
+- `(seq VAR EXPR)`: Iterate through the sequence `val`, binding `var` to the
   first element in the sequence.  Afterwards, that element is dropped from the
   sequence.  The loop ends when the sequence is empty.
 
@@ -530,7 +563,7 @@ condition, then the loop runs forever.
           (do (message "%d" i))))
   ```
 
-- `(list var val)`:  Iterate through the sequence `val`, binding `var` to the
+- `(list VAR EXPR)`:  Iterate through the sequence `val`, binding `var` to the
   value returned by `pop`.  The loop ends when the list is empty.
 
   ```elisp
@@ -538,7 +571,7 @@ condition, then the loop runs forever.
           (do (message "%d" i))))
   ```
 
-- `(repeat number)`: Add a condition that the loop should stop after this many
+- `(repeat EXPR)`: Add a condition that the loop should stop after `EXPR`
   iterations.
 
   ```elisp
@@ -546,8 +579,9 @@ condition, then the loop runs forever.
           (do (message "Messaged three times."))))
   ```
 
-- `(repeat var number)`: Add a condition that the loop should stop after this
-  many iterations.  `var` starts at 0, and is increased by 1 each time.
+- `(repeat VAR EXPR)`: Add a condition that the loop should stop after
+  `NUMBER` iterations.  `VAR` starts at 0, and is incremented by 1 at the end of
+  the loop.
 
   ```elisp
   (loopy ((repeat i 3)
@@ -555,14 +589,18 @@ condition, then the loop runs forever.
 
   ```
 
-### Accumulation (for Convenience)
+#### Accumulation (for Convenience)
 
 Unlike in `cl-loop`, the presence of an accumulation does not imply a return
 value.  You must provide a variable in which to store the accumulated value.  If
 you wish, you can then return the value of that variable (either early, or after
 the loop).
 
-- `(prepend|push|push-into var val)`: Repeatedly `push` `val` into `var`.
+- `(append VAR EXPR)`: Repeatedly `append` the value of `EXPR` to `VAR`. `VAR`
+  starts as `nil`.
+
+- `(prepend|push|push-into VAR EXPR)`: Repeatedly `push` `EXPR` into
+  `VAR`. `VAR` stars as `nil`.
 
   ```elisp
   (loopy ((seq i [1 2 3])
@@ -570,10 +608,10 @@ the loop).
          (finally-return reversed))
   ```
 
-### Conditionals
+#### Conditionals
 
-- `(when COND SEXPS)`: Conditionally run binding `SEXPS`.  A sexp can be one of
-  the body forms in this list.
+- `(when EXPR CMDS)`: Like a normal `when`, run the commands `CMDS` only if
+  `EXPR` is non-nil.
 
   ```elisp
   ;; Get only the inner lists with all even numbers.
@@ -585,7 +623,8 @@ the loop).
          (finally-return only-evens))
   ```
 
-- `(if COND SEXPS)`: Like an `if` body.
+- `(if EXPR CMDS)`: Like a normal `if`, run the first command if `EXPR` is
+  non-nil. Otherwise, run the remaining commands.
 
   ```elisp
   (loopy ((seq i [1 2 3 4 5 6 7 8 9 10])
@@ -598,7 +637,8 @@ the loop).
                                   some-threes)))
    ```
 
-- `(cond )`: Like a `cond`.  Use for IF-ELIF-ELSE things.
+- `(cond [(EXPR CMDS) [...]])`: Like a normal `cond`, for the first `EXPR` to
+  evaluate to non-nil, run the following commands `CMDS`.
 
   ```elisp
         (loopy ((list i (number-sequence 1 10))
@@ -609,9 +649,9 @@ the loop).
                (finally-return (list evens odds)))
         ```
 
-### Skipping an Iteration
+#### Skipping an Iteration
 
-- `(skip|continue)`: Go to next loop iteration.  Can be `(skip)` or `(continue)`.
+- `(skip|continue)`: Go to next loop iteration.
 
   ```elisp
   (loopy ((seq i (number-sequence 1 20))
@@ -622,13 +662,13 @@ the loop).
          (finally-return (nreverse my-collection)))
   ```
 
-### Leaving or Exiting the Loop Early
+#### Leaving or Exiting the Loop Early
 
 The loop is contained in a `cl-block`, and these forms are all `cl-return-from`
 underneath.  In fact, you could use `(do (cl-return-from NAME VAL))` to achieve
 the same effect.  These forms are provided for convenience.
 
-- `(return VAL)`:   Leave the current loop, returning value.
+- `(return EXPR)`:   Leave the current loop, returning value.
 
   ```elisp
   (loopy (with  (j 0))
@@ -637,7 +677,7 @@ the same effect.  These forms are provided for convenience.
             (return j))))
   ```
 
-- `(return-from NAME VAL)`: Leave the loop `NAME`, returning `VAL`.
+- `(return-from NAME EXPR)`: Leave the loop `NAME`, returning `VAL`.
 
   ```elisp
   (loopy outer-loop
