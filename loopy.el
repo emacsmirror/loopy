@@ -152,7 +152,7 @@ This takes the `cdr' of the COND form (i.e., doesn't start with \"cond\")."
   "Get update and continue conditions from FORMS.
 Optionally needs LOOP-NAME for block returns."
   (let ((instructions))
-    (dolist (form forms)
+    (dolist (form forms instructions)
       ;; Make a quick function, since we keeping missing the second argument of
       ;; `push'.
       (cl-flet ((add-instruction (instr) (push instr instructions)))
@@ -328,8 +328,7 @@ Optionally needs LOOP-NAME for block returns."
            (add-instruction `(loopy--explicit-vars . (,var 0)))
            (add-instruction `(loopy--loop-body . (setq ,var (+ ,var ,val)))))
           (_
-           (error "Loopy: This form unkown: %s" form)))))
-    instructions))
+           (error "Loopy: This form unkown: %s" form)))))))
 
 ;;;; The Macro Itself
 (cl-defmacro loopy (&rest body)
