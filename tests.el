@@ -47,6 +47,17 @@
                               (do (setf i ?a)))
                         (return my-str)))))
 
+;;;; Cons
+(ert-deftest loopy-basic-cons-test ()
+  (should (and (equal (loopy ((cons x '(1 2 3 4))
+                              (collect coll x))
+                             (return coll))
+                      '((1 2 3 4) (2 3 4) (3 4) (4)))
+               (equal (loopy ((cons x '(1 2 3 4) #'cddr)
+                              (collect coll x))
+                             (return coll))
+                      '((1 2 3 4) (3 4))))))
+
 ;;;; Expr
 (ert-deftest expr-dont-repeat ()
   "Make sure commands don't repeatedly create/declare the same variable."

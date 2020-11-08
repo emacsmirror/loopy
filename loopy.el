@@ -201,15 +201,18 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--pre-conditions
                                 . (< ,index-holder (length ,val-holder))))))
 
-          ((or `(cdrs ,var ,val) `(cdr ,var ,val)
-               `(cons ,var ,val) `(conses ,var ,val))
-           (let ((val-holder (gensym)))
-             (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
-             (add-instruction `(loopy--explicit-vars . (,var nil)))
-             (add-instruction `(loopy--loop-body . (setq ,var ,val-holder)))
+          ((or `(cons ,var ,val . ,func) `(conses ,var ,val . ,func))
+           (let ((actual-func (cond
+                               ((null func)
+                                'cdr)
+                               ((and (consp (car func))
+                                     (memq (caar func) '(quote function)))
+                                (eval (car func)))
+                               (t (car func)))))
+             (add-instruction `(loopy--explicit-vars . (,var ,val)))
              (add-instruction `(loopy--latter-body
-                                . (setq ,val-holder (cdr ,val-holder))))
-             (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
+                                . (setq ,var (,actual-func ,var))))
+             (add-instruction `(loopy--pre-conditions . (consp ,var)))))
 
           (`(list ,var ,val . ,func)
            (let ((val-holder (gensym))
