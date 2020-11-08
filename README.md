@@ -572,6 +572,17 @@ condition, then the loop runs forever.
           (do (message "%d" i))))
   ```
 
+- `(list-ref|listf VAR EXPR [FUNC])`: Iterate through the list `EXPR`, binding
+  `VAR` to each element in the list as a `setf`-able location.  Optionally,
+  update the list by `FUNC` instead of `cdr`.
+
+  ```elisp
+  (loopy (with (my-list '(1 2 3)))
+         (loop (list-ref i my-list)
+               (do (setf i 7)))
+         (finally-return my-list)) ; Returns '(7 7 7).
+  ```
+
 - `(repeat EXPR)`: Add a condition that the loop should stop after `EXPR`
   iterations.
 
