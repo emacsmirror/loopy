@@ -58,7 +58,7 @@ This is done using a `progn'.")
 These are fed to an `and', so all conditions must be true for the
   `while' to start/loop.")
 
-(defvar loopy--loop-body nil
+(defvar loopy--main-body nil
   "A list of expressions to run (in order) inside the loop.
 These expressions are created by parsing the loop commands passed to `loopy'.
 
@@ -130,7 +130,7 @@ This list is substituted into a LET* binding."
   (cdr with-forms))
 
 (defun loopy--parse-conditional-forms (wrapper condition forms &optional loop-name)
-  "Parse FORMS, wrapping `loopy--loop-body' expressions in a conditional form.
+  "Parse FORMS, wrapping `loopy--main-body' expressions in a conditional form.
 The instructions (e.g., return expressions) are wrapped with a
 WRAPPER with CONDITION.  Optionally needs LOOP-NAME for block
 returns."
@@ -139,10 +139,10 @@ returns."
         (loop-body))
     (dolist (instruction sub-instructions)
       (cl-case (car instruction)
-        ('loopy--loop-body
+        ('loopy--main-body
          (push (cdr instruction) loop-body))
         (t (push instruction full-instructions))))
-    (push `(loopy--loop-body . (,wrapper ,condition ,@loop-body)) full-instructions)
+    (push `(loopy--main-body . (,wrapper ,condition ,@loop-body)) full-instructions)
     full-instructions))
 
 (defun loopy--parse-cond-form (forms &optional loop-name)
@@ -160,12 +160,12 @@ This takes the `cdr' of the COND form (i.e., doesn't start with \"cond\")."
             (instructions-for-wrapping))
         (dolist (instruction sub-instructions)
           (cl-case (car instruction)
-            ('loopy--loop-body
+            ('loopy--main-body
              (push (cdr instruction) instructions-for-wrapping))
             (t (push instruction full-instructions))))
         (push (cons condition instructions-for-wrapping)
               cond-body)))
-    (push `(loopy--loop-body . ,(cons 'cond (nreverse cond-body))) full-instructions)
+    (push `(loopy--main-body . ,(cons 'cond (nreverse cond-body))) full-instructions)
     full-instructions))
 
 (defun loopy--parse-body-forms (forms &optional loop-name)
@@ -180,9 +180,9 @@ Optionally needs LOOP-NAME for block returns."
 ;;;;; Generic body clauses
           ;; A DO form for a generic lisp body. Not searched for special forms.
           (`(do . ,body)
-           (add-instruction `(loopy--loop-body . (progn ,@body))))
+           (add-instruction `(loopy--main-body . (progn ,@body))))
           (`(expr ,var ,val)
-           (add-instruction `(loopy--loop-body . (setq ,var ,val)))
+           (add-instruction `(loopy--main-body . (setq ,var ,val)))
            ;; Want to make sure VAR is lexically bound.
            (add-instruction `(loopy--explicit-vars . (,var nil))))
 
@@ -199,7 +199,7 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
              (add-instruction `(loopy--implicit-vars . (,index-holder 0)))
              (add-instruction `(loopy--explicit-vars . (,var nil)))
-             (add-instruction `(loopy--loop-body . (setq ,var
+             (add-instruction `(loopy--main-body . (setq ,var
                                                          (aref ,val-holder
                                                                ,index-holder))))
              (add-instruction `(loopy--latter-body . (setq ,index-holder
@@ -246,7 +246,7 @@ Optionally needs LOOP-NAME for block returns."
                                (t (car func)))))
              (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
              (add-instruction `(loopy--explicit-vars . (,var nil)))
-             (add-instruction `(loopy--loop-body
+             (add-instruction `(loopy--main-body
                                 . (setq ,var (car ,val-holder))))
              (add-instruction `(loopy--latter-body
                                 . (setq ,val-holder (,actual-func ,val-holder))))
@@ -288,7 +288,7 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--implicit-vars . (,index-holder 0)))
              (add-instruction `(loopy--explicit-vars . (,var nil)))
              (add-instruction
-              `(loopy--loop-body . (setq ,var (if (consp ,val-holder)
+              `(loopy--main-body . (setq ,var (if (consp ,val-holder)
                                                   (pop ,val-holder)
                                                 (aref ,val-holder ,index-holder))
                                          ,index-holder (1+ ,index-holder))))
@@ -335,48 +335,48 @@ Optionally needs LOOP-NAME for block returns."
 
 ;;;;; Exit and Return Clauses
           ((or '(skip) '(continue))
-           (add-instruction '(loopy--loop-body . (go loopy--continue-tag))))
+           (add-instruction '(loopy--main-body . (go loopy--continue-tag))))
           (`(return ,val)
-           (add-instruction `(loopy--loop-body . (cl-return-from ,loop-name ,val))))
+           (add-instruction `(loopy--main-body . (cl-return-from ,loop-name ,val))))
           (`(return-from ,name ,val)
-           (add-instruction `(loopy--loop-body . (cl-return-from ,name ,val))))
+           (add-instruction `(loopy--main-body . (cl-return-from ,name ,val))))
           ((or '(leave) '(break))
-           (add-instruction `(loopy--loop-body . (cl-return-from ,loop-name nil))))
+           (add-instruction `(loopy--main-body . (cl-return-from ,loop-name nil))))
           ((or `(leave-from ,name) `(break-from ,name))
-           (add-instruction `(loopy--loop-body . (cl-return-from ,name nil))))
+           (add-instruction `(loopy--main-body . (cl-return-from ,name nil))))
 
 ;;;;; Accumulation Clauses
           (`(append ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
-           (add-instruction `(loopy--loop-body . (setq ,var (append ,var ,val)))))
+           (add-instruction `(loopy--main-body . (setq ,var (append ,var ,val)))))
           (`(collect ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
-           (add-instruction `(loopy--loop-body . (setq ,var (append ,var
+           (add-instruction `(loopy--main-body . (setq ,var (append ,var
                                                                     (list ,val))))))
           (`(concat ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
-           (add-instruction `(loopy--loop-body . (setq ,var (concat ,var ,val)))))
+           (add-instruction `(loopy--main-body . (setq ,var (concat ,var ,val)))))
           (`(vconcat ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
-           (add-instruction `(loopy--loop-body . (setq ,var (vconcat ,var ,val)))))
+           (add-instruction `(loopy--main-body . (setq ,var (vconcat ,var ,val)))))
           (`(count ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var 0)))
-           (add-instruction `(loopy--loop-body . (when ,val (cl-incf ,var)))))
+           (add-instruction `(loopy--main-body . (when ,val (cl-incf ,var)))))
           ((or `(max ,var ,val) `(maximize ,var ,val))
            (add-instruction `(loopy--explicit-vars . (,var -1.0e+INF)))
-           (add-instruction `(loopy--loop-body . (setq ,var (max ,var ,val)))))
+           (add-instruction `(loopy--main-body . (setq ,var (max ,var ,val)))))
           ((or `(min ,var ,val) `(minimize ,var ,val))
            (add-instruction `(loopy--explicit-vars . (,var 1.0e+INF)))
-           (add-instruction `(loopy--loop-body . (setq ,var (min ,var ,val)))))
+           (add-instruction `(loopy--main-body . (setq ,var (min ,var ,val)))))
           (`(nconc ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
-           (add-instruction `(loopy--loop-body . (setq ,var (nconc ,var ,val)))))
+           (add-instruction `(loopy--main-body . (setq ,var (nconc ,var ,val)))))
           ((or `(push-into ,var ,val) `(prepend ,var ,val) `(push ,var ,val))
            (add-instruction `(loopy--explicit-vars . (,var nil)))
-           (add-instruction `(loopy--loop-body . (push ,val ,var))))
+           (add-instruction `(loopy--main-body . (push ,val ,var))))
           (`(sum ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var 0)))
-           (add-instruction `(loopy--loop-body . (setq ,var (+ ,var ,val)))))
+           (add-instruction `(loopy--main-body . (setq ,var (+ ,var ,val)))))
 
 ;;;;; Custom commands
           (_
@@ -432,7 +432,7 @@ Things to note:
         (loopy--explicit-vars)
         (loopy--explicit-generalized-vars)
         (loopy--pre-conditions)
-        (loopy--loop-body)
+        (loopy--main-body)
         (loopy--latter-body)
         (loopy--post-conditions))
 
@@ -477,8 +477,8 @@ Things to note:
                (push (cdr instruction) loopy--explicit-vars)))
             (loopy--pre-conditions
              (push (cdr instruction) loopy--pre-conditions))
-            (loopy--loop-body
-             (push (cdr instruction) loopy--loop-body))
+            (loopy--main-body
+             (push (cdr instruction) loopy--main-body))
             (loopy--latter-body
              (push (cdr instruction) loopy--latter-body))
             (loopy--post-conditions
@@ -490,7 +490,7 @@ Things to note:
     (when loopy--post-conditions
       (push `(unless (and ,@loopy--post-conditions)
                (cl-return-from ,loopy--name-arg))
-            loopy--loop-body))
+            loopy--main-body))
 
 ;;;;; Constructing/Creating the returned code.
     ;; Note: `let'/`let*' will signal an error if we accidentally substitute
@@ -514,10 +514,10 @@ Things to note:
                       (cl-tagbody
                        ;; Note: `push'-ing things into the instruction list in
                        ;;       `loopy--parse-body-forms' and then reading them
-                       ;;       back and then pushing into `loopy--loop-body'
+                       ;;       back and then pushing into `loopy--main-body'
                        ;;       counters out the flipped order normally caused by
                        ;;       `push'.
-                       ,@loopy--loop-body
+                       ,@loopy--main-body
                        loopy--continue-tag
                        ,@loopy--latter-body))
                     ,@loopy--after-do
