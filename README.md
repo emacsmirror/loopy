@@ -470,14 +470,14 @@ this document.
 loop that does nothing isn't very useful.  Except for a name for the loop, all of
 the arguments are list that begin with a keyword (allowing for conveniences).
 
-| Keyword        | Other Names      | Usage                                                   |
-|----------------|------------------|---------------------------------------------------------|
-| with           | let*             | Declare variables before the loop.                      |
-| before-do      | before-progn     | Run Lisp expressions before loop starts.                |
-| loop           | Can be excluded. | Add expressions to loop body, performing further setup. |
-| after-do       | after-progn      | Run Lisp expressions after loop successfully completes. |
-| finally-do     | finally-progn    | Always run Lisp expressions after loop exits.           |
-| finally-return | return           | Return a value, regardless of success.                  |
+| Keyword          | Other Names      | Usage                                                   |
+|------------------|------------------|---------------------------------------------------------|
+| `with`           | `let*`           | Declare variables before the loop.                      |
+| `before-do`      | `before-progn`   | Run Lisp expressions before loop starts.                |
+| `loop`           | Can be excluded. | Add expressions to loop body, performing further setup. |
+| `after-do`       | `after-progn`    | Run Lisp expressions after loop successfully completes. |
+| `finally-do`     | `finally-progn`  | Always run Lisp expressions after loop exits.           |
+| `finally-return` | `return`         | Return a value, regardless of success.                  |
 
 
 Loop body commands are the meat of the `loopy` macro, and are described in the
