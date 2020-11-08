@@ -549,20 +549,10 @@ condition, then the loop runs forever.
 - `(repeat var number)`: Add a condition that the loop should stop after this
   many iterations. `var` starts at 0, and is increased by 1 each time.
 
-  Remember that the incrementing happens where the `repeat` command is used in
-  the loop body; it is not treated as different from other commands. This can be
-  changed, it feels too weird.
-
   ```elisp
-  ;; Here, `repeat' comes before `do', so `i' is incremented before the
-  ;; `message'. This shows "1\n", "2\n", "3\n".
   (loopy ((repeat i 3)
           (do (message "%d" i))))
 
-  ;; Here, `repeat' comes after `do', so `i' is incremented before the
-  ;; `message'. This shows "0\n", "1\n", "2\n".
-  (loopy ((do (message "%d" i))
-          (repeat i 3)))
   ```
 
 ### Accumulation (for Convenience)

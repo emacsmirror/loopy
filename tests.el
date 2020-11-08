@@ -53,11 +53,24 @@
 
 ;;;; List
 (ert-deftest loopy-basic-list-test ()
-  (should (eq 3 (loopy (loop (list i '(1 2 3)))
-                       ;; Same thing:
-                       ;; (after-do (cl-return i))
-                       (finally-return i)))))
+  (should (= 3 (loopy (loop (list i '(1 2 3)))
+                      ;; Same thing:
+                      ;; (after-do (cl-return i))
+                      (finally-return i)))))
 
+
+;; (cl-loop with my-list = '(1 2 3)
+;;          for i in-ref my-list
+;;          do (setf i 7)
+;;          finally return my-list)
+;;
+;; (cl-loop with my-list = '(1 2 3)
+;;          for i in my-list
+;;          ;; do (setf i 7)
+;;          collect i)
+
+
+;;;; Repeat
 (ert-deftest loopy-basic-repeat-test ()
   (should (= 3 (length (loopy (loop (repeat 3)
                                     (list i (number-sequence 1 10))
@@ -66,14 +79,10 @@
 
 (ert-deftest loopy-basic-repeat-var-test ()
   "Need to test order of execution and functionality."
-  (should (and (equal '(1 2 3)
-                      (loopy ((repeat i 3)
-                              (collect coll i))
-                             (finally-return coll)))
-               (equal '(0 1 2)
-                      (loopy ((collect coll i)
-                              (repeat i 3))
-                             (finally-return coll))))))
+  (should (equal '(0 1 2)
+                 (loopy ((collect coll i)
+                         (repeat i 3))
+                        (finally-return coll)))))
 
 ;;;; Seq
 (ert-deftest loopy-basic-seq-test ()

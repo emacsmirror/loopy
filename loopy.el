@@ -66,6 +66,13 @@ For example, the command (list i my-list) effectively puts
 \(setq i (pop my-list)) into the loop body.  Most commands require some setup,
 and so don't affect only the loop body.")
 
+(defvar loopy--latter-body nil
+  "A list of expressions to run after the main loop body.
+These expressions are created by parsing the loop commands passed to `loopy'.
+
+For example, updating an indexing variable should only happen
+after the variable is used.")
+
 (defvar loopy--post-conditions nil
   "Post-conditions that could cause the loop to exit evaluating the loop body.
 
@@ -176,8 +183,9 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--explicit-vars . (,var nil)))
              (add-instruction `(loopy--loop-body . (setq ,var
                                                          (aref ,val-holder
-                                                               ,index-holder)
-                                                         ,index-holder (1+ ,index-holder))))
+                                                               ,index-holder))))
+             (add-instruction `(loopy--latter-body . (setq ,index-holder
+                                                           (1+ ,index-holder))))
              (add-instruction `(loopy--pre-conditions . (< ,index-holder
                                                            (length ,val-holder))))))
 
@@ -186,17 +194,20 @@ Optionally needs LOOP-NAME for block returns."
            (let ((val-holder (gensym)))
              (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
              (add-instruction `(loopy--explicit-vars . (,var nil)))
-             (add-instruction `(loopy--loop-body
-                                . (setq ,var ,val-holder
-                                        ,val-holder (cdr ,val-holder))))
+             (add-instruction `(loopy--loop-body . (setq ,var ,val-holder)))
+             (add-instruction `(loopy--latter-body
+                                . (setq ,val-holder (cdr ,val-holder))))
              (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
 
           (`(list ,var ,val)
            (let ((val-holder (gensym)))
              (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
              (add-instruction `(loopy--explicit-vars . (,var nil)))
-             (add-instruction `(loopy--loop-body . (setq ,var (pop ,val-holder))))
-             (add-instruction `(loopy--pre-conditions . ,(consp val-holder)))))
+             (add-instruction `(loopy--loop-body
+                                . (setq ,var (car ,val-holder))))
+             (add-instruction `(loopy--latter-body
+                                . (setq ,val-holder (cdr ,val-holder))))
+             (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
 
           ;; TODO: Combine this with above?
           (`(list-by ,var ,val ,func)
@@ -211,8 +222,9 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
              (add-instruction `(loopy--explicit-vars . (,var nil)))
              (add-instruction `(loopy--loop-body
-                                . (setq ,var (car ,val-holder)
-                                        ,val-holder (,actual-func ,val-holder))))
+                                . (setq ,var (car ,val-holder))))
+             (add-instruction `(loopy--latter-body
+                                . (setq ,val-holder (,actual-func ,val-holder))))
              (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
 
           (`(list-ref ,var ,list)
@@ -220,19 +232,19 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--implicit-vars . (,val-holder ,list)))
              (add-instruction `(loopy--explicit-generalized-vars
                                 . (,var (car ,val-holder))))
-             (add-instruction `(loopy--loop-body
+             (add-instruction `(loopy--latter-body
                                 . (setq ,val-holder (cdr ,val-holder))))
              (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
 
           (`(repeat ,count)
            (let ((val-holder (gensym)))
              (add-instruction `(loopy--implicit-vars . (,val-holder 0)))
-             (add-instruction `(loopy--loop-body . (cl-incf ,val-holder)))
+             (add-instruction `(loopy--latter-body . (cl-incf ,val-holder)))
              (add-instruction `(loopy--pre-conditions . (< ,val-holder ,count)))))
 
           (`(repeat ,var ,count)
            (add-instruction `(loopy--implicit-vars . (,var 0)))
-           (add-instruction `(loopy--loop-body . (cl-incf ,var)))
+           (add-instruction `(loopy--latter-body . (cl-incf ,var)))
            (add-instruction `(loopy--pre-conditions . (< ,var ,count))))
 
           (`(seq ,var ,val)
@@ -369,6 +381,7 @@ Things to note:
         (loopy--explicit-generalized-vars)
         (loopy--pre-conditions)
         (loopy--loop-body)
+        (loopy--latter-body)
         (loopy--post-conditions))
 
 ;;;;; Interpreting the macro arguments.
@@ -414,6 +427,8 @@ Things to note:
              (push (cdr instruction) loopy--pre-conditions))
             (loopy--loop-body
              (push (cdr instruction) loopy--loop-body))
+            (loopy--latter-body
+             (push (cdr instruction) loopy--latter-body))
             (loopy--post-conditions
              (push (cdr instruction) loopy--post-conditions))
             (t
@@ -431,7 +446,7 @@ Things to note:
     ;;       trying to redefine a constant.  To avoid that, we just bind `_' to
     ;;       `nil', which is used (at least in `pcase') as a throw-away symbol.
     `(cl-symbol-macrolet (,@(or loopy--explicit-generalized-vars
-                                '((_))))
+                                (list (list (gensym) nil))))
        (let* (,@(or loopy--with-forms '((_))))
          (let (,@(or (append loopy--implicit-vars loopy--explicit-vars)
                      '((_))))
@@ -451,7 +466,8 @@ Things to note:
                        ;;       counters out the flipped order normally caused by
                        ;;       `push'.
                        ,@loopy--loop-body
-                       loopy--continue-tag))
+                       loopy--continue-tag
+                       ,@loopy--latter-body))
                     ,@loopy--after-do
                     ;; We don't want anything in `loopy--after-do' accidentally
                     ;; giving us a return value, so we explicitly return nil.
