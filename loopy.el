@@ -168,8 +168,6 @@ Optionally needs LOOP-NAME for block returns."
 
 ;;;;; Iteration Clauses
           ;; TODO:
-          ;; - traverse by function instead of `cdr'. Just add optional arg?
-          ;; - iterate and return refs for list, array, seq. Needs `cl-symbol-macrolet'?
           ;; - obarrays?
           ;; - key-codes/key-bindings and key-seqs?
           ;; - overlays?
@@ -318,19 +316,14 @@ Optionally needs LOOP-NAME for block returns."
 ;;;;; Exit and Return Clauses
           ((or '(skip) '(continue))
            (add-instruction '(loopy--loop-body . (go loopy--continue-tag))))
-
           (`(return ,val)
            (add-instruction `(loopy--loop-body . (cl-return-from ,loop-name ,val))))
-
           (`(return-from ,name ,val)
            (add-instruction `(loopy--loop-body . (cl-return-from ,name ,val))))
-
           ((or '(leave) '(break))
            (add-instruction `(loopy--loop-body . (cl-return-from ,loop-name nil))))
-
           ((or `(leave-from ,name) `(break-from ,name))
            (add-instruction `(loopy--loop-body . (cl-return-from ,name nil))))
-
 
 ;;;;; Accumulation Clauses
           (`(append ,var ,val)
