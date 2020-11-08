@@ -302,6 +302,6 @@ Not multiple of 3: 7")))
        (return l))
 
 ;; Local Variables:
-;; flycheck-disabled-checkers: '(emacs-lisp-checkdoc)
+;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)
 ;; flycheck-emacs-lisp-load-path: ("./.")
 ;; End:
