@@ -39,6 +39,14 @@
                               (collect coll i))
                         (return coll)))))
 
+;;;; Array Ref
+(ert-deftest loopy-basic-array-ref-test ()
+  (should (equal "aaa"
+                 (loopy (with (my-str "cat"))
+                        (loop (array-ref i my-str)
+                              (do (setf i ?a)))
+                        (return my-str)))))
+
 ;;;; Expr
 (ert-deftest expr-dont-repeat ()
   "Make sure commands don't repeatedly create/declare the same variable."

@@ -189,6 +189,18 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--pre-conditions . (< ,index-holder
                                                            (length ,val-holder))))))
 
+          ((or `(array-ref ,var ,val) `(arrayf ,var ,val))
+           (let ((val-holder (gensym))
+                 (index-holder (gensym)))
+             (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
+             (add-instruction `(loopy--implicit-vars . (,index-holder 0)))
+             (add-instruction `(loopy--explicit-generalized-vars
+                                . (,var (aref ,val-holder ,index-holder))))
+             (add-instruction `(loopy--latter-body
+                                . (setq ,index-holder (1+ ,index-holder))))
+             (add-instruction `(loopy--pre-conditions
+                                . (< ,index-holder (length ,val-holder))))))
+
           ((or `(cdrs ,var ,val) `(cdr ,var ,val)
                `(cons ,var ,val) `(conses ,var ,val))
            (let ((val-holder (gensym)))
