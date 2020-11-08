@@ -199,26 +199,18 @@ Optionally needs LOOP-NAME for block returns."
                                 . (setq ,val-holder (cdr ,val-holder))))
              (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
 
-          (`(list ,var ,val)
-           (let ((val-holder (gensym)))
-             (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
-             (add-instruction `(loopy--explicit-vars . (,var nil)))
-             (add-instruction `(loopy--loop-body
-                                . (setq ,var (car ,val-holder))))
-             (add-instruction `(loopy--latter-body
-                                . (setq ,val-holder (cdr ,val-holder))))
-             (add-instruction `(loopy--pre-conditions . (consp ,val-holder)))))
-
-          ;; TODO: Combine this with above?
-          (`(list-by ,var ,val ,func)
+          (`(list ,var ,val . ,func)
            (let ((val-holder (gensym))
                  ;; The function argument may or may not be quoted. We need it
                  ;; to be unquoted for the syntax to work.
                  ;; E.g., "(#'cdr val-holder)" won't work.
-                 (actual-func (if (and (consp func)
-                                       (memq (car func) '(quote function)))
-                                  (eval func)
-                                func)))
+                 (actual-func (cond
+                               ((null func)
+                                'cdr)
+                               ((and (consp (car func))
+                                     (memq (caar func) '(quote function)))
+                                (eval (car func)))
+                               (t (car func)))))
              (add-instruction `(loopy--implicit-vars . (,val-holder ,val)))
              (add-instruction `(loopy--explicit-vars . (,var nil)))
              (add-instruction `(loopy--loop-body

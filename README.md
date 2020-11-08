@@ -563,8 +563,9 @@ condition, then the loop runs forever.
           (do (message "%d" i))))
   ```
 
-- `(list VAR EXPR)`:  Iterate through the sequence `val`, binding `var` to the
-  value returned by `pop`.  The loop ends when the list is empty.
+- `(list VAR EXPR [FUNC])`: Iterate through the list `EXPR`, binding `VAR` to
+  each element in the list.  Optionally, update the list by `FUNC` instead of
+  `cdr`.
 
   ```elisp
   (loopy ((list i (number-sequence 1 10 3)) ; Inclusive, so '(1 4 7 10).
