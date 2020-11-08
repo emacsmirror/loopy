@@ -1,9 +1,10 @@
 # Loopy: An Emacs Looping Library
 
 Loopy is a macro meant for iterating and looping.  It is similar in usage to
-`cl-loop` but uses symbolic expressions rather than keywords.
+[`cl-loop`][cl-loop] but uses symbolic expressions rather than keywords.
 
-It should be comparable with `cl-loop`, keeping in mind the following points:
+It should be comparable with `cl-loop` for basic things, keeping in mind the
+following points:
 - It is probably less efficient than `cl-loop`, though I am so far trying to
   keep the same logic that `cl-loop` uses.
 - It has more flexible control flow commands, under which you can easily group
@@ -852,35 +853,31 @@ exact equivalent for every for-clause that `cl-loop` has.  Instead, one can just
 iterate through the return value of the appropriate function using the `list`
 command.
 
-| `cl-loop`                                     | `loop`                                         |
-|:----------------------------------------------|:-----------------------------------------------|
-| `for VAR from EXPR1 to EXPR2 by EXPR3`        | (list VAR (number-sequence EXPR1 EXPR2 EXPR3)) |
-| `for VAR in LIST`                             |                                                |
-| `for VAR in LIST by FUNCTION`                 |                                                |
-| `for VAR on LIST`                             | (cdrs VAR VAL)                                 |
-| `for VAR on LIST by FUNCTION`                 |                                                |
-| `for VAR in-ref LIST by FUNCTION`             |                                                |
-| `for VAR across ARRAY`                        | (array VAR ARRAY)                              |
-| `for VAR across-ref ARRAY`                    |                                                |
-| `for VAR being the elements of SEQUENCE`      | (sequence VAR SEQUENCE)                        |
-| `for VAR being the elements of-ref SEQUENCE`  |                                                |
-| `for VAR being the symbols [of OBARRAY]`      |                                                |
-| `for VAR being the hash-keys of HASH-TABLE`   | (list VAR (hash-table-keys HASH-TABLE))        |
-| `for VAR being the hash-values of HASH-TABLE` | (list VAR (hash-table-values HASH-TABLE))      |
-| `for VAR being the key-codes of KEYMAP`       |                                                |
-| `for VAR being the key-bindings of KEYMAP`    |                                                |
-| `for VAR being the key-seqs of KEYMAP`        |                                                |
-| `for VAR being the overlays [of BUFFER]`      |                                                |
-| `for VAR being the intervals [of BUFFER]`     |                                                |
-| `for VAR being the frames`                    | (list VAR (frame-list))                        |
-| `for VAR being the windows [of FRAME]`        | (list VAR (window-list FRAME))                 |
-| `for VAR being the buffers`                   | (list VAR (buffer-list))                       |
-| `for VAR = EXPR1 then EXPR2`                  |                                                |
-|                                               |                                                |
-
-
+| `cl-loop`                                     | `loop`                                           |
+|:----------------------------------------------|:-------------------------------------------------|
+| `for VAR from EXPR1 to EXPR2 by EXPR3`        | `(list VAR (number-sequence EXPR1 EXPR2 EXPR3))` |
+| `for VAR in LIST [by FUNCTION]`               | `(list VAR LIST [FUNC])`                         |
+| `for VAR on LIST [by FUNCTION]`               | `(cons VAR VAL [FUNC])`                          |
+| `for VAR in-ref LIST by FUNCTION`             | `(list-ref VAR LIST [FUNC])`                     |
+| `for VAR across ARRAY`                        | `(array VAR ARRAY)`                              |
+| `for VAR across-ref ARRAY`                    | `(array-ref VAR ARRAY)`                          |
+| `for VAR being the elements of SEQUENCE`      | `(seq VAR SEQUENCE)`                             |
+| `for VAR being the elements of-ref SEQUENCE`  | `(seq-ref VAR SEQUENCE)`                         |
+| `for VAR being the symbols [of OBARRAY]`      | None so far.                                     |
+| `for VAR being the hash-keys of HASH-TABLE`   | `(list VAR (hash-table-keys HASH-TABLE))`        |
+| `for VAR being the hash-values of HASH-TABLE` | `(list VAR (hash-table-values HASH-TABLE))`      |
+| `for VAR being the key-codes of KEYMAP`       | None so far.                                     |
+| `for VAR being the key-bindings of KEYMAP`    | None so far.                                     |
+| `for VAR being the key-seqs of KEYMAP`        | None so far.                                     |
+| `for VAR being the overlays [of BUFFER]`      | None so far.                                     |
+| `for VAR being the intervals [of BUFFER]`     | None so far.                                     |
+| `for VAR being the frames`                    | `(list VAR (frame-list))`                        |
+| `for VAR being the windows [of FRAME]`        | `(list VAR (window-list FRAME))`                 |
+| `for VAR being the buffers`                   | `(list VAR (buffer-list))`                       |
+| `for VAR = EXPR1 then EXPR2`                  | None so far.                                     |
 
 [sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
+[cl-loop]: <https://www.gnu.org/software/emacs/manual/html_node/cl/Loop-Facility.html>
 
 
 <!-- Would normally would grab H1 level, but we're using that for the title. -->
