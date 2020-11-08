@@ -139,7 +139,7 @@ returns."
         (loop-body))
     (dolist (instruction sub-instructions)
       (cl-case (car instruction)
-        ('loopy--main-body
+        (loopy--main-body
          (push (cdr instruction) loop-body))
         (t (push instruction full-instructions))))
     (push `(loopy--main-body . (,wrapper ,condition ,@loop-body)) full-instructions)
@@ -160,7 +160,7 @@ This takes the `cdr' of the COND form (i.e., doesn't start with \"cond\")."
             (instructions-for-wrapping))
         (dolist (instruction sub-instructions)
           (cl-case (car instruction)
-            ('loopy--main-body
+            (loopy--main-body
              (push (cdr instruction) instructions-for-wrapping))
             (t (push instruction full-instructions))))
         (push (cons condition instructions-for-wrapping)
