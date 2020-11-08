@@ -590,7 +590,7 @@ condition, then the loop runs forever.
 
   ```
 
-#### Accumulation (for Convenience)
+#### Accumulation
 
 Unlike in `cl-loop`, the presence of an accumulation does not imply a return
 value.  You must provide a variable in which to store the accumulated value.  If
@@ -600,14 +600,95 @@ the loop).
 - `(append VAR EXPR)`: Repeatedly `append` the value of `EXPR` to `VAR`. `VAR`
   starts as `nil`.
 
-- `(prepend|push|push-into VAR EXPR)`: Repeatedly `push` `EXPR` into
+- `(collect VAR EXPR)`: Repeatedly `append` a list containing value of `EXPR` to
+  `VAR`.  `VAR` starts as `nil`.
+
+  ```elisp
+  (loopy ((seq i [1 2 3])
+          (collect coll i))
+         (finally-return coll)) ; => '(1 2 3)
+  ```
+
+  In `cl-loop`, `collect EXPR` means to repeatedly `push` the value of `EXPR`
+  into the accumulated list, and then `nreverse` that list for a return value.
+  If you specifically want this behavior, then you should use the `push-into`
+  command like in its respective example below.
+
+- `(concat VAR EXPR)`: Repeatedly `concat` the value of `EXPR` onto the end of
+  `VAR`.  `VAR` starts as `nil`.  See the `vconcat` command for vectors.
+
+  ```elisp
+  (loopy ((list i '("a" "b" "c"))
+          (concat str i))
+         (return str)) ; => "abc"
+  ```
+
+- `(count VAR EXPR)`: Count the number of times that `EXPR` evaluates to a
+  non-nil value, adding 1 to `VAR` each time.  `VAR` starts at 0.
+
+  ```elisp
+  (loopy ((list i '(1 nil 3 nil 5))
+          (count non-nil-count i))
+         (return non-nil-count)) ; => 3
+  ```
+
+- `(max|maximize VAR EXPR)`: Repeatedly set `VAR` to the greater of `VAR` and
+  the value of `EXPR`.  `VAR` starts at `-1.0e+INF`, so that any other value
+  should be greater that it.
+
+  ```elisp
+  (loopy ((list i '(1 11 2 10 3 9 4 8 5 7 6))
+          (max my-max i))
+         (return my-max)) ; => 11
+  ```
+
+- `(min|minimize VAR EXPR)`: Repeatedly set `VAR` to the lesser of `VAR` and
+  the value of `EXPR`.  `VAR` starts at `1.0e+INF`, so that any other value
+  should be less than it.
+
+  ```elisp
+  (loopy ((list i '(1 11 2 10 3 0 9 4 8 5 7 6))
+          (min my-min i))
+         (return my-min)) ; => 0
+  ```
+
+- `(nconc VAR EXPR)`: Repeatedly concatenate the value of `EXPR` onto `VAR` with
+  `nconc`.  Unlike `append`, `nconc` does not concatenate copies of the lists,
+  but modifies `VAR` directly.
+
+  ```elisp
+  (loopy (loop (list i '((1 2 3 4) (5 6 7 8)))
+               (nconc my-new-list i))
+         (return my-new-list)) ; => '(1 2 3 4 5 6 7 8)
+  ```
+
+- `(push|push-into|prepend VAR EXPR)`: Repeatedly `push` `EXPR` into
   `VAR`. `VAR` stars as `nil`.
 
   ```elisp
   (loopy ((seq i [1 2 3])
-          (prepend reversed i))
-         (finally-return reversed))
+          (push reversed i))
+         (finally-return (nreverse reversed))) ; => '(1 2 3)
   ```
+
+- `(sum VAR EXPR)`: Repeatedly set `VAR` to the sum of the value of `EXPR` and
+  `VAR`.  `VAR` starts at 0.
+
+  ```elisp
+  (loopy ((list i '(1 2 3 4))
+          (sum my-sum i))
+         (return my-sum)) ; => 10
+  ```
+
+- `(vconcat VAR EXPR)`: Repeatedly `vconcat` the value of `EXPR` onto `VAR`.
+  `VAR` starts as `nil`.
+
+  ```elisp
+  (loopy ((list i '([1 2 3] [4 5 6]))
+          (vconcat vector i))
+         (return vector)) ; => [1 2 3 4 5 6]
+  ```
+
 
 #### Conditionals
 
