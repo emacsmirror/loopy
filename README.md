@@ -548,7 +548,7 @@ multiple Lisp expressions, with `[EXPRS]` being equivalent to
 `[EXPR [EXPR [...]]]`.  `CMD` means a loop body command, as opposed to normal
 Lisp code.  `VAR` is an unquoted variable name.
 
-#### Generic Evaluation
+#### Commands for Generic Evaluation
 - `(do|progn EXPRS)`: Evaluate multiple Lisp expressions, like a `progn`.  You
   cannot include arbitrary code in the loop body, except for the conditions of
   the conditional commands (`when`, `unless`, `if`, and `cond`) and in a `do`
@@ -571,7 +571,7 @@ Lisp code.  `VAR` is an unquoted variable name.
           (do (message "%d" j))))
   ```
 
-#### Assignment and Iteration
+#### Iteration and Looping Commands
 
 The iteration commands bind local variables and determine when the loop ends.
 If no command sets that condition, then the loop runs forever.
@@ -655,7 +655,7 @@ progresses.  This is represented by `[FUNC]`.
                    (return my-seq)) ; => '(7 7 7 7)
   ```
 
-#### Accumulation
+#### Accumulation Commands
 
 Unlike in `cl-loop`, the presence of an accumulation does not imply a return
 value.  You must provide a variable in which to store the accumulated value.  If
@@ -754,8 +754,8 @@ the loop).
          (return vector)) ; => [1 2 3 4 5 6]
   ```
 
-
-#### Conditionals
+#### Control Flow
+##### Conditionals
 
 - `(when EXPR CMDS)`: Like a normal `when`, run the commands `CMDS` only if
   `EXPR` is non-nil.
@@ -796,7 +796,7 @@ the loop).
                (finally-return (list evens odds)))
         ```
 
-#### Skipping an Iteration
+##### Skipping an Iteration
 
 - `(skip|continue)`: Go to next loop iteration.
 
@@ -809,7 +809,7 @@ the loop).
          (finally-return (nreverse my-collection)))
   ```
 
-#### Leaving or Exiting the Loop Early
+##### Exiting the Loop Early
 
 The loop is contained in a `cl-block`, and these forms are all `cl-return-from`
 underneath.  In fact, you could use `(do (cl-return-from NAME VAL))` to achieve
@@ -989,9 +989,10 @@ quoted code, which is the return value of the `loopy` macro.
 ### A Small Example
 
 To implement a custom loop body command, `loopy` needs two pieces of
-information: the keyword that names your command and a parsing function that can
-turn uses of your command into instructions.  Importantly, your custom commands
-cannot share a name.
+information:
+1. The keyword that names your command
+2. The parsing function that can turn uses of your command into instructions.
+Importantly, your custom commands cannot share a name.
 
 For example, say that you're tired of typing out `(do (message "Hello, %s" first
 last))` and would prefer to instead use `(greet FIRST [LAST])`.  This only
