@@ -1,5 +1,26 @@
 # Loopy: An Emacs Looping Library
 
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+**Table of Contents**
+
+- [Loopy: An Emacs Looping Library](#loopy-an-emacs-looping-library)
+    - [How does it compare to other approaches?](#how-does-it-compare-to-other-approaches)
+    - [How to use](#how-to-use)
+        - [Loop Body Commands](#loop-body-commands)
+            - [Generic Evaluation](#generic-evaluation)
+            - [Assignment and Iteration](#assignment-and-iteration)
+            - [Accumulation](#accumulation)
+            - [Conditionals](#conditionals)
+            - [Skipping an Iteration](#skipping-an-iteration)
+            - [Leaving or Exiting the Loop Early](#leaving-or-exiting-the-loop-early)
+    - [Extending with Personal Loop Commands](#extending-with-personal-loop-commands)
+        - [Background Explanation](#background-explanation)
+        - [A Small Example](#a-small-example)
+    - [Translating from `cl-loop`](#translating-from-cl-loop)
+        - [For Clauses](#for-clauses)
+
+<!-- markdown-toc end -->
+
 Loopy is a macro meant for iterating and looping.  It is similar in usage to
 [`cl-loop`][cl-loop] but uses symbolic expressions rather than keywords.
 
