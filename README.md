@@ -965,7 +965,7 @@ quoted code, which is the return value of the `loopy` macro.
             'loopy--early-return-capture)))))
 ```
 
-### Example
+### A Small Example
 
 To implement a custom loop body command, `loopy` needs two pieces of
 information: the keyword that names your command and a parsing function that can
