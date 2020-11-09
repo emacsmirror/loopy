@@ -841,8 +841,133 @@ the same effect.  These forms are provided for convenience.
   ```
 
 ## Extending with Personal Loop Commands
+### Background Explanation
+The core working of `loopy` is taking a command and generating code that is
+substituted into a loop body.
 
-To be implemented, but should be straight forward.
+For example, the parsing the command `(list i '(1 2 3))` produces the following
+instructions, in which the `car` of the instruction is a place to put code and
+the `cdr` of the instruction is said code to put.  Some commands require the
+creation of unique temporary variables, such as `g3019` in the below output.
+
+``` elisp
+(loopy--implicit-vars g3019 '(1 2 3))
+(loopy--explicit-vars i nil)
+(loopy--pre-conditions consp g3019)
+(loopy--loop-body setq i (car g3019))
+(loopy--latter-body setq g3019 (cdr g3019))
+```
+
+Commands are parsed by the function `loopy--parse-body-forms` (which calls other
+parsing functions if needed).  For example, to parse `when` commands, which can
+have a body of other `loop` commands, it calls
+`loopy--parse-conditional-forms`.  We can see that
+`loopy--parse-conditional-forms` calls back into `loopy--parse-body-forms` to
+create instructions from the `when` commands body, and then wraps any
+code going to the main loop body with the Emacs Lisp `when` macro.
+
+``` elisp
+(defun loopy--parse-conditional-forms
+  (wrapper condition forms &optional loop-name)
+  "Parse FORMS, wrapping `loopy--main-body' expressions in a conditional form.
+The instructions (e.g., return expressions) are wrapped with a
+WRAPPER with CONDITION.  Optionally needs LOOP-NAME for block
+returns."
+  (let ((full-instructions)
+        (sub-instructions (loopy--parse-body-forms forms loop-name))
+        (loop-body))
+    (dolist (instruction sub-instructions)
+      (cl-case (car instruction)
+        (loopy--main-body
+         (push (cdr instruction) loop-body))
+        (t (push instruction full-instructions))))
+    (push `(loopy--main-body . (,wrapper ,condition ,@loop-body))
+          full-instructions)
+    full-instructions))
+```
+A loop body command has 7 places to put code.  Here is a quick description of
+each and an example taken mainly from parsing the `list` command.
+
+- `loopy--explicit-generalized-vars`: Lists of a symbol and a macro expansion
+  that will be given to `cl-symbol-macrolet`.  This is used for `setf`-able
+  variables.
+
+  ~~~
+  `(loopy--explicit-generalized-vars . (,var (car ,val-holder)))
+  ~~~
+
+- `loopy--implicit-vars`: Lists of a symbol and an expression that will be given
+  to `let`.  This is used for creating variables that are not named by must
+  exists, such as for holding `'(1 2 3)` in `(list i '(1 2 3))`.
+
+  ~~~
+  `(loopy--implicit-vars . (,val-holder ,list))
+  ~~~
+
+- `loopy--explicit-vars`: Lists of a symbol and an expression that will be given
+  to `let`.  This is needed to ensure that named variables in commands are
+  lexically scoped, such as the `i` in `(list i '(1 2 3))`.
+
+  ~~~
+  `(loopy--explicit-vars . (,var nil))
+  ~~~
+
+- `loopy--pre-conditions`: Expressions that determine if the `while` loop
+  runs/continues, such as whether a list still has elements in it.  If there is
+  more than one expression, than all expressions are used in an `and` special
+  form.
+
+  ~~~
+  `(loopy--pre-conditions . (consp ,val-holder))
+  ~~~
+
+- `loopy--main-body`: Expressions that make up the main body of the loop.
+
+  ~~~
+  `(loopy--main-body . (setq ,var (car ,val-holder)))
+  ~~~
+
+- `loopy--latter-body`: Expressions that need to be run after the main body,
+  such as updating implicit variables.
+
+  ~~~
+  `(loopy--latter-body . (setq ,val-holder (,actual-func ,val-holder)))
+  ~~~
+
+<!-- - `loopy--post-conditions`: *Currently unused.*  Expressions that determine -->
+<!--   whether the `while` loop continues, but checked after the loop body has run. -->
+
+These `cdr`s of these instructions will be substituted into the following
+quoted code, which is the return value of the `loopy` macro.
+
+``` elisp
+`(cl-symbol-macrolet (,@(or loopy--explicit-generalized-vars
+                            (list (list (gensym) nil))))
+   (let* (,@(or loopy--with-forms '((_))))
+     (let (,@(or (append loopy--implicit-vars loopy--explicit-vars)
+                 '((_))))
+       (let ((loopy--early-return-capture
+              (cl-block ,loopy--name-arg
+                ,@loopy--before-do
+                (while ,(cl-case (length loopy--pre-conditions)
+                          (0 t)
+                          (1 (car loopy--pre-conditions))
+                          (t (cons 'and loopy--pre-conditions)))
+                  (cl-tagbody
+                   ,@loopy--main-body
+                   loopy--continue-tag
+                   ,@loopy--latter-body))
+                ,@loopy--after-do
+                nil)))
+         ,@loopy--final-do
+         ,(if loopy--final-return
+              loopy--final-return
+            'loopy--early-return-capture)))))
+```
+
+### Example
+
+
 
 ## Translating from `cl-loop`
 
