@@ -21,7 +21,7 @@
 
 <!-- markdown-toc end -->
 
-Loopy is a macro meant for iterating and looping.  It is similar in usage to
+`loopy` is a macro meant for iterating and looping.  It is similar in usage to
 [`cl-loop`][cl-loop] but uses symbolic expressions rather than keywords.
 
 It should be comparable with `cl-loop` for basic things, keeping in mind the
@@ -38,8 +38,12 @@ following points:
 - Using an accumulation command does not imply a return value.  Return values
   must be explicitly stated.  The default return value is `nil`.
 
-In addition to a name for the loop, the `loopy` macro has several possible
-arguments, each beginning with a keyword.
+`loopy` is not a replacement for `cl-loop` in all cases, especially when there
+is already a convenient way of doing things between the `cl-lib` and `seq`
+libraries and Emacs's regular functions.  Loopy is, however, easy to use and
+extend, and performs well in the cases that it already handles.
+
+The `loopy` macro has several possible arguments, each beginning with a keyword.
 - `with` declares variables that are bound in order before and around the loop,
   like in a `let*` binding.
 - `before-do` is a list of normal Lisp expressions to run before the loop executes.
@@ -93,7 +97,7 @@ a body wouldn't be very useful.
        (finally-return (list found-evens found-odds)))
 ```
 
-Loopy is not feature complete.  Here are some things that would be nice:
+Loopy is not yet feature complete.  Here are some things that would be nice:
 - Iteration clauses that are supported by `cl-loop`.  `seq` can iterate
   through sequences, but `cl-loop` does more.
   - A few are unneeded, such as the `for` statements that can instead be done
@@ -992,6 +996,7 @@ To implement a custom loop body command, `loopy` needs two pieces of
 information:
 1. The keyword that names your command
 2. The parsing function that can turn uses of your command into instructions.
+
 Importantly, your custom commands cannot share a name.
 
 For example, say that you're tired of typing out `(do (message "Hello, %s" first
@@ -1056,7 +1061,7 @@ exact equivalent for every for-clause that `cl-loop` has.  Instead, one can just
 iterate through the return value of the appropriate function using the `list`
 command.
 
-| `cl-loop`                                     | `loop`                                           |
+| `cl-loop`                                     | `loopy`                                           |
 |:----------------------------------------------|:-------------------------------------------------|
 | `for VAR from EXPR1 to EXPR2 by EXPR3`        | `(list VAR (number-sequence EXPR1 EXPR2 EXPR3))` |
 | `for VAR in LIST [by FUNCTION]`               | `(list VAR LIST [FUNC])`                         |
@@ -1078,6 +1083,52 @@ command.
 | `for VAR being the windows [of FRAME]`        | `(list VAR (window-list FRAME))`                 |
 | `for VAR being the buffers`                   | `(list VAR (buffer-list))`                       |
 | `for VAR = EXPR1 then EXPR2`                  | None so far.                                     |
+
+### Iteration Clauses
+
+| `cl-loop`         | `loopy`               |
+|:------------------|:----------------------|
+| repeat INT do ... | (repeat INT)          |
+| while COND do ... | (unless COND (leave)) |
+| until COND do ... | (when COND (leave))   |
+| iter-by iterator  | None so far.          |
+
+For the clauses `always`, `never`, `thereis`, can be replaced with a combination
+of `(leave)` in the loop body and `(finally-return)` as a macro argument.  Below
+is an example from the CL Lib manual.
+
+``` elisp
+;; With `cl-loop':
+(if (cl-loop for size in size-list always (> size 10))
+    (only-big-sizes)
+  (some-small-sizes))
+
+;; With `loopy':
+;; - A less convenient but more literal translation:
+(if (loopy (with (success? t))
+           ((list size size-list)
+            (unless (> size 10)
+              (expr success? nil)
+              (leave)))
+           (finally-return success?))
+    (only-big-sizes)
+  (some-small-sizes))
+
+;; - A more convenient/straightforward translation,
+;;   depending on whether the functions have a return value.
+(loopy ((list size size-list)
+        (when (< size 10) (do (some-small-sizes)) (leave)))
+       ;; Only runs if loop doesn't exit early.
+       (after-do (only-big-sizes)))
+```
+
+A seen in the above example, `loopy` does not always have a one-to-one
+translation to `cl-loop`.  It is not an explicit goal to be able to replace all
+uses of `cl-loop` with `loopy`, and in the above example, you could be better
+served by `cl-every`, `seq-every-p`, or even continuing to use `cl-loop`.
+
+### Accumulation Clauses
+
 
 [sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
 [cl-loop]: <https://www.gnu.org/software/emacs/manual/html_node/cl/Loop-Facility.html>
