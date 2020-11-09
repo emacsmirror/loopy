@@ -302,18 +302,18 @@ Not multiple of 3: 7")))
        (return l))
 
 ;;; Extensions
-(cl-defun my-loopy-msg-command ((_ str &rest args))
-  "Take a `msg' command, return a message of STR and ARGS."
-  `((loopy--loop-body . (message ,str ,@args))))
-
-
-(make-local-variable 'loopy-custom-command-parsers)
-(push (cons 'msg #'my-loopy-msg-command)
-      loopy-custom-command-parsers)
-
-(loopy ((list i '(1 2 3))
-        (msg "N: %d" i)))
-
+;;TODO: How to test this?
+;; (cl-defun my-loopy-greet-command ((_ first &optional last))
+;;   "Greet one with first name FIRST and optional last name LAST."
+;;   `((loopy--main-body . (if ,last
+;;                             (message "Hello, %s %s" ,first ,last)
+;;                           (message "Hello, %s" ,first)))))
+;;
+;; (push (cons 'greet #'my-loopy-greet-command)
+;;       loopy-custom-command-parsers)
+;;
+;; (loopy ((list name '(("John" "Deer") ("Jane" "Doe") ("Jimmy")))
+;;         (greet (car name) (cadr name))))
 
 ;; Local Variables:
 ;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)

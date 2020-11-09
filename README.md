@@ -967,7 +967,63 @@ quoted code, which is the return value of the `loopy` macro.
 
 ### Example
 
+To implement a custom loop body command, `loopy` needs two pieces of
+information: the keyword that names your command and a parsing function that can
+turn uses of your command into instructions.  Importantly, your custom commands
+cannot share a name.
 
+For example, say that you're tired of typing out `(do (message "Hello, %s" first
+last))` and would prefer to instead use `(greet FIRST [LAST])`.  This only
+requires pushing code into the main loopy body, so the definition of the parsing
+function is quite simple.
+
+``` elisp
+(cl-defun my-loopy-greet-command-parser ((_ first &optional last))
+  "Greet one with first name FIRST and optional last name LAST."
+  `((loopy--main-body . (if ,last
+                            (message "Hello, %s %s" ,first ,last)
+                          (message "Hello, %s" ,first)))))
+```
+
+`loopy` will pass the entire command expression to the parsing function, and
+expects back a list of instructions.
+
+To tell `loopy` about this function, add it and the command name `greet` to
+`loopy-custom-command-parsers`.
+
+``` elisp
+(add-to-list 'loopy-custom-command-parsers
+             '(greet . my-loopy-greet-command-parser))
+```
+
+After that, you can use your custom command in the loop body.
+
+``` elisp
+(loopy ((list name '(("John" "Deer") ("Jane" "Doe") ("Jimmy")))
+        (greet (car name) (cadr name))))
+```
+
+By running `M-x pp-macroexpand-last-sexp` on the above expression, you can see
+that it expands to do what we want, as expected.
+
+``` elisp
+(cl-symbol-macrolet ((g3314 nil))
+  (let* ((_))
+    (let ((g3313 '(("John" "Deer") ("Jane" "Doe") ("Jimmy")))
+          (name nil))
+      (let ((loopy--early-return-capture
+             (cl-block nil
+               (while (consp g3313)
+                 (cl-tagbody
+                  (setq name (car g3313))
+                  (if (cadr name)
+                      (message "Hello, %s %s" (car name) (cadr name))
+                    (message "Hello, %s" (car name)))
+                  loopy--continue-tag
+                  (setq g3313 (cdr g3313))))
+               nil)))
+        loopy--early-return-capture))))
+```
 
 ## Translating from `cl-loop`
 
