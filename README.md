@@ -1,12 +1,20 @@
-# Loopy: An Emacs Looping Library
+# Loopy: A Looping and Iteration Macro
+
+`loopy` is a macro meant for iterating and looping.  It is similar in usage to
+[`cl-loop`][cl-loop] but uses symbolic expressions rather than keywords.
+
+`loopy` should be complementary to the features provided the [Seq][seq.el] and
+[CL][cl-lib.el] libraries (including `cl-loop`) and Emacs's regular looping and
+mapping features.
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
 
-- [Loopy: An Emacs Looping Library](#loopy-an-emacs-looping-library)
+- [Loopy: A Looping and Iteration Macro](#loopy-a-looping-and-iteration-macro)
     - [How does it compare to other approaches?](#how-does-it-compare-to-other-approaches)
     - [How to use](#how-to-use)
-        - [Loop Body Commands](#loop-body-commands)
+        - [Macro Arguments](#macro-arguments)
+        - [Loop Commands](#loop-commands)
             - [Commands for Generic Evaluation](#commands-for-generic-evaluation)
             - [Iteration and Looping Commands](#iteration-and-looping-commands)
             - [Accumulation Commands](#accumulation-commands)
@@ -14,37 +22,17 @@
                 - [Conditionals](#conditionals)
                 - [Skipping an Iteration](#skipping-an-iteration)
                 - [Exiting the Loop Early](#exiting-the-loop-early)
-    - [Extending with Personal Loop Commands](#extending-with-personal-loop-commands)
-        - [Background Explanation](#background-explanation)
+    - [Adding Custom Commands](#adding-custom-commands)
+        - [Background Information](#background-information)
         - [A Small Example](#a-small-example)
     - [Translating from `cl-loop`](#translating-from-cl-loop)
         - [For Clauses](#for-clauses)
         - [Iteration Clauses](#iteration-clauses)
         - [Accumulation Clauses](#accumulation-clauses)
+        - [Other Clauses](#other-clauses)
 
 <!-- markdown-toc end -->
 
-`loopy` is a macro meant for iterating and looping.  It is similar in usage to
-[`cl-loop`][cl-loop] but uses symbolic expressions rather than keywords.
-
-It should be comparable with `cl-loop` for basic things, keeping in mind the
-following points:
-- It is probably less efficient than `cl-loop`, though I am so far trying to
-  keep the same logic that `cl-loop` uses.
-- It has more flexible control flow commands, under which you can easily group
-  several commands, including assignments. This is my main motivator for having
-  this macro.
-- It has a `skip` command to skip to skip the rest of the loop body and
-  immediately start the next iteration (which I don't think `cl-loop` can
-  do).  Of course, grouping the rest under a control-flow command, e.g., `when`,
-  can achieve the same affect.
-- Using an accumulation command does not imply a return value.  Return values
-  must be explicitly stated.  The default return value is `nil`.
-
-`loopy` is not a replacement for `cl-loop` in all cases, especially when there
-is already a convenient way of doing things between the `cl-lib` and `seq`
-libraries and Emacs's regular functions.  Loopy is, however, easy to use and
-extend, and performs well in the cases that it already handles.
 
 The `loopy` macro has several possible arguments, each beginning with a keyword.
 - `with` declares variables that are bound in order before and around the loop,
@@ -63,7 +51,7 @@ The loop commands generally follow the form `(COMMAND VARIABLE-NAME &rest ARGS)`
 For example,
 - To iterate through a [sequence][sequence-docs], use `(seq elem [1 2 3])`
   (for efficiency, there are also more specific commands, like `list`).
-- To collect values into a list, use `(collect my-collection collected-elem)`.
+- To collect values into a list, use `(collect my-collection collected-value)`.
 - To just bind a variable to the result of a Lisp expression,
   use `(expr my-var (my-func))`
 
@@ -73,45 +61,58 @@ order.  All of the arguments are technically optional, but having a loop without
 a body wouldn't be very useful.
 
 ``` elisp
-;; (loopy NAME
-;;        (with WITH-ARGS)
-;;        (before-do EXPR [EXPR …])
-;;        (loop BODY-COMMAND [BODY-COMMAND …])
-;;        (after-do EXPR [EXPR …])
-;;        (finally-do EXPR [EXPR …])
-;;        (finally-return VAL [VAL …]))
-
-;; Returns: '((2 4 6 8 10) (1 3 5 7 9))
-(loopy my-loop
-       (with (success-p nil))
-       (before-do (message "Beginning loop ..."))
-       (loop (list i (number-sequence 1 10))
-             (do (message "Checking number: %d" i))
-             (if (cl-evenp i)
-                 (collect found-evens i)
-               (collect found-odds i)))
-       (after-do (message "Loop completed successfully.")
-                 (setq success-p t))
-       (finally-do (if success-p
-                       (message "Confirmed success reported.")
-                     (message "W: Success not confirmed!"))
-                   (message "Found evens: %s" found-evens)
-                   (message "Found odds: %s" found-odds))
-       (finally-return (list found-evens found-odds)))
+;; Returns: '((2 4 6 8 10) (1 3 5 7 9)) and prints messages.
+(loopy
+ ;; Name the loop `my-loop'.
+ my-loop
+ ;; Create the lexically scoped variable `success-p', initialized to `nil'.
+ (with (success-p nil))
+ ;; Before starting the loop, print a message.
+ (before-do (message "Beginning loop ..."))
+ ;; Create the loop body.
+ (loop (list i (number-sequence 1 10))        ; Assign `i' from 1 through 10.
+       (do (message "Checking number: %d" i)) ; Report the value of `i'.
+       (if (cl-evenp i)                       ; If `i' is even, add to the list
+           (collect found-evens i)            ; of even numbers, otherwise add
+         (collect found-odds i)))             ; to the list of odd numbers.
+ ;; If the loop completes successfully, print a message and update `success-p'.
+ (after-do (message "Loop completed successfully.")
+           (setq success-p t))
+ ;; Always report based on the value of `success-p', and message the value of
+ ;; the lists of even and odd numbers.
+ (finally-do (if success-p
+                 (message "Confirmed success reported.")
+               (message "W: Success not confirmed!"))
+             (message "Found evens: %s" found-evens)
+             (message "Found odds: %s" found-odds))
+ ;; Always return a list containing the list of even numbers and the list of odd
+ ;; numbers.
+ (finally-return (list found-evens found-odds)))
 ```
 
-Loopy is not yet feature complete.  Here are some things that would be nice:
-- Iteration clauses that are supported by `cl-loop`.  `seq` can iterate
-  through sequences, but `cl-loop` does more.
-  - A few are unneeded, such as the `for` statements that can instead be done
-    using `number-sequence`.
-- De-structuring can be useful, but this can be done using repeated `expr`
-  commands.
+Loopy is not yet feature complete.  Here are some things that would be nice to
+add/have:
+- Add equivalent features for all that `cl-loop` can do.  Many things are
+  already covered, but not everything.  See [Translating from
+  `cl-loop`](#translating_from_cl_loop) for more.
+- De-structuring can be useful, but this can already be done using repeated
+  `expr` commands.
 
 ## How does it compare to other approaches?
 
-Loopy is similar in use to other looping libraries, except for its current lack
-of convenience features and extensibility.
+`loopy` should be comparable with `cl-loop` for most things, keeping in mind
+the following:
+- It is probably less efficient than `cl-loop`, though I am so far trying to
+  keep the same logic that `cl-loop` uses.
+- It has more flexible control-flow commands, under which you can easily group
+  sub-commands, including assignments.
+- Using an accumulation command does not imply a return value.
+- It has a `skip` command to skip to skip the rest of the loop body and
+  immediately start the next iteration.  Of course, a similar effect could be
+  achieved using the `when` or `unless` commands.
+
+`loopy` is not always one-to-one replacement for `cl-loop`, but it is easy to
+use and extend, and performs well in the cases that it already handles.
 
 Below is a simple example of `loopy` vs `cl-loop`.
 
@@ -139,7 +140,7 @@ conditionals while still using a clean syntax, such as in the below example.
         (when (cl-evenp i)
           (expr once i)
           (expr twice (* 2 i))
-          (prepend together (cons once twice))))
+          (push-into together (cons once twice))))
        (finally-return (nreverse together)))
 ```
 
@@ -160,6 +161,9 @@ readability purposes.
            when (string-match pattern line)
            for line-num = (concat "L" (match-string 1 line))
            and for data-nums = (concat "D" (match-string 2 line))
+
+           ;; … Further processing now that data is named …
+
            and collect (match-string 1 line) into line-nums
            and collect (match-string 2 line) into data-nums
            finally return (list line-nums data-nums)))
@@ -173,12 +177,15 @@ readability purposes.
       (when (string-match pattern line)
         (let ((line-num (concat "L" (match-string 1 line)))
               (datum-num (concat "D" (match-string 2 line))))
+
+          ;; … Further processing now that data is named …
+
           (push line-num line-nums)
           (push datum-num data-nums))))
     (list (nreverse line-nums) (nreverse data-nums))))
 ```
 
-Here is how one could (currently) do it with `loopy`.
+Here is how one could currently do it with `loopy`:
 
 ``` elisp
 (require 'loopy)
@@ -194,35 +201,11 @@ Here is how one could (currently) do it with `loopy`.
             (collect line-nums line-num)
             (collect data-nums datum-num)))
          (finally-return line-nums data-nums)))
-
-;; The `loopy' expression currently expands to the below.
-(let ((g760 (split-string "Line1-Data1\nBad\nLine2-Data2"))
-      (line nil)
-      (line-num nil)
-      (datum-num nil)
-      (line-nums nil)
-      (data-nums nil))
-  (let* ((pattern "^Line\\([[:digit:]]\\)-Data\\([[:digit:]]\\)")
-         (loopy--early-return-capture
-          (cl-block nil
-            (while (and g760)
-              (cl-tagbody
-               (setq line (pop g760))
-               (when (string-match pattern line)
-                 (setq line-num  (concat "L" (match-string 1 line)))
-                 (setq datum-num (concat "D" (match-string 2 line)))
-                 (setq line-nums (append line-nums (list line-num)))
-                 (setq data-nums (append data-nums (list datum-num))))
-               loopy--continue-tag))
-            nil)))
-    (list line-nums data-nums)))
 ```
 
-This expansion is probably less efficient than what `cl-loop` does.
 
-The expansion shows that there is room for improvement, but it's a nice start,
-is easy to read, and does what I want.  I believe that the value of the macro
-increases for longer loop bodies with several conditional commands.
+I believe that the value of the macro increases for longer loop bodies with
+several conditional commands.
 
 Another nice ability, one that I'm not sure `cl-loop` has, is
 skipping/continuing a loop iteration.
@@ -233,26 +216,8 @@ skipping/continuing a loop iteration.
         (when (zerop (mod i 10))
           (skip))
         (when (cl-evenp i)
-          (prepend my-collection i)))
-       (finally-return (nreverse my-collection)))
-
-;; Expands to:
-(let ((g1069 (number-sequence 1 20))
-      (i nil)
-      (my-collection nil))
-  (let* ((_))
-    (cl-block nil
-      (while (and g1069)
-        (cl-tagbody
-         (progn
-           (setq i (pop g1069))
-           (when (zerop (mod i 10))
-             (go continue-tag))
-           (when (cl-evenp i)
-             (push i my-collection)))
-         continue-tag))
-      nil
-      (cl-return-from nil (nreverse my-collection)))))
+          (push-into my-collection i)))
+       (finally-return (nreverse my-collection))) ; => (2 4 6 8 12 14 16 18)
 ```
 
 A real-world example is a version the `selectrum-outline` command from the [Selectrum
@@ -494,11 +459,34 @@ For a "translation table" of sorts from `cl-loop` to `loopy`, see the end of
 this document.
 
 ## How to use
+
+Macro arguments set up the lexical environment the loop runs in, Lisp code that
+runs before or after the loop, and the ultimate return value of the macro.  See
+the section [Macro Arguments](#macro_arguments).
+
+Loop commands are the main feature of the `loopy` macro.  By "command", I mean
+the expressions that make up the `loop` macro argument, such as `list` in `(list
+i '(1 2 3))`.  A command inserts code into the loop body, but can also perform
+additional setup, such as initializing specified variables or creating extra
+ones.  Many commands set up a condition for ending the loop.  See the section
+[Loop Commands](#loop_commands).
+
+The loop ends when any condition required by a loop command evaluates to false.
+If no conditions are needed, the loop runs infinitely until a `return` or
+`leave` command is reached.  See the section
+[Exiting the Loop Early](#exiting_the_loop_early).
+
+Returns must be stated explicitly, either as an early return for in the loop
+body via the `return` command, or as a `finally-return` to the macro.  `nil` is
+returned by default.
+
 ### Macro Arguments
 
 `loopy` takes at most 7 arguments.  They are all technically optional, but a
-loop that does nothing isn't very useful.  Except for a name for the loop, all of
-the arguments are list that begin with a keyword (allowing for conveniences).
+loop that does nothing isn't very useful.
+
+A loop can be named by passing in an unquoted symbol as an argument.  All other
+arguments are expressions that begin with a keyword from the table below.
 
 | Keyword          | Other Names                | Usage                                                   |
 |------------------|----------------------------|---------------------------------------------------------|
@@ -507,32 +495,48 @@ the arguments are list that begin with a keyword (allowing for conveniences).
 | `loop`           | Can be excluded.           | Add expressions to loop body, performing further setup. |
 | `after-do`       | `after`, `else`, `else-do` | Run Lisp expressions after loop successfully completes. |
 | `finally-do`     | `finally`                  | Always run Lisp expressions after loop exits.           |
-| `finally-return` | `return`                   | Return a value, regardless of success.                  |
+| `finally-return` | `return`                   | Return a value, regardless of how the loop completes.   |
+
+Additionally, `(finally-return 1 2 3)` is the same as
+`(finally-return (list 1 2 3))`.
 
 
-Loop body commands are the meat of the `loopy` macro, and are described in the
-following sections.   A loop command inserts expressions into the loop body, but
-can also perform additional setup, such as initializing specified variables or
-creating extra ones.  Many set up a condition for ending the loop.
+### Loop Commands
 
-A loop ends when any condition required by a loop command evaluates to false.  If
-no conditions are needed, the loop runs infinitely unless a return command is
-reached.
+Loop commands are only valid when inside the `loop` macro argument.
 
-Returns must be stated explicitly, either as an early return for in the loop
-body via the `return` command, or as a `finally-return` to the macro.  `nil` is
-returned by default.
+These are valid:
 
-### Loop Body Commands
+``` elisp
+(loopy (loop (list i '(1 2 3))
+             (collect coll i))
+       (finally-return coll))
 
-A command can underneath be made of several instructions (which are described in
-detail in [Extending with Personal Loop Commands](#extending_with_personal_loop_commands)).
-Some examples are
-- Declare a given variable in a let form to make sure it's lexically scoped.
-- Declare a generated variable in a let form to contain a given value.
-- Add a condition for continuing/exiting the loop.
-- Add code to be run during the main loop body.
-- Add code to be run after the main loop body.
+(loopy ((list i '(1 2 3))
+        (collect coll i))
+       (return coll))
+```
+
+This is not:
+
+``` elisp
+(loopy (with (list i '(1 2 3)))
+       (return (collect coll i)))
+```
+
+Trying to use loop commands where they don't belong will result in errors when
+the code is evaluated.
+
+Underneath, interpreting a command results in "instructions" that describe how
+to substitute code into the loop body and other locations.  This process is
+described in detail in [Background Information](#background_information).
+
+Some examples of instructions are:
+- Declaring a given variable in a let form to make sure it's lexically scoped.
+- Declaring a generated variable in a let form to contain a given value.
+- Adding a condition for continuing/exiting the loop.
+- Adding code to be run during the main loop body.
+- Adding code to be run after the main loop body.
 
 The implementation details of commands generally shouldn't matter, except that
 code from commands is evaluated in the order it was found.  This means that
@@ -544,54 +548,63 @@ attempting to do something like
        (return coll))
 ```
 
-won't work, as `i` is assigned to after collecting `(+ i 2)` into `coll`.
+won't work, as `i` is assigned a value after collecting `(+ i 2)` into `coll`.
 
-For convenience, the same command can have multiple names (such as `do` and
-`progn`), and some commands can take optional arguments (such as `list`).  In
-this section, alternative names are separated by a vertical bar (`do|progn`),
-and optional arguments are surround by brackets (`[EXPR]`).
+For convenience and understanding, the same command can have multiple names
+(such as `do` having the alias `progn`), and some commands can take optional
+arguments (such as `list`).
 
-For consistency, `EXPR` below means a single Lisp expression.  `EXPRS` means
-multiple Lisp expressions, with `[EXPRS]` being equivalent to
-`[EXPR [EXPR [...]]]`.  `CMD` means a loop body command, as opposed to normal
-Lisp code.  `VAR` is an unquoted variable name.
+For simplicity, the commands are described using the following notation:
+
+- If a command has multiple names, the names are separated by a vertical bar,
+  such as in `do|progn`.
+- `VAR` is an unquoted symbol that will be used as a variable name, such as the
+  `i` in `(list i my-list)`.
+- `FUNC` is a Lisp function name, such as `my-func`, `#'my-func` or `'my-func`.
+- `NAME` is an unquoted name of a loop (or, more accurately, of a `cl-block`).
+- `EXPR` is a single Lisp expression, such as `(+ 1 2)`, `'(1 2 3)`, `my-var`,
+  or `(some-function my-var)`.  `EXPRS` means multiple expressions.
+- `CMD` is a loop command, as opposed to a normal Lisp expression.
+  `(list i '(1 2 3))`, `(repeat 5)`, and `(return-from outer-loop 7)` are
+  examples of loop commands.  `CMDS` means multiple commands.
+- Optional arguments are surround by brackets.  `[EXPR]` is an optional
+  expression, and `[CMD]` is an optional command.  By extension, `[EXPRS]` is
+  equivalent to `[EXPR [EXPR [...]]]`, and `[CMDS]` to `[CMD [CMD [...]]]`.
 
 #### Commands for Generic Evaluation
-- `(do|progn EXPRS)`: Evaluate multiple Lisp expressions, like a `progn`.  You
-  cannot include arbitrary code in the loop body, except for the conditions of
-  the conditional commands (`when`, `unless`, `if`, and `cond`) and in a `do`
-  command.  Doing otherwise will result in errors, as the macro will attempt to
-  interpret such code as a command.
+
+- `(do|progn EXPRS)`: Evaluate multiple Lisp expressions, like a `progn`.
+
+  You cannot include arbitrary code in the loop body.  Trying to do so will
+  result in errors, as the macro will attempt to interpret such code as a
+  command.
 
   ```elisp
   (loopy ((list i '(1 2 3))
           (do (message "%d" i))))
   ```
 
-- `(expr|exprs VAR [EXPRS])`: Bind `VAR` to each `EXPR` in order.  Once `VAR`
-  the last `EXPR` is reached, it is used repeatedly for the rest of the loop.
-  With no `EXPR`, `VAR` is repeatedly bound to `nil`.
+- `(expr|exprs|set VAR [EXPRS])`: Bind `VAR` to each `EXPR` in order.  Once the
+  last `EXPR` is reached, it is used repeatedly for the rest of the loop.  With
+  no `EXPR`, `VAR` is repeatedly bound to `nil`.
 
   **NOTE**: Loops are lexically scoped, so this is not always the same as
             `(do (setq VAR EXPR))`.
 
   ```elisp
-  (loopy ((repeat 5) (expr i 1) (collect coll i))
-         (return coll)) ; => '(1 1 1 1 1)
-
   (loopy ((repeat 5) (expr i 1 2 3) (collect coll i))
          (return coll)) ; => '(1 2 3 3 3)
+
+  (loopy ((repeat 5) (expr i 0 (1+ i)) (collect coll i))
+         (return coll)) ; => '(0 1 2 3 4)
   ```
 
 #### Iteration and Looping Commands
 
-The iteration commands bind local variables and determine when the loop ends.
+Iteration commands bind local variables and determine when the loop ends.
 If no command sets that condition, then the loop runs forever.
 
-Some commands take an optional function argument, which changes how iteration
-progresses.  This is represented by `[FUNC]`.
-
-- `(array VAR EXPR)`: Iterate through the elements of the array from `EXPR`.
+- `(array VAR EXPR)`: Iterate through the elements of the array `EXPR`.
 
   ```elisp
   (loopy ((array i [1 2 3])
@@ -610,6 +623,10 @@ progresses.  This is represented by `[FUNC]`.
 
 - `(cons|conses VAR EXPR [FUNC])`: Iterate through the cons cells in the value
   of `EXPR`.  Optionally, find the cons cells via `FUNC` instead of `cdr`.
+
+  ``` elisp
+
+  ```
 
 - `(list VAR EXPR [FUNC])`: Iterate through the list `EXPR`, binding `VAR` to
   each element in the list.  Optionally, update the list by `FUNC` instead of
@@ -649,7 +666,7 @@ progresses.  This is represented by `[FUNC]`.
 
   ```
 
-- `(seq VAR EXPR [FUNC])`: Iterate through the sequence `val`, binding `var` to the
+- `(seq VAR EXPR)`: Iterate through the sequence `val`, binding `var` to the
   elements of the sequence.
 
   ```elisp
@@ -657,7 +674,7 @@ progresses.  This is represented by `[FUNC]`.
           (do (message "%d" i))))
   ```
 
-- `(seq-ref|seqf VAR EXPR [FUNC])`: Iterate through the sequence `val`, binding `var`
+- `(seq-ref|seqf VAR EXPR)`: Iterate through the sequence `val`, binding `var`
   to the elements of the sequence as a `setf`-able place.
 
   ```elisp
@@ -669,13 +686,19 @@ progresses.  This is represented by `[FUNC]`.
 
 #### Accumulation Commands
 
-Unlike in `cl-loop`, the presence of an accumulation does not imply a return
-value.  You must provide a variable in which to store the accumulated value.  If
-you wish, you can then return the value of that variable (either early, or after
-the loop).
+Unlike in `cl-loop`, the presence of an accumulation command does not imply a
+return value.  You must provide a variable in which to store the accumulated
+value.  If you wish, you can then return the value of that variable (either
+early, or after the loop).
 
-- `(append VAR EXPR)`: Repeatedly `append` the value of `EXPR` to `VAR`. `VAR`
+- `(append VAR EXPR)`: Repeatedly `append` the value of `EXPR` to `VAR`.  `VAR`
   starts as `nil`.
+
+  ``` elisp
+  (loopy ((list i '((1 2 3) (4 5 6)))
+          (append coll i))
+         (return coll)) ; => '(1 2 3 4 5 6)
+  ```
 
 - `(collect VAR EXPR)`: Repeatedly `append` a list containing value of `EXPR` to
   `VAR`.  `VAR` starts as `nil`.
@@ -689,7 +712,7 @@ the loop).
   In `cl-loop`, `collect EXPR` means to repeatedly `push` the value of `EXPR`
   into the accumulated list, and then `nreverse` that list for a return value.
   If you specifically want this behavior, then you should use the `push-into`
-  command like in its respective example below.
+  command like in its example below.
 
 - `(concat VAR EXPR)`: Repeatedly `concat` the value of `EXPR` onto the end of
   `VAR`.  `VAR` starts as `nil`.  See the `vconcat` command for vectors.
@@ -769,44 +792,51 @@ the loop).
 #### Control Flow
 ##### Conditionals
 
-- `(when EXPR CMDS)`: Like a normal `when`, run the commands `CMDS` only if
-  `EXPR` is non-nil.
+Conditional commands in `loopy` can take multiple sub-commands, and work more
+like their Lisp counterparts.  There is therefore no need for an `and` command
+as used in `cl-loop`.
+
+- `(when EXPR CMDS)`: Like the Lisp `when`, run `CMDS` only if `EXPR` is
+  non-nil.
 
   ```elisp
   ;; Get only the inner lists with all even numbers.
+  ;; => '((2 4 6) (8 10 12) (16 18 20))
   (loopy ((list i '((2 4 6) (8 10 12) (13 14 15) (16 18 20)))
           (when (loopy ((list j i)
-                        (when (cl-oddp j) (return nil)))
-                       (finally-return t))
+                        (when (cl-oddp j)
+                          (return nil)))
+                        (else-do (cl-return t)))
             (collect only-evens i)))
          (finally-return only-evens))
   ```
 
-- `(if EXPR CMDS)`: Like a normal `if`, run the first command if `EXPR` is
+- `(if EXPR CMDS)`: Like the Lisp `if`, run the first command if `EXPR` is
   non-nil. Otherwise, run the remaining commands.
 
   ```elisp
-  (loopy ((seq i [1 2 3 4 5 6 7 8 9 10])
+  ;; => '((7 5 3 1) (6 4 2) (3 3 3))
+  (loopy ((seq i [1 2 3 4 5 6 7])
           (if (cl-oddp i)
-              (prepend reversed-odds i)
-            (prepend reversed-evens i)
-            (prepend some-threes 3)))
+              (push-into reversed-odds i)
+            (push-into reversed-evens i)
+            (push-into some-threes 3)))
             (finally-return (list reversed-odds
                                   reversed-evens
                                   some-threes)))
    ```
 
-- `(cond [(EXPR CMDS) [...]])`: Like a normal `cond`, for the first `EXPR` to
+- `(cond [(EXPR CMDS) [...]])`: Like the Lisp `cond`, for the first `EXPR` to
   evaluate to non-nil, run the following commands `CMDS`.
 
   ```elisp
-        (loopy ((list i (number-sequence 1 10))
-                (cond
-                 ((cl-evenp i)
-                  (prepend evens i))
-                 (t (prepend odds i))))
-               (finally-return (list evens odds)))
-        ```
+  (loopy ((list i '(1 2 3 "cat" 4 5 6 "dog"))
+          (cond
+           ((not (numberp i)) (collect not-numbers i))
+           ((cl-evenp i)      (collect evens i))
+           (t                 (collect odds i))))
+         (return evens odds not-numbers)) ; => '((2 4 6) (1 3 5) ("cat" "dog"))
+  ```
 
 ##### Skipping an Iteration
 
@@ -814,18 +844,16 @@ the loop).
 
   ```elisp
   (loopy ((seq i (number-sequence 1 20))
-          (when (zerop (mod i 10))
-            (skip))
-          (when (cl-evenp i)
-            (prepend my-collection i)))
-         (finally-return (nreverse my-collection)))
+          (when (zerop (mod i 10)) (skip))
+          (when (cl-evenp i)       (push-into my-collection i)))
+         (finally-return (nreverse my-collection))) ; => (2 4 6 8 12 14 16 18)
   ```
 
 ##### Exiting the Loop Early
 
-The loop is contained in a `cl-block`, and these forms are all `cl-return-from`
-underneath.  In fact, you could use `(do (cl-return-from NAME VAL))` to achieve
-the same effect.  These forms are provided for convenience.
+The loop is contained in a `cl-block`, and these forms are all variations of
+`cl-return-from` underneath.  In fact, you could use `(do (cl-return-from NAME
+VAL))` to achieve the same effect.  These forms are provided for convenience.
 
 - `(return EXPR)`:   Leave the current loop, returning value.
 
@@ -873,8 +901,10 @@ the same effect.  These forms are provided for convenience.
                       (message "Success!"))))
   ```
 
-## Extending with Personal Loop Commands
-### Background Explanation
+## Adding Custom Commands
+
+### Background Information
+
 The core working of `loopy` is taking a command and generating code that is
 substituted into a loop body.
 
@@ -1181,9 +1211,10 @@ special form `cond`.
 | `do EXPR`              | `(do EXPRS)` as a loop command              |
 | `return EXPR`          | `(return EXPR)` as a loop command           |
 
-[sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
+[cl-lib.el]: <https://www.gnu.org/software/emacs/manual/html_node/cl/index.html>
 [cl-loop]: <https://www.gnu.org/software/emacs/manual/html_node/cl/Loop-Facility.html>
-
+[seq.el]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequence-Functions.html>
+[sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
 
 <!-- Would normally would grab H1 level, but we're using that for the title. -->
 <!-- Local Variables: -->
