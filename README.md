@@ -739,8 +739,8 @@ the loop).
          (return my-new-list)) ; => '(1 2 3 4 5 6 7 8)
   ```
 
-- `(push|push-into|prepend VAR EXPR)`: Repeatedly `push` `EXPR` into
-  `VAR`. `VAR` stars as `nil`.
+- `(push|push-into VAR EXPR)`: Repeatedly `push` `EXPR` into `VAR`. `VAR` stars
+  as `nil`.
 
   ```elisp
   (loopy ((seq i [1 2 3])

@@ -406,7 +406,7 @@ Optionally needs LOOP-NAME for block returns."
           (`(nconc ,var ,val)
            (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--main-body . (setq ,var (nconc ,var ,val)))))
-          ((or `(push-into ,var ,val) `(prepend ,var ,val) `(push ,var ,val))
+          ((or `(push-into ,var ,val) `(push ,var ,val))
            (add-instruction `(loopy--explicit-vars . (,var nil)))
            (add-instruction `(loopy--main-body . (push ,val ,var))))
           (`(sum ,var ,val)
