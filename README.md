@@ -1120,15 +1120,17 @@ is an example from the CL Lib manual.
 ;; - A more convenient/straightforward translation,
 ;;   depending on whether the functions have a return value.
 (loopy ((list size size-list)
-        (when (< size 10) (do (some-small-sizes)) (leave)))
+        ;; `return` is just a wrapper for `cl-return`.
+        (when (< size 10) (return (some-small-sizes))))
        ;; Only runs if loop doesn't exit early.
-       (after-do (only-big-sizes)))
+       (after-do (cl-return (only-big-sizes))))
 ```
 
 A seen in the above example, `loopy` does not always have a one-to-one
-translation to `cl-loop`.  It is not an explicit goal to be able to replace all
-uses of `cl-loop` with `loopy`, and in the above example, you could be better
-served by `cl-every`, `seq-every-p`, or even continuing to use `cl-loop`.
+translation to `cl-loop` (though you might want to try creating your own
+command).  It is not an explicit goal to be able to replace all uses of
+`cl-loop` with `loopy`.  In the above example, you could be better served by
+`cl-every`, `seq-every-p`, or even continuing to use `cl-loop`.
 
 ### Accumulation Clauses
 
