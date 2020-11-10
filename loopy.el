@@ -181,7 +181,8 @@ Optionally needs LOOP-NAME for block returns."
           ;; A DO form for a generic lisp body. Not searched for special forms.
           (`(do . ,body)
            (add-instruction `(loopy--main-body . (progn ,@body))))
-          ((or `(expr ,var . ,rest) `(exprs ,var . ,rest))
+          ((or `(expr ,var . ,rest) `(exprs ,var . ,rest)
+               `(set ,var . ,rest))
            (let ((arg-length (length rest))
                  (counter-holder (gensym)))
              (add-instruction `(loopy--explicit-vars . (,var nil)))
