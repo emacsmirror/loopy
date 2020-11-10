@@ -1132,6 +1132,21 @@ served by `cl-every`, `seq-every-p`, or even continuing to use `cl-loop`.
 
 ### Accumulation Clauses
 
+**NOTE**: In `loopy`, accumulation commands do not imply a return value.  You
+cannot simply do `(collect FORM)`; you must always give a variable into which to
+accumulate the form.
+
+| `cl-loop`                 | `loopy`              |
+|:--------------------------|:---------------------|
+| `append FORM into VAR `   | `(append VAR FORM)`  |
+| `collect FORM into VAR `  | `(collect VAR FORM)` |
+| `concat FORM into VAR `   | `(concat VAR FORM)`  |
+| `count FORM into VAR `    | `(count VAR FORM)`   |
+| `maximize FORM into VAR ` | `(max VAR FORM)`     |
+| `minimize FORM into VAR ` | `(min VAR FORM)`     |
+| `nconc FORM into VAR `    | `(nconc VAR FORM)`   |
+| `sum FORM into VAR `      | `(sum VAR FORM)`     |
+| `vconcat FORM into VAR `  | `(vconcat VAR FORM)` |
 
 [sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
 [cl-loop]: <https://www.gnu.org/software/emacs/manual/html_node/cl/Loop-Facility.html>
