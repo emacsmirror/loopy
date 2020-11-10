@@ -1148,6 +1148,32 @@ accumulate the form.
 | `sum FORM into VAR `      | `(sum VAR FORM)`     |
 | `vconcat FORM into VAR `  | `(vconcat VAR FORM)` |
 
+### Other Clauses
+
+In `loopy`, `if`, `when`, and `unless` can take multiple loop commands as
+arguments, and operate more like their Lisp counterparts.
+
+This means that `if` is not a synonym for `when`.  Just like the normal Lisp
+special form `if`, `(if COND cmd1 cmd2 cmd3)` only runs `cmd1` if `COND`
+evaluates to non-nil, and only runs commands `cmd2` and `cmd3` if `COND`
+evaluates to `nil`.
+
+`loopy` also provides the command `cond`, which works like the normal Lisp
+special form `cond`.
+
+| `cl-loop`              | `loopy`                                     |
+|:-----------------------|:--------------------------------------------|
+| `with var = value`     | `(with (VAR VALUE))` as a macro argument    |
+| `if COND clause`       | `(if COND CMDS)` as a loop command          |
+| `when COND clause`     | `(when COND CMDS)` as a loop command        |
+| `unless COND clause`   | `(unless COND CMDS)` as a loop command      |
+| `named NAME`           | `NAME` as a macro argument                  |
+| `initially [do] EXPRS` | `(before-do EXPRS)` as a macro argument     |
+| `finally [do] EXPRS`   | `(finally-do EXPRS)` as a macro argument    |
+| `finally return EXPR`  | `(finally-return EXPR)` as a macro argument |
+| `do EXPR`              | `(do EXPRS)` as a loop command              |
+| `return EXPR`          | `(return EXPR)` as a loop command           |
+
 [sequence-docs]: <https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html>
 [cl-loop]: <https://www.gnu.org/software/emacs/manual/html_node/cl/Loop-Facility.html>
 
