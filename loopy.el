@@ -478,17 +478,17 @@ Things to note:
         (setq loopy--name-arg arg))
        ((memq (car-safe arg) '(with let*))
         (setq loopy--with-forms (loopy--parse-with-forms arg)))
-       ((memq (car-safe arg) '(before-do before-progn before))
+       ((memq (car-safe arg) '(before-do before))
         (setq loopy--before-do (cdr arg)))
+       ((memq (car-safe arg) '(after-do after else else-do))
+        (setq loopy--after-do (cdr arg)))
+       ((memq (car-safe arg) '(finally-do finally))
+        (setq loopy--final-do (cdr arg)))
        ((memq (car-safe arg) '(finally-return return))
         (setq loopy--final-return
               (if (= 1 (length (cdr arg)))
                   (cadr arg)
                 (cons 'list (cdr arg)))))
-       ((memq (car-safe arg) '(after-do after-progn after))
-        (setq loopy--after-do (cdr arg)))
-       ((memq (car-safe arg) '(finally-do finally-progn))
-        (setq loopy--final-do (cdr arg)))
        (t
         ;; Body forms have the most variety.
         ;; An instruction is (PLACE-TO-ADD . THING-TO-ADD).
