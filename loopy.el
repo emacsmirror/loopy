@@ -181,10 +181,44 @@ Optionally needs LOOP-NAME for block returns."
           ;; A DO form for a generic lisp body. Not searched for special forms.
           (`(do . ,body)
            (add-instruction `(loopy--main-body . (progn ,@body))))
-          (`(expr ,var ,val)
-           (add-instruction `(loopy--main-body . (setq ,var ,val)))
-           ;; Want to make sure VAR is lexically bound.
-           (add-instruction `(loopy--explicit-vars . (,var nil))))
+          ((or `(expr ,var . ,rest) `(exprs ,var . ,rest))
+           (let ((arg-length (length rest))
+                 (counter-holder (gensym)))
+             (add-instruction `(loopy--explicit-vars . (,var nil)))
+             (cond
+              ((= arg-length 0)
+               (add-instruction `(loopy--main-body . (setq ,var nil))))
+              ((= arg-length 1)
+               (add-instruction `(loopy--main-body . (setq ,var ,(car rest)))))
+              ((= arg-length 2)
+               (add-instruction `(loopy--implicit-vars . (,counter-holder t)))
+               (add-instruction `(loopy--main-body
+                                  . (setq ,var (if ,counter-holder
+                                                   ,(cl-first rest)
+                                                 ,(cl-second rest)))))
+               (add-instruction `(loopy--latter-body . (setq ,counter-holder nil))))
+              (t
+               (add-instruction `(loopy--implicit-vars . (,counter-holder 0)))
+               (add-instruction `(loopy--latter-body
+                                  . (when (< ,counter-holder (1- ,arg-length))
+                                      (setq ,counter-holder (1+ ,counter-holder)))))
+               ;; Assign to var based on the value of counter-holder.  For
+               ;; efficiency, we want to check for the last expression first,
+               ;; since it will probably be true the most times.  To enable
+               ;; that, the condition is whether the counter is greater than
+               ;; the index of EXPR in REST minus one.
+               ;;
+               ;; E.g., for '(a b c),
+               ;; use '(cond ((> cnt 1) c) ((> cnt 0) b) ((> cnt -1) a))
+               (add-instruction
+                `(loopy--main-body
+                  . (setq ,var ,(let ((body-code nil) (index 0))
+                                  (dolist (expr rest)
+                                    (push `((> ,counter-holder ,(1- index))
+                                            ,expr)
+                                          body-code)
+                                    (setq index (1+ index)))
+                                  (cons 'cond body-code)))))))))
 
 ;;;;; Iteration Clauses
           ;; TODO:

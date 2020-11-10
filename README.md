@@ -567,15 +567,19 @@ Lisp code.  `VAR` is an unquoted variable name.
           (do (message "%d" i))))
   ```
 
-- `(expr VAR EXPR)`: Bind `VAR` to the value of `EXPR` in each iteration.
+- `(expr|exprs VAR [EXPRS])`: Bind `VAR` to each `EXPR` in order.  Once `VAR`
+  the last `EXPR` is reached, it is used repeatedly for the rest of the loop.
+  With no `EXPR`, `VAR` is repeatedly bound to `nil`.
 
   **NOTE**: Loops are lexically scoped, so this is not always the same as
             `(do (setq VAR EXPR))`.
 
   ```elisp
-  (loopy ((list i '(1 2 3))
-          (expr j (* i 2))
-          (do (message "%d" j))))
+  (loopy ((repeat 5) (expr i 1) (collect coll i))
+         (return coll)) ; => '(1 1 1 1 1)
+
+  (loopy ((repeat 5) (expr i 1 2 3) (collect coll i))
+         (return coll)) ; => '(1 2 3 3 3)
   ```
 
 #### Iteration and Looping Commands
@@ -1064,7 +1068,7 @@ exact equivalent for every for-clause that `cl-loop` has.  Instead, one can just
 iterate through the return value of the appropriate function using the `list`
 command.
 
-| `cl-loop`                                     | `loopy`                                           |
+| `cl-loop`                                     | `loopy`                                          |
 |:----------------------------------------------|:-------------------------------------------------|
 | `for VAR from EXPR1 to EXPR2 by EXPR3`        | `(list VAR (number-sequence EXPR1 EXPR2 EXPR3))` |
 | `for VAR in LIST [by FUNCTION]`               | `(list VAR LIST [FUNC])`                         |
@@ -1085,7 +1089,7 @@ command.
 | `for VAR being the frames`                    | `(list VAR (frame-list))`                        |
 | `for VAR being the windows [of FRAME]`        | `(list VAR (window-list FRAME))`                 |
 | `for VAR being the buffers`                   | `(list VAR (buffer-list))`                       |
-| `for VAR = EXPR1 then EXPR2`                  | None so far.                                     |
+| `for VAR = EXPR1 then EXPR2`                  | `(expr VAR EXPR1 EXPR2)`                         |
 
 ### Iteration Clauses
 

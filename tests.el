@@ -70,6 +70,13 @@
           (goto-char (point-min))
           (how-many "(j nil)")))))
 
+(ert-deftest expr-multi-arg-test ()
+  (should (equal (loopy ((repeat 10)
+                         (expr i 1 2 3)
+                         (collect coll i))
+                        (return coll))
+                 '(1 2 3 3 3 3 3 3 3 3))))
+
 ;;;; List
 (ert-deftest loopy-basic-list-test ()
   (should (= 3 (loopy (loop (list i '(1 2 3)))
