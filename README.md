@@ -1022,7 +1022,7 @@ concerned with what happens after the loop exits/completes.
   `finally-return` macro argument.
 
 These variables will be substituted into the following list of code, which is
-the returned the `loopy` macro for evaluation.
+returned by the `loopy` macro for evaluation.
 
 ~~~ elisp
 `(cl-symbol-macrolet (,@(or loopy--explicit-generalized-vars
