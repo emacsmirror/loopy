@@ -518,6 +518,17 @@ Things to note:
              (push (cdr instruction) loopy--latter-body))
             (loopy--post-conditions
              (push (cdr instruction) loopy--post-conditions))
+            ;; Places users probably shouldn't push to, but can if they want:
+            (loopy--with-forms
+             (push (cdr instruction) loopy--with-forms))
+            (loopy--before-do
+             (push (cdr instruction) loopy--before-do))
+            (loopy--after-do
+             (push (cdr instruction) loopy--after-do))
+            (loopy--final-do
+             (push (cdr instruction) loopy--final-do))
+            (loopy--final-return
+             (push (cdr instruction) loopy--final-return))
             (t
              (error "Loopy: Unknown body instruction: %s" instruction)))))))
 
