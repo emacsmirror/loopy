@@ -15,7 +15,7 @@
 ;;;; Important Variables
 ;; These are only ever set locally.
 
-(defvar loopy--with-forms nil
+(defvar loopy--with-vars nil
   "With Forms are variables explicitly created using the `with' keyword.
 
 This is a list of ((VAR1 VAL1) (VAR2 VAL2) ...).
@@ -96,9 +96,9 @@ These run in a `progn'.")
 This can happen when multiple loop commands refer to the same
 variable, or when a variable is introduced via `with'.
 
-The variable can exist in `loopy--with-forms', `loopy--explicit-vars',
+The variable can exist in `loopy--with-vars', `loopy--explicit-vars',
 or `loopy--explicit-generalized-vars'."
-  (or (memq var-name (mapcar #'car loopy--with-forms))
+  (or (memq var-name (mapcar #'car loopy--with-vars))
       (memq var-name (mapcar #'car loopy--explicit-vars))
       (memq var-name (mapcar #'car loopy--explicit-generalized-vars))))
 
@@ -123,11 +123,6 @@ This uses the command name (such as `list' in `(list i my-list)')."
   (alist-get (car command) loopy-custom-command-parsers))
 
 ;;;; Included parsing functions.
-
-(defun loopy--parse-with-forms (with-forms)
-  "Remove the \"with\" and return list of forms in WITH-FORMS.
-This list is substituted into a LET* binding."
-  (cdr with-forms))
 
 (defun loopy--parse-conditional-forms (wrapper condition forms &optional loop-name)
   "Parse FORMS, wrapping `loopy--main-body' expressions in a conditional form.
@@ -456,7 +451,7 @@ Things to note:
                    ([&or "finally-return" "return"] form &optional [&rest form]))))
   (let (;; -- Top-level expressions other than loop body --
         (loopy--name-arg)
-        (loopy--with-forms)
+        (loopy--with-vars)
         (loopy--before-do)
         (loopy--after-do)
         (loopy--final-do)
@@ -478,7 +473,7 @@ Things to note:
        ((symbolp arg)
         (setq loopy--name-arg arg))
        ((memq (car-safe arg) '(with let*))
-        (setq loopy--with-forms (loopy--parse-with-forms arg)))
+        (setq loopy--with-vars (cdr arg)))
        ((memq (car-safe arg) '(before-do before))
         (setq loopy--before-do (cdr arg)))
        ((memq (car-safe arg) '(after-do after else else-do))
@@ -520,8 +515,8 @@ Things to note:
              (push (cdr instruction) loopy--post-conditions))
 
             ;; Places users probably shouldn't push to, but can if they want:
-            (loopy--with-forms
-             (push (cdr instruction) loopy--with-forms))
+            (loopy--with-vars
+             (push (cdr instruction) loopy--with-vars))
             (loopy--before-do
              (push (cdr instruction) loopy--before-do))
             (loopy--after-do
@@ -550,7 +545,7 @@ Things to note:
     ;;       `nil', which is used (at least in `pcase') as a throw-away symbol.
     `(cl-symbol-macrolet (,@(or loopy--explicit-generalized-vars
                                 (list (list (gensym) nil))))
-       (let* (,@(or loopy--with-forms '((_))))
+       (let* (,@(or loopy--with-vars '((_))))
          (let (,@(or (append loopy--implicit-vars loopy--explicit-vars)
                      '((_))))
            ;; If we need to, capture early return, those that has less
