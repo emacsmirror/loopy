@@ -136,13 +136,13 @@ WRAPPER with CONDITION.  Optionally needs LOOP-NAME for block
 returns."
   (let ((full-instructions)
         (sub-instructions (loopy--parse-body-forms forms loop-name))
-        (loop-body))
+        (conditional-body))
     (dolist (instruction sub-instructions)
       (cl-case (car instruction)
-        (loopy--main-body
-         (push (cdr instruction) loop-body))
-        (t (push instruction full-instructions))))
-    (push `(loopy--main-body . (,wrapper ,condition ,@loop-body)) full-instructions)
+        (loopy--main-body (push (cdr instruction) conditional-body))
+        (t                (push instruction full-instructions))))
+    (push `(loopy--main-body . (,wrapper ,condition ,@conditional-body))
+          full-instructions)
     full-instructions))
 
 (defun loopy--parse-cond-form (forms &optional loop-name)
