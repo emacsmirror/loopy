@@ -1106,6 +1106,52 @@ that it expands to do what we want, as expected.
         loopy--early-return-capture))))
 ```
 
+### A Slightly More Complicated Example
+
+Lets say we want to emulate `cl-loop`'s `always` clause, which causes the loop
+to return `nil` if an expression evaluates to `nil` and `t` otherwise.
+
+Here is an example:
+
+``` elisp
+(cl-loop for i in (number-sequence 1 9) always (< i 10)) ; => t
+```
+
+Without custom commands, you could write the following in `loopy`.
+
+``` elisp
+(loopy ((list i (number-sequence 1 9))
+        (unless (< i 10) (return nil)))
+       (after-do (cl-return t)))
+```
+
+This general approach is certainly wordier.  Here's how you could do it with a
+custom command:
+
+``` elisp
+(cl-defun my--loopy-always-command-parser ((_ &rest conditions))
+  "Parse a command of the form `(always cond1 cond2)'.
+If any condition is `nil', `loopy' should immediately return `t'"
+  (let (instructions)
+    (push `(loopy--after-do . (cl-return t)) instructions)
+    (dolist (condition conditions)
+      (push `(loopy--post-conditions . ,condition) instructions))
+    instructions))
+
+(add-to-list 'loopy-custom-command-parsers
+             (cons 'always #'my--loopy-always-command-parser))
+
+
+(loopy ((list i (number-sequence 1 9)) (always (< i 10)))) ; => t
+
+(loopy ((list i (number-sequence 1 9))
+        (list j '(2 4 6 8 9))
+        (always (< i 10) (cl-evenp j)))) ; => nil
+```
+
+It's still slightly more typing, but not by much.  I take this to mean that
+`loopy` is better for more complicated loops rather than smaller ones.
+
 ## Translating from `cl-loop`
 
 ### For Clauses
@@ -1147,9 +1193,9 @@ command.
 | until COND do ... | (when COND (leave))   |
 | iter-by iterator  | None so far.          |
 
-For the clauses `always`, `never`, `thereis`, can be replaced with a combination
-of `(leave)` in the loop body and `(finally-return)` as a macro argument.  Below
-is an example from the CL Lib manual.
+The clauses `always`, `never`, `thereis` can be replaced with a combination
+of `loopy`'s loop commands and macro arguments.  Below is an example from the CL
+Lib manual.
 
 ``` elisp
 ;; With `cl-loop':
@@ -1157,19 +1203,8 @@ is an example from the CL Lib manual.
     (only-big-sizes)
   (some-small-sizes))
 
-;; With `loopy':
-;; - A less convenient but more literal translation:
-(if (loopy (with (success? t))
-           ((list size size-list)
-            (unless (> size 10)
-              (expr success? nil)
-              (leave)))
-           (finally-return success?))
-    (only-big-sizes)
-  (some-small-sizes))
-
-;; - A more convenient/straightforward translation,
-;;   depending on whether the functions have a return value.
+;; With `loopy`:
+;; Depends on whether the functions have a return value.
 (loopy ((list size size-list)
         ;; `return` is just a wrapper for `cl-return`.
         (when (< size 10) (return (some-small-sizes))))
@@ -1178,10 +1213,15 @@ is an example from the CL Lib manual.
 ```
 
 A seen in the above example, `loopy` does not always have a one-to-one
-translation to `cl-loop` (though you might want to try creating your own
-command).  It is not an explicit goal to be able to replace all uses of
-`cl-loop` with `loopy`.  In the above example, you could be better served by
-`cl-every`, `seq-every-p`, or even continuing to use `cl-loop`.
+translation to `cl-loop`
+([though you could try a custom command](#a_slightly_more_complicated_example)).
+
+It is not an explicit goal to be able to replace all uses of `cl-loop` with
+`loopy`.  I'd prefer that `loopy` be useful in places where `cl-loop` might not
+be enough, instead of forcing `loopy` into places that `cl-loop` already works
+well.
+
+Other options in the above example include `cl-every` and `seq-every-p`.
 
 ### Accumulation Clauses
 
