@@ -518,6 +518,7 @@ Things to note:
              (push (cdr instruction) loopy--latter-body))
             (loopy--post-conditions
              (push (cdr instruction) loopy--post-conditions))
+
             ;; Places users probably shouldn't push to, but can if they want:
             (loopy--with-forms
              (push (cdr instruction) loopy--with-forms))
@@ -532,11 +533,15 @@ Things to note:
             (t
              (error "Loopy: Unknown body instruction: %s" instruction)))))))
 
-    ;; Add post condition checks if needed.
+    ;; Post-conditions can just go at end of latter-body.
     (when loopy--post-conditions
-      (push `(unless (and ,@loopy--post-conditions)
-               (cl-return-from ,loopy--name-arg))
-            loopy--main-body))
+      (setq loopy--latter-body
+            (append loopy--latter-body
+                    `((unless ,(cl-case (length loopy--post-conditions)
+                                 (0 t)
+                                 (1 (car loopy--post-conditions))
+                                 (t (cons 'and loopy--post-conditions)))
+                        (cl-return-from ,loopy--name-arg nil))))))
 
 ;;;;; Constructing/Creating the returned code.
     ;; Note: `let'/`let*' will signal an error if we accidentally substitute
