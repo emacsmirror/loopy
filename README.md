@@ -999,19 +999,24 @@ of each and an example taken mainly from parsing the `list` command.
   continues, but checked after the loop body has run.  The code from this is
   ultimately appended to the latter body before being substituted in.
 
-A loop command is not actually restricted to pushing to only these variables,
-and can push to any of the `defvar`-ed variables that the macro uses.  Doing so
-can lead to unexpected effects, but they are listed here for completeness.
+There are 5 more variables a loop command can push to, but they are derived from
+the macro's arguments.  Adding to them after using a macro argument might lead
+to unintended behavior.  You might wish to use them if, for example, you are
+concerned with what happens after the loop exits/completes.
 
 - `loopy--with-vars`: Lists of a symbol and an expression that will be given
   to `let*`.  These are derived from the `with` macro argument.
+
 - `loopy--before-do`: Expressions to evaluate before the loop.  These are
   derived from the `before-do` macro argument.
+
 - `loopy--after-do`: Expressions to evaluate after the loop completes
   successfully.  These are derived from the `after-do` macro argument.
+
 - `loopy--final-do`: Expressions to evaluate after the loop completes,
   regardless of success.  These are derived from the `finally-do` macro
   argument.
+
 - `loopy--final-return`: An expression that is always returned by the macro,
   regardless of any early returns in the loop body.  This is derived from the
   `finally-return` macro argument.
