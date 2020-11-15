@@ -125,20 +125,26 @@ features.
   false.  If no conditions are needed, the loop runs infinitely until a =return=
   or =leave= command is reached.  See the section [[#exiting-the-loop-early][Exiting the Loop Early]].
 
-  Returns must be stated explicitly, either as an early return for in the loop
-  body via the =return= command, or as a =finally-return= to the macro.  =nil=
-  is returned by default.
+  Return values must be stated explicitly, either as an early return in the loop
+  body via the =return= or =return-from= commands, or as part of the
+  =finally-return= macro argument.  =nil= is returned by default.
 
 ** Macro Arguments
    :PROPERTIES:
    :CUSTOM_ID: macro-arguments
    :END:
 
-   =loopy= takes at most 7 arguments.  They are all technically optional, but a
-   loop that does nothing isn't very useful.
+   =loopy= takes at most 7 arguments, which are all technically optional.
+   Calling the =loopy= macro without arguments creates an infinite loop that
+   does nothing.
 
-   A loop can be named by passing in an unquoted symbol as an argument.  All
-   other arguments are expressions that begin with a keyword from the table
+   You can name a loop by passing =loopy= an unquoted symbol.  The loop body and
+   any expressions that are part of the =before-do= and =after-do= arguments are
+   contained in a =cl-block=.  Naming the loop really just names the block,
+   allowing for more specific exiting via the function ~cl-return~ and the loop
+   commands that wrap it.
+
+   All other arguments are expressions that begin with a keyword from the table
    below.
 
    | Keyword            | Other Names                  | Usage                                                     |
@@ -158,9 +164,12 @@ features.
    :CUSTOM_ID: loop-commands
    :END:
 
-   Loop commands are only valid when inside the =loop= macro argument.
+   Loop commands are only valid when inside the =loop= macro argument.  For
+   convenience, you do not need to include =loop= in the argument.  An
+   expression that doesn’t match any other possible argument is assumed to be
+   the =loop= argument.
 
-   These are valid:
+   Therefore, these are valid:
 
    #+BEGIN_SRC emacs-lisp
      (loopy (loop (list i '(1 2 3))
@@ -172,7 +181,7 @@ features.
             (return coll))
    #+END_SRC
 
-   This is not:
+   and this is not:
 
    #+BEGIN_SRC emacs-lisp
      (loopy (with (list i '(1 2 3)))
@@ -215,8 +224,8 @@ features.
 
    - If a command has multiple names, the names are separated by a vertical
      bar, such as in =do|progn=.
-   - =VAR= is an unquoted symbol that will be used as a variable name, such
-     as the =i= in =(list i my-list)=.
+   - =VAR= is an unquoted symbol that will be used as a variable name, such as
+     =i= in =(list i my-list)=.
    - =FUNC= is a Lisp function name, such as =my-func=, =#'my-func= or
      ='my-func=.
    - =NAME= is an unquoted name of a loop (or, more accurately, of a
@@ -253,14 +262,18 @@ features.
       Once the last =EXPR= is reached, it is used repeatedly for the rest of the
       loop.  With no =EXPR=, =VAR= is repeatedly bound to =nil=.
 
-      *NOTE*: Loops are lexically scoped, so this is not always the same as
-      =(do (setq VAR EXPR))=.
+      *NOTE*: Loops are lexically scoped, so this using this command does not
+      always have the same effect as using =(do (setq VAR EXPR))=.
 
       #+BEGIN_SRC emacs-lisp
-        (loopy ((repeat 5) (expr i 1 2 3) (collect coll i))
+        (loopy ((repeat 5)
+                (expr i 1 2 3)
+                (collect coll i))
                (return coll)) ; => '(1 2 3 3 3)
 
-        (loopy ((repeat 5) (expr i 0 (1+ i)) (collect coll i))
+        (loopy ((repeat 5)
+                (expr i 0 (1+ i))
+                (collect coll i))
                (return coll)) ; => '(0 1 2 3 4)
       #+END_SRC
 
