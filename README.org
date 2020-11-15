@@ -97,7 +97,7 @@ features.
   Loopy is not yet feature complete.  Here are some things that would be nice to
   add/have:
   - Add equivalent features for all that =cl-loop= can do.  Many things are
-    already covered, but not everything.  See [[#translating_from_cl_loop][Translating from =cl-loop=]] for
+    already covered, but not everything.  See [[#translating-from-cl-loop][Translating from =cl-loop=]] for
     more.
   - De-structuring can be useful, but this can already be done using repeated
     =expr= commands.
