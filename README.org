@@ -828,7 +828,7 @@ features.
    #+BEGIN_SRC emacs-lisp
      (loopy ((list i (number-sequence 1 9))
              (unless (< i 10) (return nil)))
-            (after-do (cl-return t)))
+            (else-do (cl-return t)))
    #+END_SRC
 
    This general approach is certainly wordier.  Tere's how you could do it with
