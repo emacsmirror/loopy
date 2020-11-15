@@ -831,7 +831,7 @@ features.
             (else-do (cl-return t)))
    #+END_SRC
 
-   This general approach is certainly wordier.  Tere's how you could do it with
+   This general approach is certainly wordier.  Here's how you could do it with
    a custom command:
 
    #+BEGIN_SRC emacs-lisp
@@ -1056,7 +1056,7 @@ features.
     could try a custom command]]).
 
     It is not an explicit goal to be able to replace all uses of =cl-loop= with
-    =loopy=.  T'd prefer that =loopy= be useful in places where =cl-loop= might
+    =loopy=.  I'd prefer that =loopy= be useful in places where =cl-loop= might
     not be enough, instead of forcing =loopy= into places that =cl-loop= already
     works well.
 
@@ -1091,7 +1091,7 @@ features.
     In =loopy=, =if=, =when=, and =unless= can take multiple loop commands as
     arguments, and operate more like their Lisp counterparts.
 
-    This means that =if= is not a synonym for =when=.  Tust like the normal Lisp
+    This means that =if= is not a synonym for =when=.  Just like the normal Lisp
     special form =if=, =(if COND cmd1 cmd2 cmd3)= only runs =cmd1= if =COND=
     evaluates to non-nil, and only runs commands =cmd2= and =cmd3= if =COND=
     evaluates to =nil=.
@@ -1171,7 +1171,7 @@ features.
   #+end_src
 
   Here is how it could be done with =loopy=.  The logic in the original is a
-  bit different, but this is still a good demonstation of the value of grouping
+  bit different, but this is still a good demonstration of the value of grouping
   loop commands under conditionals.  Because =cl-loop= doesn’t have an
   equivalent feature, one needs to declare more variables with the =with=
   keyword and rely on Lisp expressions for processing instead of clauses.
@@ -1220,7 +1220,7 @@ features.
   formatted candidates.  At the same time, the loop find the current heading,
   which is assumed to be the closest heading before the current line.
 
-  Beause of the stated limitation with grouping under conditionals, I found this
+  Because of the stated limitation with grouping under conditionals, I found this
   easier to write in normal ELisp.  Since I just want to compare structure, I’ve
   removed the comments.  You can find a commented version on Selectrum’s wiki.
 
