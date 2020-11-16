@@ -285,15 +285,15 @@ features.
     Iteration commands bind local variables and determine when the loop ends.
     If no command sets that condition, then the loop runs forever.
 
-    - =(array VAR EXPR)= :: Iterate through the elements of the array =EXPR=.
+    - =(array VAR EXPR)= :: Loop through the elements of the array =EXPR=.
 
       #+BEGIN_SRC emacs-lisp
         (loopy ((array i [1 2 3])
                 (do (message "%d" i))))
       #+END_SRC
 
-    - =(array-ref|arrayf VAR EXPR)= :: Iterate through the elements of the
-      array from =EXPR=, binding =VAR= to a =setf=-able place.
+    - =(array-ref|arrayf VAR EXPR)= :: Loop through the elements of the array
+      =EXPR=, binding =VAR= as a =setf=-able place.
 
       #+BEGIN_SRC emacs-lisp
         (loopy (with (my-str "cat"))
@@ -302,9 +302,8 @@ features.
                (return my-str)) ; => "aaa"
       #+END_SRC
 
-    - =(cons|conses VAR EXPR [FUNC])= :: Iterate through the cons cells in the
-      value of =EXPR=.  Optionally, find the cons cells via =FUNC= instead of
-      =cdr=.
+    - =(cons|conses VAR EXPR [FUNC])= :: Loop through the cons cells of =EXPR=.
+      Optionally, find the cons cells via =FUNC= instead of =cdr=.
 
       #+BEGIN_SRC emacs-lisp
         (loopy (loop (cons i '(1 2 3))
@@ -312,18 +311,17 @@ features.
                (finally-return coll)) ; => ((1 2 3) (2 3) (3))
       #+END_SRC
 
-    - =(list VAR EXPR [FUNC])= :: Iterate through the list =EXPR=, binding
-      =VAR= to each element in the list.  Optionally, update the list by
-      =FUNC= instead of =cdr=.
+    - =(list VAR EXPR [FUNC])= :: Loop through the elements of the list =EXPR=.
+      Optionally, update the list by =FUNC= instead of =cdr=.
 
       #+BEGIN_SRC emacs-lisp
         (loopy ((list i (number-sequence 1 10 3)) ; Inclusive, so '(1 4 7 10).
                 (do (message "%d" i))))
       #+END_SRC
 
-    - =(list-ref|listf VAR EXPR [FUNC])= :: Iterate through the list =EXPR=,
-      binding =VAR= to each element in the list as a =setf=-able location.
-      Optionally, update the list by =FUNC= instead of =cdr=.
+    - =(list-ref|listf VAR EXPR [FUNC])= :: Loop through the elements of the
+      list =EXPR=, binding =VAR= as a =setf=-able place.  Optionally, update the
+      list by =FUNC= instead of =cdr=.
 
       #+BEGIN_SRC emacs-lisp
         (loopy (with (my-list '(1 2 3)))
@@ -349,7 +347,7 @@ features.
                 (do (message "%d" i))))
       #+END_SRC
 
-    - =(seq VAR EXPR)= :: Iterate through the sequence =val=, binding =var= to
+    - =(seq VAR EXPR)= :: Loop through the sequence =val=, binding =var= to
       the elements of the sequence.
 
       #+BEGIN_SRC emacs-lisp
@@ -357,8 +355,8 @@ features.
                (return coll)) ; => (1 2 3)
       #+END_SRC
 
-    - =(seq-ref|seqf VAR EXPR)= :: Iterate through the sequence =val=, binding
-      =var= to the elements of the sequence as a =setf=-able place.
+    - =(seq-ref|seqf VAR EXPR)= :: Loop through the elements of the sequence
+      =val=, binding =var= as a =setf=-able place.
 
       #+BEGIN_SRC emacs-lisp
         (loopy (with (my-seq '(1 2 3 4)))
@@ -374,8 +372,7 @@ features.
 
     Unlike in =cl-loop=, the presence of an accumulation command does not imply
     a return value.  You must provide a variable in which to store the
-    accumulated value.  If you wish, you can then return the value of that
-    variable (either early, or after the loop).
+    accumulated value.  If you wish, you can return that variable.
 
     - =(append VAR EXPR)= :: Repeatedly =append= the value of =EXPR= to =VAR=.
       =VAR= starts as =nil=.
@@ -487,11 +484,10 @@ features.
      :END:
 
      Conditional commands in =loopy= can take multiple sub-commands, and work
-     more like their Lisp counterparts.  There is therefore no need for an =and=
+     like their Lisp counterparts.  There is therefore no need for an =and=
      command as used in =cl-loop=.
 
-     - =(when EXPR CMDS)= :: Like the Lisp =when=, run =CMDS= only if =EXPR= is
-       non-nil.
+     - =(when EXPR CMDS)= :: Run =CMDS= only if =EXPR= is non-nil.
 
        #+BEGIN_SRC emacs-lisp
          ;; Get only the inner lists with all even numbers.
@@ -505,8 +501,8 @@ features.
                 (finally-return only-evens))
        #+END_SRC
 
-     - =(if EXPR CMDS)= :: Like the Lisp =if=, run the first command if =EXPR=
-       is non-nil.  Otherwise, run the remaining commands.
+     - =(if EXPR CMDS)= :: Run the first command if =EXPR= is non-nil.
+       Otherwise, run the remaining commands.
 
        #+BEGIN_SRC emacs-lisp
          ;; => '((7 5 3 1) (6 4 2) (3 3 3))
@@ -520,8 +516,8 @@ features.
                                       some-threes)))
        #+END_SRC
 
-     - =(cond [(EXPR CMDS) [...]])= :: Like the Lisp =cond=, for the first
-       =EXPR= to evaluate to non-nil, run the following commands =CMDS=.
+     - =(cond [(EXPR CMDS) [...]])= :: For the first =EXPR= to evaluate to
+       non-nil, run the following commands =CMDS=.
 
        #+BEGIN_SRC emacs-lisp
          (loopy ((list i '(1 2 3 "cat" 4 5 6 "dog"))
@@ -540,10 +536,13 @@ features.
      - =(skip|continue)= :: Go to next loop iteration.
 
        #+BEGIN_SRC emacs-lisp
+         ;; => (2 4 6 8 12 14 16 18)
          (loopy ((seq i (number-sequence 1 20))
-                 (when (zerop (mod i 10)) (skip))
-                 (when (cl-evenp i)       (push-into my-collection i)))
-                (finally-return (nreverse my-collection))) ; => (2 4 6 8 12 14 16 18)
+                 (when (zerop (mod i 10))
+                   (skip))
+                 (when (cl-evenp i)
+                   (push-into my-collection i)))
+                (finally-return (nreverse my-collection)))
        #+END_SRC
 
 **** Exiting the Loop Early
@@ -556,7 +555,7 @@ features.
      (cl-return-from NAME VAL))= to achieve the same effect.  These forms are
      provided for convenience.
 
-     - =(return EXPR)= :: Leave the current loop, returning value.
+     - =(return EXPR)= :: Leave the current loop, returning the value of =EXPR=.
 
        #+BEGIN_SRC emacs-lisp
          (loopy (with  (j 0))
@@ -565,7 +564,8 @@ features.
                    (return j))))
        #+END_SRC
 
-     - =(return-from NAME EXPR)= :: Leave the loop =NAME=, returning =VAL=.
+     - =(return-from NAME EXPR)= :: Leave the loop =NAME=, returning the value
+       of =EXPR=.
 
        #+BEGIN_SRC emacs-lisp
          (loopy outer-loop
@@ -575,7 +575,7 @@ features.
                                (return-from outer-loop 'bad-val?)))))))
        #+END_SRC
 
-     - =(leave|break)= :: Leave the loop.  Return =nil=.
+     - =(leave|break)= :: Leave the loop, returning =nil=.
 
        #+BEGIN_SRC emacs-lisp
          (loopy ((list i '(1 2 3 "cat" 4 5 6))
@@ -584,7 +584,7 @@ features.
                    (leave))))
        #+END_SRC
 
-     - =(leave-from|break-from NAME)= :: Leave the loop =NAME=.  Return =nil=.
+     - =(leave-from|break-from NAME)= :: Leave the loop =NAME=, returning =nil=.
 
        #+BEGIN_SRC emacs-lisp
          (loopy outer
