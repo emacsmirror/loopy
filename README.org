@@ -230,8 +230,8 @@ features.
      ='my-func=.
    - =NAME= is an unquoted name of a loop (or, more accurately, of a
      =cl-block=).
-   - =EXPR= is a single Lisp expression, such as ~(+ 1 2)~, ~'(1 2 3)~,
-     ~my-var~, or ~(some-function my-var)~.  =EXPRS= means multiple expressions.
+   - =EXPR= is a single Lisp expression, such as =(+ 1 2)=, ='(1 2 3)=,
+     =my-var=, or =(some-function my-var)=.  =EXPRS= means multiple expressions.
      Really, we are concerned with the value of the expression, not the
      expression itself.
    - =CMD= is a loop command, as opposed to a normal Lisp expression.
