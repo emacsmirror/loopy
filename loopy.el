@@ -1,8 +1,17 @@
-;;; loopy --- A looping library.
+;;; loopy.el --- A looping macro
 ;; -*- lexical-binding: t -*-
 
+;; Author: Earl Hyatt
+;; Created: November 2020
+;; URL: https://github.com/okamsn/loopy
+;; Version: 0.1
+;; Package-Requires: ((emacs "25.1"))
+;; Keywords: extensions
+
 ;;; Commentary:
-;; Loop has general construct:
+;; `loopy' is a macro that is used similarly to `cl-loop'.  It provides "loop
+;; commands" that define a loop body and it's surrounding environment, as well
+;; as exit conditions.
 ;;
 
 
@@ -422,16 +431,17 @@ Optionally needs LOOP-NAME for block returns."
 (cl-defmacro loopy (&rest body)
   "A looping macro.
 
-There are several possible arguments:
+There are several possible arguments that make up BODY:
 - a name for the loop, unquoted
-- variables to declare before the loop, as in (with (VAR1 VAL1) [(VAR2 VAL2) ...])
+- variables to declare before the loop, as in
+  (with (VAR1 VAL1) [(VAR2 VAL2) ...])
 - code to run before the loop, as in (before-do FORM1 [FORM2 ...])
 - special commands that define the loop, as in (loop COMMAND1 [COMMAND2 ...])
 - code to run if the loop completes, as in (after-do FORM1 [FORM2 ...])
 - code to always run after the loop, as in (finally-do FORM1 [FORM2 ...])
 - a value to always return, as in (finally-return FORM1 [FORM2 ...])
 
-Returns are always explicit.  See this packages README for more information."
+Returns are always explicit.  See this package's README for more information."
   (declare (debug (&optional ;; TODO: Is this correct?
                    ([&or "with" "let*"] &rest (symbolp &optional form))
                    ([&or "before-do" "before-progn" "before"] body)
