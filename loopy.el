@@ -418,23 +418,20 @@ Optionally needs LOOP-NAME for block returns."
              (error "Loopy: This form unkown: %s" form))))))))
 
 ;;;; The Macro Itself
+;;;###autoload
 (cl-defmacro loopy (&rest body)
-  "A loop is something like the following form.  BODY is up to 4 arguments.
+  "A looping macro.
 
-\(loopy loop-name
-        ((with a 1)
-         (with b 2))
-        ((list i '(1 2 3 4 5 6 7))
-         (do (message \"I is %d\" i)
-             (message \"i+2 is %d\" (+ i 2)))
-         (collect coll i)
-         (when (= 6 i)
-           (early-return)))
-        (final-return coll))
+There are several possible arguments:
+- a name for the loop, unquoted
+- variables to declare before the loop, as in (with (VAR1 VAL1) [(VAR2 VAL2) ...])
+- code to run before the loop, as in (before-do FORM1 [FORM2 ...])
+- special commands that define the loop, as in (loop COMMAND1 [COMMAND2 ...])
+- code to run if the loop completes, as in (after-do FORM1 [FORM2 ...])
+- code to always run after the loop, as in (finally-do FORM1 [FORM2 ...])
+- a value to always return, as in (finally-return FORM1 [FORM2 ...])
 
-Things to note:
-- Return values are explicit.  If you want one, give one.
-- Body clauses are of the form (CMD VAR VAL)."
+Returns are always explicit.  See this packages README for more information."
   (declare (debug (&optional ;; TODO: Is this correct?
                    ([&or "with" "let*"] &rest (symbolp &optional form))
                    ([&or "before-do" "before-progn" "before"] body)
