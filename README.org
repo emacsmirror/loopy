@@ -16,7 +16,7 @@
 =loopy= is a macro meant for iterating and looping.  It is similar in usage to
 [[https://www.gnu.org/software/emacs/manual/html_node/cl/Loop-Facility.html][cl-loop]] but uses symbolic expressions rather than keywords.
 
-=loopy= should be complementary to the features provided the [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequence-Functions.html][Seq]] and [[https://www.gnu.org/software/emacs/manual/html_node/cl/index.html][CL]]
+=loopy= should be complementary to the features provided by the [[https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequence-Functions.html][Seq]] and [[https://www.gnu.org/software/emacs/manual/html_node/cl/index.html][CL]]
 libraries (including =cl-loop=) and Emacs's regular looping and mapping
 features.
 
@@ -1240,12 +1240,12 @@ features.
 
   Another command to compare against is =selectrum-outline=, from the same page.
   This command is a bit more complicated than =selectrum-swiper=, but the logic
-  is very similar.  The code loops through each line in the buffer, ignoring
-  empty lines.  For each non-empty line found that matches a pre-determined
-  regular expression (which describes a one-line heading), a history of parent
-  headings are prepended to the string, which is collected into a list of
-  formatted candidates.  At the same time, the loop find the current heading,
-  which is assumed to be the closest heading before the current line.
+  is similar.  The code loops through each line in the buffer, ignoring empty
+  lines.  For each non-empty line found that matches a pre-determined regular
+  expression (which describes a one-line heading), a history of parent headings
+  are prepended to the string, which is collected into a list of formatted
+  candidates.  At the same time, the loop find the current heading, which is
+  assumed to be the closest heading before the current line.
 
   Because of the stated limitation with grouping under conditionals, I found this
   easier to write in normal ELisp.  Since I just want to compare structure, I’ve
