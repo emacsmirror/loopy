@@ -1,3 +1,4 @@
+#+OPTIONS: f:t
 This be a test. Here is my reg [fn:1]
 
 * Footnotes
