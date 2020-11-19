@@ -1,6 +1,163 @@
 #+OPTIONS: f:t
 This be a test. Here is my reg [fn:1]
 
+The loopy macro has several possible arguments, each beginning with a keyword.
+
+    with declares variables that are bound in order before and around the loop,
+    like in a let* binding.  before-do is a list of normal Lisp expressions to
+    run before the loop executes.  loop is a list of special commands that
+    create the loop body. These commands are described in detail in the section
+    How to Use.  after-do is a list of normal Lisp expressions to run after the
+    successful completion of the loop.  finally-do is a list of normal Lisp
+    expressions that always run, regardless of whether an early return was
+    triggered in the loop body.  finally-return is an expression whose value is
+    always returned, regardless of whether an early return was triggered in the
+    loop body.
+
+The loop commands generally follow the form (COMMAND VARIABLE-NAME &rest ARGS). For example,
+
+    To iterate through a sequencesequence, use (seq elem [1 2 3]) (for efficiency, there are also more specific commands, like list).
+    To collect values into a list, use (collect my-collection collected-value).
+    To just bind a variable to the result of a Lisp expression, use (expr my-var (my-func))
+
+Below is a full example of the arguments of the loopy macro. The top-level forms
+have a flexible-order, but meaning is clearest if they have the following
+order. All of the arguments are technically optional, but having a loop without
+a body wouldn’t be useful.
+
+
+  Another command to compare against is =selectrum-outline=, from the same page.
+  This command is a bit more complicated than =selectrum-swiper=, but the logic
+  is similar.  The code loops through each line in the buffer, ignoring empty
+  lines.  For each non-empty line found that matches a pre-determined regular
+  expression (which describes a one-line heading), a history of parent headings
+  are prepended to the string, which is collected into a list of formatted
+  candidates.  At the same time, the loop find the current heading, which is
+  assumed to be the closest heading before the current line.
+
+  Because of the stated limitation with grouping under conditionals, I found this
+  easier to write in normal ELisp.  Since I just want to compare structure, I’ve
+  removed the comments.  You can find a commented version on Selectrum’s wiki.
+
+  #+begin_src emacs-lisp
+    ;; ...
+    (let ((selectrum-should-sort-p nil)
+          (buffer-lines (split-string (buffer-string) "\n"))
+          (line-number 0)
+          (line-number-format)
+          (default-heading)
+          (current-line-number (line-number-at-pos (point)))
+          (backwards-prefix-list)
+          (prev-heading-text)
+          (prev-heading-level)
+          (formatted-headings))
+
+      (setq line-number-format
+            (concat "L%0"
+                    (number-to-string
+                     (length (number-to-string (length buffer-lines))))
+                    "d: "))
+
+      (save-match-data
+        (dolist (text-line buffer-lines)
+          (cl-incf line-number)
+          (when (string-match heading-regexp text-line)
+            (let ((heading-text (match-string-no-properties 2 text-line))
+                  (heading-level
+                   (length (match-string-no-properties 1 text-line)))
+                  (formatted-heading))
+
+              (when (null prev-heading-level)
+                (setq prev-heading-level heading-level))
+
+              (cond ((> heading-level prev-heading-level)
+                     (setq backwards-prefix-list (cons prev-heading-text
+                                                       backwards-prefix-list)
+                           prev-heading-level heading-level))
+                    ((< heading-level prev-heading-level)
+                     (setq backwards-prefix-list (last backwards-prefix-list
+                                                       heading-level)
+                           prev-heading-level heading-level)))
+
+              (setq prev-heading-text heading-text)
+
+              (when (and (null default-heading)
+                         (> line-number current-line-number))
+                (setq default-heading (car formatted-headings)))
+
+              (push (propertize
+                     (concat (string-join (reverse backwards-prefix-list) "/")
+                             (and backwards-prefix-list "/")
+                             heading-text)
+                     'line-number line-number
+                     'selectrum-candidate-display-prefix
+                     (propertize
+                      (format line-number-format line-number)
+                      'face 'completions-annotations))
+                    formatted-headings)))))
+      ;; ...
+      )
+  #+end_src
+
+  Here is a version in =loopy=.
+
+  #+begin_src emacs-lisp
+    ;; ...
+    (let (selectrum-should-sort-p
+          (current-line-number (line-number-at-pos (point) t)))
+      (save-match-data
+        (cl-multiple-value-bind (default-candidate formatted-candidates)
+            (loopy
+             (with (buffer-lines (split-string (buffer-string) "\n"))
+                   (line-number-format
+                    (concat "L%0"
+                            (number-to-string
+                             (length (number-to-string (length buffer-lines))))
+                            "d: ")))
+             (loop (expr line-number 1 (1+ line-number))
+                   (list text-line buffer-lines)
+                   (when (string-match heading-regexp text-line)
+                     (expr heading-text
+                           (match-string-no-properties 2 text-line))
+                     (expr heading-level
+                           (length (match-string-no-properties 1 text-line)))
+
+                     (cond ((> heading-level (or prev-heading-level
+                                                 heading-level))
+                            (push-into backwards-prefix-list prev-heading-text))
+                           ((< heading-level (or prev-heading-level
+                                                 heading-level))
+                            (expr backwards-prefix-list
+                                  (last backwards-prefix-list heading-level))))
+
+                     (expr prev-heading-text heading-text)
+                     (expr prev-heading-level heading-level)
+
+                     (when (and (null default-heading)
+                                (> (- line-number current-line-number) 0))
+                       (expr default-heading (car formatted-headings)))
+
+                     (push-into
+                      formatted-headings
+                      (propertize
+                       (concat (string-join (reverse backwards-prefix-list) "/")
+                               (and backwards-prefix-list "/")
+                               heading-text)
+                       'line-number line-number
+                       'selectrum-candidate-display-prefix
+                       (propertize (format line-number-format line-number)
+                                   'face 'completions-annotations)))))
+             (finally-return default-heading (nreverse formatted-headings)))
+          ;; ...
+          )))
+  #+end_src
+
+  In my opinion, the =loopy= version is a bit cleaner.  If one we’re writing
+  code like this often (say, in a library), then the loop body could be
+  simplified even further with [[#adding-custom-commands][custom commands]].
+
+
+
 * Footnotes
 
 [fn:1] Hello there.
