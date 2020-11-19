@@ -1,0 +1,5 @@
+This be a test. Here is my reg [fn:1]
+
+* Footnotes
+
+[fn:1] Hello there.
