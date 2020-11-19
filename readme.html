@@ -1,0 +1,2235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2020-11-18 Wed 21:50 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Loopy: A Looping and Iteration Macro</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="Earl Hyatt" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: auto;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .equation-container {
+    display: table;
+    text-align: center;
+    width: 100%;
+  }
+  .equation {
+    vertical-align: middle;
+  }
+  .equation-label {
+    display: table-cell;
+    text-align: right;
+    vertical-align: middle;
+  }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+// @license magnet:?xt=urn:btih:e95b018ef3580986a04669f1b5879592219e2a7a&dn=public-domain.txt Public Domain
+<!--/*--><![CDATA[/*><!--*/
+     function CodeHighlightOn(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.add("code-highlighted");
+         target.classList.add("code-highlighted");
+       }
+     }
+     function CodeHighlightOff(elem, id)
+     {
+       var target = document.getElementById(id);
+       if(null != target) {
+         elem.classList.remove("code-highlighted");
+         target.classList.remove("code-highlighted");
+       }
+     }
+    /*]]>*///-->
+// @license-end
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Loopy: A Looping and Iteration Macro</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org84a9ffb">1. Introduction</a></li>
+<li><a href="#how-to-use">2. How to use</a>
+<ul>
+<li><a href="#macro-arguments">2.1. Macro Arguments</a></li>
+<li><a href="#loop-commands">2.2. Loop Commands</a>
+<ul>
+<li><a href="#commands-for-generic-evaluation">2.2.1. Commands for Generic Evaluation</a></li>
+<li><a href="#iteration-and-looping-commands">2.2.2. Iteration and Looping Commands</a></li>
+<li><a href="#accumulation-commands">2.2.3. Accumulation Commands</a></li>
+<li><a href="#control-flow">2.2.4. Control Flow</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#adding-custom-commands">3. Adding Custom Commands</a>
+<ul>
+<li><a href="#background-information">3.1. Background Information</a></li>
+<li><a href="#a-small-example">3.2. A Small Example</a></li>
+<li><a href="#a-slightly-more-complicated-example">3.3. A Slightly More Complicated Example</a></li>
+</ul>
+</li>
+<li><a href="#how-does-it-compare-to-other-approaches">4. How does it compare to <code>cl-loop</code>?</a>
+<ul>
+<li><a href="#translating-from-cl-loop">4.1. Translating from <code>cl-loop</code></a>
+<ul>
+<li><a href="#for-clauses">4.1.1. For Clauses</a></li>
+<li><a href="#iteration-clauses">4.1.2. Iteration Clauses</a></li>
+<li><a href="#accumulation-clauses">4.1.3. Accumulation Clauses</a></li>
+<li><a href="#other-clauses">4.1.4. Other Clauses</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#orgee93c5b">5. Real-World Examples</a></li>
+</ul>
+</div>
+</div>
+<p>
+<code>loopy</code> is a macro meant for iterating and looping.  It is similar in usage to
+<code>cl-loop</code> <sup><a id="fnr.1" class="footref" href="#fn.1">1</a></sup> but uses symbolic expressions rather than keywords.
+</p>
+
+<p>
+<code>loopy</code> should be complementary to the features provided by the Seq <sup><a id="fnr.2" class="footref" href="#fn.2">2</a></sup> and
+CL <sup><a id="fnr.3" class="footref" href="#fn.3">3</a></sup> libraries (including <code>cl-loop</code>) and Emacs's regular looping and
+mapping features.
+</p>
+<div id="outline-container-org84a9ffb" class="outline-2">
+<h2 id="org84a9ffb"><span class="section-number-2">1</span> Introduction</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+The <code>loopy</code> macro has several possible arguments, each beginning with a
+keyword.
+</p>
+
+<ul class="org-ul">
+<li><code>with</code> declares variables that are bound in order before and around the
+loop, like in a <code>let*</code> binding.</li>
+<li><code>before-do</code> is a list of normal Lisp expressions to run before the loop
+executes.</li>
+<li><code>loop</code> is a list of special commands that create the loop body.  These
+commands are described in detail in the section <a href="#how-to-use">How to Use</a>.</li>
+<li><code>after-do</code> is a list of normal Lisp expressions to run after the successful
+completion of the loop.</li>
+<li><code>finally-do</code> is a list of normal Lisp expressions that always run,
+regardless of whether an early return was triggered in the loop body.</li>
+<li><code>finally-return</code> is an expression whose value is always returned, regardless
+of whether an early return was triggered in the loop body.</li>
+</ul>
+
+<p>
+The loop commands generally follow the form <code>(COMMAND VARIABLE-NAME &amp;rest ARGS)</code>.
+For example,
+</p>
+
+<ul class="org-ul">
+<li>To iterate through a sequence<sup><a id="fnr.4" class="footref" href="#fn.4">4</a></sup>, use <code>(seq elem [1 2 3])</code> (for
+efficiency, there are also more specific commands, like <code>list</code>).</li>
+<li>To collect values into a list, use <code>(collect my-collection collected-value)</code>.</li>
+<li>To just bind a variable to the result of a Lisp expression, use
+<code>(expr my-var (my-func))</code></li>
+</ul>
+
+<p>
+Below is a full example of the arguments of the <code>loopy</code> macro.  The top-level
+forms have a flexible-order, but meaning is clearest if they have the
+following order.  All of the arguments are technically optional, but having a
+loop without a body wouldn't be useful.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; Returns: '((2 4 6 8 10) (1 3 5 7 9)) and prints messages.
+(loopy
+ ;; Name the loop `my-loop'.
+ my-loop
+ ;; Create the lexically scoped variable `success-p', initialized to `nil'.
+ (with (success-p nil))
+ ;; Before starting the loop, print a message.
+ (before-do (message "Beginning loop ..."))
+ ;; Create the loop body.
+ (loop (list i (number-sequence 1 10))        ; Assign `i' from 1 through 10.
+       (do (message "Checking number: %d" i)) ; Report the value of `i'.
+       (if (cl-evenp i)                       ; If `i' is even, add to the list
+           (collect found-evens i)            ; of even numbers, otherwise add
+         (collect found-odds i)))             ; to the list of odd numbers.
+ ;; If the loop completes successfully, print a message and update `success-p'.
+ (after-do (message "Loop completed successfully.")
+           (setq success-p t))
+ ;; Always report based on the value of `success-p', and message the value of
+ ;; the lists of even and odd numbers.
+ (finally-do (if success-p
+                 (message "Confirmed success reported.")
+               (message "W: Success not confirmed!"))
+             (message "Found evens: %s" found-evens)
+             (message "Found odds: %s" found-odds))
+ ;; Always return a list containing the list of even numbers and the list of odd
+ ;; numbers.
+ (finally-return (list found-evens found-odds)))
+</pre>
+</div>
+
+<p>
+Loopy is not yet feature complete.  Here are some things that would be nice to
+add/have:
+</p>
+<ul class="org-ul">
+<li>Add equivalent features for all that <code>cl-loop</code> can do.  Many things are
+already covered, but not everything.  See <a href="#translating-from-cl-loop">Translating from <code>cl-loop</code></a> for
+more.</li>
+<li>De-structuring can be useful, but this can already be done using repeated
+<code>expr</code> commands.</li>
+<li>Currently, code is evaluated even if it is unused.  Conditionally building
+the code that is evaluated would be more efficient, but decreases
+readability.</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-how-to-use" class="outline-2">
+<h2 id="how-to-use"><span class="section-number-2">2</span> How to use</h2>
+<div class="outline-text-2" id="text-how-to-use">
+<p>
+Macro arguments set up the lexical environment the loop runs in, Lisp code
+that runs before or after the loop, and the ultimate return value of the
+macro.  See the section <a href="#macro-arguments">Macro Arguments</a>.
+</p>
+
+<p>
+Loop commands are the main feature of the <code>loopy</code> macro.  By "command", I mean
+the expressions that make up the <code>loop</code> macro argument, such as <code>list</code> in
+<code>(list i '(1 2 3))</code>.  A command inserts code into the loop body, but can also
+perform additional setup, such as initializing specified variables or creating
+extra ones.  Many commands set up a condition for ending the loop.  See the
+section <a href="#loop-commands">Loop Commands</a>.
+</p>
+
+<p>
+The loop ends when any condition required by a loop command evaluates to
+false.  If no conditions are needed, the loop runs infinitely until a <code>return</code>
+or <code>leave</code> command is reached.  See the section <a href="#exiting-the-loop-early">Exiting the Loop Early</a>.
+</p>
+
+<p>
+Return values must be stated explicitly, either as an early return in the loop
+body via the <code>return</code> or <code>return-from</code> commands, or as part of the
+<code>finally-return</code> macro argument.  <code>nil</code> is returned by default.
+</p>
+</div>
+
+<div id="outline-container-macro-arguments" class="outline-3">
+<h3 id="macro-arguments"><span class="section-number-3">2.1</span> Macro Arguments</h3>
+<div class="outline-text-3" id="text-macro-arguments">
+<p>
+<code>loopy</code> takes at most 7 arguments, which are all technically optional.
+Calling the <code>loopy</code> macro without arguments creates an infinite loop that
+does nothing.
+</p>
+
+<p>
+You can name a loop by passing <code>loopy</code> an unquoted symbol.  The loop body and
+any expressions that are part of the <code>before-do</code> and <code>after-do</code> arguments are
+contained in a <code>cl-block</code>.  Naming the loop really just names the block,
+allowing for more specific exiting via the function <code>cl-return</code> and the loop
+commands that wrap it.
+</p>
+
+<p>
+All other arguments are expressions that begin with a keyword from the table
+below.
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Keyword</th>
+<th scope="col" class="org-left">Other Names</th>
+<th scope="col" class="org-left">Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>with</code></td>
+<td class="org-left"><code>let*</code></td>
+<td class="org-left">Declare variables before the loop.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>before-do</code></td>
+<td class="org-left"><code>before</code></td>
+<td class="org-left">Run Lisp expressions before loop starts.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>loop</code></td>
+<td class="org-left">Can be excluded.</td>
+<td class="org-left">Add expressions to loop body, performing further setup.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>after-do</code></td>
+<td class="org-left"><code>after</code>, <code>else</code>, <code>else-do</code></td>
+<td class="org-left">Run Lisp expressions after loop successfully completes.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>finally-do</code></td>
+<td class="org-left"><code>finally</code></td>
+<td class="org-left">Always run Lisp expressions after loop exits.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>finally-return</code></td>
+<td class="org-left"><code>return</code></td>
+<td class="org-left">Return a value, regardless of how the loop completes.</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Additionally, <code>(finally-return 1 2 3)</code> is the same as
+<code>(finally-return (list 1 2 3))</code>.
+</p>
+</div>
+</div>
+
+<div id="outline-container-loop-commands" class="outline-3">
+<h3 id="loop-commands"><span class="section-number-3">2.2</span> Loop Commands</h3>
+<div class="outline-text-3" id="text-loop-commands">
+<p>
+Loop commands are only valid when inside the <code>loop</code> macro argument.  For
+convenience, you do not need to include <code>loop</code> in the argument.  An
+expression that doesn’t match any other possible argument is assumed to be
+the <code>loop</code> argument.
+</p>
+
+<p>
+Therefore, these are valid:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy (loop (list i '(1 2 3))
+             (collect coll i))
+       (finally-return coll))
+
+(loopy ((list i '(1 2 3))
+        (collect coll i))
+       (return coll))
+</pre>
+</div>
+
+<p>
+and this is not:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy (with (list i '(1 2 3)))
+       (return (collect coll i)))
+</pre>
+</div>
+
+<p>
+Trying to use loop commands where they don't belong will result in errors
+when the code is evaluated.
+</p>
+
+<p>
+Underneath, interpreting a command results in "instructions" that describe
+how to substitute code into the loop body and other locations.  This process
+is described in detail in <a href="#background-information">Background Information</a>.
+</p>
+
+<p>
+Some examples of instructions are:
+</p>
+<ul class="org-ul">
+<li>Declaring a given variable in a let form to make sure it's lexically
+scoped.</li>
+<li>Declaring a generated variable in a let form to contain a given value.</li>
+<li>Adding a condition for continuing/exiting the loop.</li>
+<li>Adding code to be run during the main loop body.</li>
+<li>Adding code to be run after the main loop body.</li>
+</ul>
+
+<p>
+The implementation details of commands generally shouldn't matter, except
+that code from commands is evaluated in the order it was found.  This means
+that attempting to do something like
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy (loop (collect coll (+ i 2))
+             (list i '(1 2 3)))
+       (return coll))
+</pre>
+</div>
+
+<p>
+won't work, as <code>i</code> is assigned a value after collecting <code>(+ i 2)</code> into
+<code>coll</code>.
+</p>
+
+<p>
+For convenience and understanding, the same command can have multiple names
+(such as <code>do</code> having the alias <code>progn</code>), and some commands can take optional
+arguments (such as <code>list</code>).
+</p>
+
+<p>
+For simplicity, the commands are described using the following notation:
+</p>
+
+<ul class="org-ul">
+<li>If a command has multiple names, the names are separated by a vertical
+bar, such as in <code>do|progn</code>.</li>
+<li><code>VAR</code> is an unquoted symbol that will be used as a variable name, such as
+<code>i</code> in <code>(list i my-list)</code>.</li>
+<li><code>FUNC</code> is a Lisp function name, such as <code>my-func</code>, <code>#'my-func</code> or
+<code>'my-func</code>.</li>
+<li><code>NAME</code> is an unquoted name of a loop (or, more accurately, of a
+<code>cl-block</code>).</li>
+<li><code>EXPR</code> is a single Lisp expression, such as <code>(+ 1 2)</code>, <code>'(1 2 3)</code>,
+<code>my-var</code>, or <code>(some-function my-var)</code>.  <code>EXPRS</code> means multiple expressions.
+Really, we are concerned with the value of the expression, not the
+expression itself.</li>
+<li><code>CMD</code> is a loop command, as opposed to a normal Lisp expression.
+<code>(list i '(1 2 3))</code>, <code>(repeat 5)</code>, and <code>(return-from outer-loop 7)</code>
+are examples of loop commands.  <code>CMDS</code> means multiple commands.</li>
+<li>Optional arguments are surround by brackets.  <code>[EXPR]</code> is an optional
+expression, and <code>[CMD]</code> is an optional command.  By extension,
+<code>[EXPRS]</code> is equivalent to <code>[EXPR [EXPR [...]]]</code>, and <code>[CMDS]</code> to
+<code>[CMD [CMD [...]]]</code>.</li>
+</ul>
+</div>
+
+<div id="outline-container-commands-for-generic-evaluation" class="outline-4">
+<h4 id="commands-for-generic-evaluation"><span class="section-number-4">2.2.1</span> Commands for Generic Evaluation</h4>
+<div class="outline-text-4" id="text-commands-for-generic-evaluation">
+<dl class="org-dl">
+<dt><code>(do|progn EXPRS)</code></dt><dd><p>
+Evaluate multiple Lisp expressions, like a
+<code>progn</code>.
+</p>
+
+<p>
+You cannot include arbitrary code in the loop body.  Trying to do so will
+result in errors, as the macro will attempt to interpret such code as a
+command.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '(1 2 3))
+        (do (message "%d" i))))
+</pre>
+</div></dd>
+
+<dt><code>(expr|exprs|set VAR [EXPRS])</code></dt><dd><p>
+Bind <code>VAR</code> to each <code>EXPR</code> in order.
+Once the last <code>EXPR</code> is reached, it is used repeatedly for the rest of the
+loop.  With no <code>EXPR</code>, <code>VAR</code> is repeatedly bound to <code>nil</code>.
+</p>
+
+<p>
+<b>NOTE</b>: Loops are lexically scoped, so this using this command does not
+always have the same effect as using <code>(do (setq VAR EXPR))</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((repeat 5)
+        (expr i 1 2 3)
+        (collect coll i))
+       (return coll)) ; =&gt; '(1 2 3 3 3)
+
+(loopy ((repeat 5)
+        (expr i 0 (1+ i))
+        (collect coll i))
+       (return coll)) ; =&gt; '(0 1 2 3 4)
+</pre>
+</div></dd>
+</dl>
+</div>
+</div>
+
+<div id="outline-container-iteration-and-looping-commands" class="outline-4">
+<h4 id="iteration-and-looping-commands"><span class="section-number-4">2.2.2</span> Iteration and Looping Commands</h4>
+<div class="outline-text-4" id="text-iteration-and-looping-commands">
+<p>
+Iteration commands bind local variables and determine when the loop ends.
+If no command sets that condition, then the loop runs forever.
+</p>
+
+<dl class="org-dl">
+<dt><code>(array VAR EXPR)</code></dt><dd><p>
+Loop through the elements of the array <code>EXPR</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((array i [1 2 3])
+        (do (message "%d" i))))
+</pre>
+</div></dd>
+
+<dt><code>(array-ref|arrayf VAR EXPR)</code></dt><dd><p>
+Loop through the elements of the array
+<code>EXPR</code>, binding <code>VAR</code> as a <code>setf</code>-able place.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy (with (my-str "cat"))
+       (loop (array-ref i my-str)
+             (do (setf i ?a)))
+       (return my-str)) ; =&gt; "aaa"
+</pre>
+</div></dd>
+
+<dt><code>(cons|conses VAR EXPR [FUNC])</code></dt><dd><p>
+Loop through the cons cells of <code>EXPR</code>.
+Optionally, find the cons cells via <code>FUNC</code> instead of <code>cdr</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy (loop (cons i '(1 2 3))
+             (collect coll i))
+       (finally-return coll)) ; =&gt; ((1 2 3) (2 3) (3))
+</pre>
+</div></dd>
+
+<dt><code>(list VAR EXPR [FUNC])</code></dt><dd><p>
+Loop through the elements of the list <code>EXPR</code>.
+Optionally, update the list by <code>FUNC</code> instead of <code>cdr</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i (number-sequence 1 10 3)) ; Inclusive, so '(1 4 7 10).
+        (do (message "%d" i))))
+</pre>
+</div></dd>
+
+<dt><code>(list-ref|listf VAR EXPR [FUNC])</code></dt><dd><p>
+Loop through the elements of the
+list <code>EXPR</code>, binding <code>VAR</code> as a <code>setf</code>-able place.  Optionally, update the
+list by <code>FUNC</code> instead of <code>cdr</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy (with (my-list '(1 2 3)))
+       (loop (list-ref i my-list)
+             (do (setf i 7)))
+       (finally-return my-list)) ; Returns '(7 7 7).
+</pre>
+</div></dd>
+
+<dt><code>(repeat EXPR)</code></dt><dd><p>
+Add a condition that the loop should stop after
+<code>EXPR</code> iterations.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((repeat 3)
+        (do (message "Messaged three times."))))
+</pre>
+</div></dd>
+
+<dt><code>(repeat VAR EXPR)</code></dt><dd><p>
+Add a condition that the loop should stop after
+<code>EXPR</code> iterations.  <code>VAR</code> starts at 0, and is incremented by 1 at the
+end of the loop.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((repeat i 3)
+        (do (message "%d" i))))
+</pre>
+</div></dd>
+
+<dt><code>(seq VAR EXPR)</code></dt><dd><p>
+Loop through the sequence <code>val</code>, binding <code>var</code> to
+the elements of the sequence.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((seq i [1 2 3]) (collect coll i))
+       (return coll)) ; =&gt; (1 2 3)
+</pre>
+</div></dd>
+
+<dt><code>(seq-ref|seqf VAR EXPR)</code></dt><dd><p>
+Loop through the elements of the sequence
+<code>val</code>, binding <code>var</code> as a <code>setf</code>-able place.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy (with (my-seq '(1 2 3 4)))
+       (loop (seq-ref i my-seq)
+             (do (setf i 7)))
+       (return my-seq)) ; =&gt; '(7 7 7 7)
+</pre>
+</div></dd>
+</dl>
+</div>
+</div>
+
+<div id="outline-container-accumulation-commands" class="outline-4">
+<h4 id="accumulation-commands"><span class="section-number-4">2.2.3</span> Accumulation Commands</h4>
+<div class="outline-text-4" id="text-accumulation-commands">
+<p>
+Unlike in <code>cl-loop</code>, the presence of an accumulation command does not imply
+a return value.  You must provide a variable in which to store the
+accumulated value.  If you wish, you can return that variable.
+</p>
+
+<dl class="org-dl">
+<dt><code>(append VAR EXPR)</code></dt><dd><p>
+Repeatedly <code>append</code> the value of <code>EXPR</code> to <code>VAR</code>.
+<code>VAR</code> starts as <code>nil</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '((1 2 3) (4 5 6)))
+        (append coll i))
+       (return coll)) ; =&gt; '(1 2 3 4 5 6)
+</pre>
+</div></dd>
+
+<dt><code>(collect VAR EXPR)</code></dt><dd><p>
+Repeatedly <code>append</code> a list containing value of
+<code>EXPR</code> to <code>VAR</code>.  <code>VAR</code> starts as <code>nil</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((seq i [1 2 3])
+        (collect coll i))
+       (finally-return coll)) ; =&gt; '(1 2 3)
+</pre>
+</div>
+
+<p>
+In <code>cl-loop</code>, <code>collect EXPR</code> means to repeatedly <code>push</code> the value of
+<code>EXPR</code> into the accumulated list, and then <code>nreverse</code> that list for a
+return value.  If you specifically want this behavior, then you should use
+the <code>push-into</code> command like in its example below.
+</p></dd>
+
+<dt><code>(concat VAR EXPR)</code></dt><dd><p>
+Repeatedly <code>concat</code> the value of <code>EXPR</code> onto the
+end of <code>VAR</code>.  <code>VAR</code> starts as <code>nil</code>.  See the <code>vconcat</code> command for
+vectors.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '("a" "b" "c"))
+        (concat str i))
+       (return str)) ; =&gt; "abc"
+</pre>
+</div></dd>
+
+<dt><code>(count VAR EXPR)</code></dt><dd><p>
+Count the number of times that <code>EXPR</code> evaluates to a
+non-nil value, adding 1 to <code>VAR</code> each time.  <code>VAR</code> starts at 0.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '(1 nil 3 nil 5))
+        (count non-nil-count i))
+       (return non-nil-count)) ; =&gt; 3
+</pre>
+</div></dd>
+
+<dt><code>(max|maximize VAR EXPR)</code></dt><dd><p>
+Repeatedly set <code>VAR</code> to the greater of <code>VAR</code>
+and the value of <code>EXPR</code>.  <code>VAR</code> starts at <code>-1.0e+INF</code>, so that any other
+value should be greater that it.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '(1 11 2 10 3 9 4 8 5 7 6))
+        (max my-max i))
+       (return my-max)) ; =&gt; 11
+</pre>
+</div></dd>
+
+<dt><code>(min|minimize VAR EXPR)</code></dt><dd><p>
+Repeatedly set <code>VAR</code> to the lesser of <code>VAR</code>
+and the value of <code>EXPR</code>.  <code>VAR</code> starts at <code>1.0e+INF</code>, so that any other
+value should be less than it.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '(1 11 2 10 3 0 9 4 8 5 7 6))
+        (min my-min i))
+       (return my-min)) ; =&gt; 0
+</pre>
+</div></dd>
+
+<dt><code>(nconc VAR EXPR)</code></dt><dd><p>
+Repeatedly concatenate the value of <code>EXPR</code> onto
+<code>VAR</code> with <code>nconc</code>.  Unlike <code>append</code>, <code>nconc</code> does not concatenate copies
+of the lists, but modifies <code>VAR</code> directly.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy (loop (list i '((1 2 3 4) (5 6 7 8)))
+             (nconc my-new-list i))
+       (return my-new-list)) ; =&gt; '(1 2 3 4 5 6 7 8)
+</pre>
+</div></dd>
+
+<dt><code>(push|push-into VAR EXPR)</code></dt><dd><p>
+Repeatedly <code>push</code> <code>EXPR</code> into <code>VAR</code>.  <code>VAR</code>
+stars as <code>nil</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((seq i [1 2 3])
+        (push reversed i))
+       (finally-return (nreverse reversed))) ; =&gt; '(1 2 3)
+</pre>
+</div></dd>
+
+<dt><code>(sum VAR EXPR)</code></dt><dd><p>
+Repeatedly set <code>VAR</code> to the sum of the value of <code>EXPR</code>
+and <code>VAR</code>.  <code>VAR</code> starts at 0.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '(1 2 3 4))
+        (sum my-sum i))
+       (return my-sum)) ; =&gt; 10
+</pre>
+</div></dd>
+
+<dt><code>(vconcat VAR EXPR)</code></dt><dd><p>
+Repeatedly <code>vconcat</code> the value of <code>EXPR</code> onto
+<code>VAR</code>.  <code>VAR</code> starts as <code>nil</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '([1 2 3] [4 5 6]))
+        (vconcat vector i))
+       (return vector)) ; =&gt; [1 2 3 4 5 6]
+</pre>
+</div></dd>
+</dl>
+</div>
+</div>
+
+<div id="outline-container-control-flow" class="outline-4">
+<h4 id="control-flow"><span class="section-number-4">2.2.4</span> Control Flow</h4>
+<div class="outline-text-4" id="text-control-flow">
+</div>
+
+<ol class="org-ol">
+<li><a id="conditionals"></a>Conditionals<br />
+<div class="outline-text-5" id="text-conditionals">
+<p>
+Conditional commands in <code>loopy</code> can take multiple sub-commands, and work
+like their Lisp counterparts.  There is therefore no need for an <code>and</code>
+command as used in <code>cl-loop</code>.
+</p>
+
+<dl class="org-dl">
+<dt><code>(when EXPR CMDS)</code></dt><dd><p>
+Run <code>CMDS</code> only if <code>EXPR</code> is non-nil.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; Get only the inner lists with all even numbers.
+;; =&gt; '((2 4 6) (8 10 12) (16 18 20))
+(loopy ((list i '((2 4 6) (8 10 12) (13 14 15) (16 18 20)))
+        (when (loopy ((list j i)
+                      (when (cl-oddp j)
+                        (return nil)))
+                     (else-do (cl-return t)))
+          (collect only-evens i)))
+       (finally-return only-evens))
+</pre>
+</div></dd>
+
+<dt><code>(if EXPR CMDS)</code></dt><dd><p>
+Run the first command if <code>EXPR</code> is non-nil.
+Otherwise, run the remaining commands.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; =&gt; '((7 5 3 1) (6 4 2) (3 3 3))
+(loopy ((seq i [1 2 3 4 5 6 7])
+        (if (cl-oddp i)
+            (push-into reversed-odds i)
+          (push-into reversed-evens i)
+          (push-into some-threes 3)))
+       (finally-return (list reversed-odds
+                             reversed-evens
+                             some-threes)))
+</pre>
+</div></dd>
+
+<dt><code>(cond [(EXPR CMDS) [...]])</code></dt><dd><p>
+For the first <code>EXPR</code> to evaluate to
+non-nil, run the following commands <code>CMDS</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '(1 2 3 "cat" 4 5 6 "dog"))
+        (cond
+         ((not (numberp i)) (collect not-numbers i))
+         ((cl-evenp i)      (collect evens i))
+         (t                 (collect odds i))))
+       (return evens odds not-numbers)) ; =&gt; '((2 4 6) (1 3 5) ("cat" "dog"))
+</pre>
+</div></dd>
+</dl>
+</div>
+</li>
+
+<li><a id="skipping-an-iteration"></a>Skipping an Iteration<br />
+<div class="outline-text-5" id="text-skipping-an-iteration">
+<dl class="org-dl">
+<dt><code>(skip|continue)</code></dt><dd><p>
+Go to next loop iteration.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; =&gt; (2 4 6 8 12 14 16 18)
+(loopy ((seq i (number-sequence 1 20))
+        (when (zerop (mod i 10))
+          (skip))
+        (when (cl-evenp i)
+          (push-into my-collection i)))
+       (finally-return (nreverse my-collection)))
+</pre>
+</div></dd>
+</dl>
+</div>
+</li>
+
+<li><a id="exiting-the-loop-early"></a>Exiting the Loop Early<br />
+<div class="outline-text-5" id="text-exiting-the-loop-early">
+<p>
+The loop is contained in a <code>cl-block</code>, and these forms are all variations
+of <code>cl-return-from</code> underneath.  In fact, you could use <code>(do
+     (cl-return-from NAME VAL))</code> to achieve the same effect.  These forms are
+provided for convenience.
+</p>
+
+<dl class="org-dl">
+<dt><code>(return EXPR)</code></dt><dd><p>
+Leave the current loop, returning the value of <code>EXPR</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy (with  (j 0))
+       ((do (cl-incf j))
+        (when (&gt; j 5)
+          (return j))))
+</pre>
+</div></dd>
+
+<dt><code>(return-from NAME EXPR)</code></dt><dd><p>
+Leave the loop <code>NAME</code>, returning the value
+of <code>EXPR</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy outer-loop
+       ((list inner-list '((1 2 3) (1 bad-val? 1) (4 5 6)))
+        (do (loopy ((list i inner-list)
+                    (when (eq i 'bad-val?)
+                      (return-from outer-loop 'bad-val?)))))))
+</pre>
+</div></dd>
+
+<dt><code>(leave|break)</code></dt><dd><p>
+Leave the loop, returning <code>nil</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i '(1 2 3 "cat" 4 5 6))
+        (if (numberp i)
+            (do (message "Number: %d" i))
+          (leave))))
+</pre>
+</div></dd>
+
+<dt><code>(leave-from|break-from NAME)</code></dt><dd><p>
+Leave the loop <code>NAME</code>, returning <code>nil</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy outer
+       (with (failure-condition 'fail)
+             (failed-p nil))
+       ((list i '((1 2 3) (4 5 6) (7 fail 8)))
+        (do (loopy ((list j i)
+                    (when (eq j failure-condition)
+                      ;; Note: Can't do (expr failed-p t), since
+                      ;;       `expr' is local to its own loop.
+                      (do (setq failed-p t))
+                      (break-from outer))))))
+       (finally-do (if failed-p
+                       (message "Failed!")
+                     (message "Success!"))))
+</pre>
+</div></dd>
+</dl>
+</div>
+</li>
+</ol>
+</div>
+</div>
+</div>
+
+<div id="outline-container-adding-custom-commands" class="outline-2">
+<h2 id="adding-custom-commands"><span class="section-number-2">3</span> Adding Custom Commands</h2>
+<div class="outline-text-2" id="text-adding-custom-commands">
+</div>
+
+<div id="outline-container-background-information" class="outline-3">
+<h3 id="background-information"><span class="section-number-3">3.1</span> Background Information</h3>
+<div class="outline-text-3" id="text-background-information">
+<p>
+The core working of <code>loopy</code> is taking a command and generating code that is
+substituted into a loop body.
+</p>
+
+<p>
+For example, the parsing the command <code>(list i '(1 2 3))</code> produces the
+following instructions.  Some commands require the creation of unique
+temporary variables, such as <code>g3019</code> in the below output.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">((loopy--implicit-vars g3019 '(1 2 3))
+ (loopy--explicit-vars i nil)
+ (loopy--pre-conditions consp g3019)
+ (loopy--main-body setq i (car g3019))
+ (loopy--latter-body setq g3019 (cdr g3019)))
+</pre>
+</div>
+
+<p>
+The <code>car</code> of an instruction is the place to put code and the <code>cdr</code> of the
+instruction is said code to put.  You can see that not all of the code to be
+inserted is a valid Lisp form.  Some of it is inserted into variable lists
+like in <code>let</code> and <code>let*</code> instead of being treated as an expression.
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Place</th>
+<th scope="col" class="org-left">Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>loopy--implicit-vars</code></td>
+<td class="org-left"><code>(g3019 '(1 2 3))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>loopy--explicit-vars</code></td>
+<td class="org-left"><code>(i nil)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>loopy--pre-conditions</code></td>
+<td class="org-left"><code>(consp g3019)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>loopy--main-body</code></td>
+<td class="org-left"><code>(setq i (car g3019))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>loopy--latter-body</code></td>
+<td class="org-left"><code>(setq g3019 (cdr g3019))</code></td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Commands are parsed by <code>loopy--parse-body-forms</code>, which receives a list of
+commands and returns a list of instructions.  For commands that take
+sub-commands as arguments (such as <code>cond</code>, <code>if</code>, and <code>when</code>), more specific
+parsing functions are called in a mutually recursive fashion (e.g.,
+Function-1 uses Function-2 which uses Function-1, and so on).
+</p>
+
+<p>
+For example, consider the function <code>loopy--parse-conditional-forms</code>, which
+parses the <code>if</code>, <code>when</code>, and <code>unless</code> commands.  It needs to be able to group
+any code going to the loop body under its respective conditional control
+structure and condition.  To do this, it uses <code>loopy--parse-body-forms</code> to
+turn its sub-commands into a list of instructions, and then checks the <code>car</code>
+of each instruction.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(defun loopy--parse-conditional-forms (wrapper condition forms &amp;optional loop-name)
+  "Parse FORMS, wrapping `loopy--main-body' expressions in a conditional form.
+The instructions (e.g., return expressions) are wrapped with a
+WRAPPER with CONDITION.  Optionally needs LOOP-NAME for block
+returns."
+  (let ((full-instructions)
+        (sub-instructions (loopy--parse-body-forms forms loop-name))
+        (conditional-body))
+    (dolist (instruction sub-instructions)
+      (cl-case (car instruction)
+        (loopy--main-body (push (cdr instruction) conditional-body))
+        (t                (push instruction full-instructions))))
+    (push `(loopy--main-body . (,wrapper ,condition ,@conditional-body))
+          full-instructions)
+    full-instructions))
+</pre>
+</div>
+
+<p>
+The hardest part of this exchange is making sure the inserted code ends up in
+the correct order.
+</p>
+
+<p>
+A loop body command has 7 main places to put code.  Here is a quick
+description of each and an example taken mainly from parsing the <code>list</code>
+command.
+</p>
+
+<dl class="org-dl">
+<dt><code>loopy--explicit-generalized-vars</code></dt><dd>Lists of a symbol and a macro
+expansion that will be given to <code>cl-symbol-macrolet</code>.  This is used for
+<code>setf</code>-able variables.</dd>
+
+<dt><code>loopy--implicit-vars</code></dt><dd>Lists of a symbol and an expression that will
+be given to <code>let</code>.  This is used for creating variables that are not
+named by must exists, such as for holding <code>'(1 2 3)</code> in
+<code>(list i '(1 2 3))</code>.</dd>
+
+<dt><code>loopy--explicit-vars</code></dt><dd>Lists of a symbol and an expression that will
+be given to <code>let</code>.  This is needed to ensure that named variables in
+commands are lexically scoped, such as the <code>i</code> in <code>(list i '(1 2 3))</code>.</dd>
+
+<dt><code>loopy--pre-conditions</code></dt><dd>Expressions that determine if the <code>while</code>
+loop runs/continues, such as whether a list still has elements in it.
+If there is more than one expression, than all expressions are used in
+an <code>and</code> special form.</dd>
+
+<dt><code>loopy--main-body</code></dt><dd>Expressions that make up the main body of the
+loop.</dd>
+
+<dt><code>loopy--latter-body</code></dt><dd>Expressions that need to be run after the main
+body, such as updating implicit variables.</dd>
+
+<dt><code>loopy--post-conditions</code></dt><dd>Expressions that determine whether the
+<code>while</code> loop continues, but checked after the loop body has run.  The
+code from this is ultimately appended to the latter body before being
+substituted in.</dd>
+</dl>
+
+<p>
+There are 5 more variables a loop command can push to, but they are derived
+from the macro's arguments.  Adding to them after using a macro argument
+might lead to unintended behavior.  You might wish to use them if, for
+example, you are concerned with what happens after the loop exits/completes.
+</p>
+
+<dl class="org-dl">
+<dt><code>loopy--with-vars</code></dt><dd>Lists of a symbol and an expression that will be
+given to <code>let*</code>.  These are derived from the <code>with</code> macro argument.</dd>
+
+<dt><code>loopy--before-do</code></dt><dd>Expressions to evaluate before the loop.  These are
+derived from the <code>before-do</code> macro argument.</dd>
+
+<dt><code>loopy--after-do</code></dt><dd>Expressions to evaluate after the loop completes
+successfully.  These are derived from the <code>after-do</code> macro argument.</dd>
+
+<dt><code>loopy--final-do</code></dt><dd>Expressions to evaluate after the loop completes,
+regardless of success.  These are derived from the <code>finally-do</code> macro
+argument.</dd>
+
+<dt><code>loopy--final-return</code></dt><dd>An expression that is always returned by the
+macro, regardless of any early returns in the loop body.  This is
+derived from the <code>finally-return</code> macro argument.</dd>
+</dl>
+
+<p>
+These variables will be substituted into the following list of code, which is
+returned by the <code>loopy</code> macro for evaluation.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">`(cl-symbol-macrolet (,@(or loopy--explicit-generalized-vars
+                            (list (list (gensym) nil))))
+   (let* (,@(or loopy--with-vars '((_))))
+     (let (,@(or (append loopy--implicit-vars loopy--explicit-vars)
+                 '((_))))
+       (let ((loopy--early-return-capture
+              (cl-block ,loopy--name-arg
+                ,@loopy--before-do
+                (while ,(cl-case (length loopy--pre-conditions)
+                          (0 t)
+                          (1 (car loopy--pre-conditions))
+                          (t (cons 'and loopy--pre-conditions)))
+                  (cl-tagbody
+                   ,@loopy--main-body
+                   loopy--continue-tag
+                   ,@loopy--latter-body))
+                ,@loopy--after-do
+                nil)))
+         ,@loopy--final-do
+         ,(if loopy--final-return
+              loopy--final-return
+            'loopy--early-return-capture)))))
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-a-small-example" class="outline-3">
+<h3 id="a-small-example"><span class="section-number-3">3.2</span> A Small Example</h3>
+<div class="outline-text-3" id="text-a-small-example">
+<p>
+To implement a custom loop body command, <code>loopy</code> needs two pieces of
+information:
+</p>
+<ol class="org-ol">
+<li>The keyword that names your command</li>
+<li>The parsing function that can turn uses of your command into instructions.</li>
+</ol>
+
+<p>
+Importantly, your custom commands cannot share a name.
+</p>
+
+<p>
+For example, say that you're tired of typing out
+<code>(do (message "Hello, %s" first last))</code> and would prefer to instead use
+<code>(greet FIRST [LAST])</code>.  This only requires pushing code into the main
+loopy body, so the definition of the parsing function is quite simple.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(cl-defun my-loopy-greet-command-parser ((_ first &amp;optional last))
+  "Greet one with first name FIRST and optional last name LAST."
+  `((loopy--main-body . (if ,last
+                            (message "Hello, %s %s" ,first ,last)
+                          (message "Hello, %s" ,first)))))
+</pre>
+</div>
+
+<p>
+<code>loopy</code> will pass the entire command expression to the parsing function, and
+expects back a list of instructions.
+</p>
+
+<p>
+To tell <code>loopy</code> about this function, add it and the command name <code>greet</code> to
+<code>loopy-custom-command-parsers</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(add-to-list 'loopy-custom-command-parsers
+             '(greet . my-loopy-greet-command-parser))
+</pre>
+</div>
+
+<p>
+After that, you can use your custom command in the loop body.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list name '(("John" "Deer") ("Jane" "Doe") ("Jimmy")))
+        (greet (car name) (cadr name))))
+</pre>
+</div>
+
+<p>
+By running <code>M-x pp-macroexpand-last-sexp</code> on the above expression, you can
+see that it expands to do what we want, as expected.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(cl-symbol-macrolet ((g3314 nil))
+  (let* ((_))
+    (let ((g3313 '(("John" "Deer") ("Jane" "Doe") ("Jimmy")))
+          (name nil))
+      (let ((loopy--early-return-capture
+             (cl-block nil
+               (while (consp g3313)
+                 (cl-tagbody
+                  (setq name (car g3313))
+                  (if (cadr name)
+                      (message "Hello, %s %s" (car name) (cadr name))
+                    (message "Hello, %s" (car name)))
+                  loopy--continue-tag
+                  (setq g3313 (cdr g3313))))
+               nil)))
+        loopy--early-return-capture))))
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-a-slightly-more-complicated-example" class="outline-3">
+<h3 id="a-slightly-more-complicated-example"><span class="section-number-3">3.3</span> A Slightly More Complicated Example</h3>
+<div class="outline-text-3" id="text-a-slightly-more-complicated-example">
+<p>
+Lets say we want to emulate <code>cl-loop</code>'s <code>always</code> clause, which causes the
+loop to return <code>nil</code> if an expression evaluates to <code>nil</code> and <code>t</code> otherwise.
+</p>
+
+<p>
+Here is an example:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(cl-loop for i in (number-sequence 1 9) always (&lt; i 10)) ; =&gt; t
+</pre>
+</div>
+
+<p>
+Without custom commands, you could write the following in <code>loopy</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i (number-sequence 1 9))
+        (unless (&lt; i 10) (return nil)))
+       (else-do (cl-return t)))
+</pre>
+</div>
+
+<p>
+This general approach is certainly wordier.  Here's how you could do it with
+a custom command:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(cl-defun my--loopy-always-command-parser ((_ &amp;rest conditions))
+  "Parse a command of the form `(always cond1 cond2)'.
+If any condition is `nil', `loopy' should immediately return `t'"
+  (let (instructions)
+    (push `(loopy--after-do . (cl-return t)) instructions)
+    (dolist (condition conditions)
+      (push `(loopy--post-conditions . ,condition) instructions))
+    instructions))
+
+(add-to-list 'loopy-custom-command-parsers
+             (cons 'always #'my--loopy-always-command-parser))
+
+
+(loopy ((list i (number-sequence 1 9)) (always (&lt; i 10)))) ; =&gt; t
+
+(loopy ((list i (number-sequence 1 9))
+        (list j '(2 4 6 8 9))
+        (always (&lt; i 10) (cl-evenp j)))) ; =&gt; nil
+</pre>
+</div>
+
+<p>
+It's still slightly more typing, but not by much.  I take this to mean that
+<code>loopy</code> is better for more complicated loops rather than smaller ones.
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-how-does-it-compare-to-other-approaches" class="outline-2">
+<h2 id="how-does-it-compare-to-other-approaches"><span class="section-number-2">4</span> How does it compare to <code>cl-loop</code>?</h2>
+<div class="outline-text-2" id="text-how-does-it-compare-to-other-approaches">
+<p>
+<code>loopy</code> should be comparable with <code>cl-loop</code> for most things, keeping in
+mind the following:
+</p>
+<ul class="org-ul">
+<li>It is probably less efficient than <code>cl-loop</code>, though I am so far trying to
+keep the same logic that <code>cl-loop</code> uses.</li>
+<li>It has more flexible control-flow commands, under which you can easily group
+sub-commands, including assignments.</li>
+<li>Using an accumulation command does not imply a return value.</li>
+<li>It has a <code>skip</code> command to skip to skip the rest of the loop body and
+immediately start the next iteration.  Of course, a similar effect could be
+achieved using the <code>when</code> or <code>unless</code> commands.</li>
+</ul>
+
+<p>
+<code>loopy</code> is not always one-to-one replacement for <code>cl-loop</code>, but it is easy to
+use and extend, and performs well in the cases that it already handles.
+</p>
+
+<p>
+Below is a simple example of <code>loopy</code> vs <code>cl-loop</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(require 'cl-lib)
+(cl-loop with some-thing = 5
+         for i from 1 to 100
+         do (message "I is %s" i)
+         when (&gt; (+ i 5) 20)
+         return (format "Done: %d" i))
+
+(require 'loopy)
+(loopy (with (some-thing 5))
+       ((list i (number-sequence 1 100))
+        (do (message "I is %s" i))
+        (when (&gt; (+ i 5) 20)
+          (return (format "Done: %d" i)))))
+</pre>
+</div>
+
+<p>
+The main benefit (I believe) of Loopy is clearer grouping of constructs under
+conditionals while still using a clean syntax, such as in the below example.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(loopy ((list i (number-sequence 1 20))
+        (when (cl-evenp i)
+          (expr once i)
+          (expr twice (* 2 i))
+          (push-into together (cons once twice))))
+       (finally-return (nreverse together)))
+</pre>
+</div>
+
+<p>
+In my experience, <code>cl-loop</code> does not allow the easy grouping of assignment
+statements under a <code>when</code> condition.  For example, below is something I would
+like to try to do with <code>cl-loop</code>.
+</p>
+
+<p>
+I am aware that in this example the <code>for</code> statements aren't necessary and that
+the <code>collect</code> statements would be sufficient, but (when I come across things
+like this in my work) I would like to use them to declare variables for
+readability purposes.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(require 'cl-lib)
+(save-match-data
+  (cl-loop with pattern = "^Line\\([[:digit:]]\\)-Data\\([[:digit:]]\\)"
+           for line in (split-string "Line1-Data1\nBad\nLine2-Data2")
+           when (string-match pattern line)
+           for line-num = (concat "L" (match-string 1 line))
+           and for data-nums = (concat "D" (match-string 2 line))
+
+           ;; … Further processing now that data is named …
+
+           and collect (match-string 1 line) into line-nums
+           and collect (match-string 2 line) into data-nums
+           finally return (list line-nums data-nums)))
+
+;; Normal Elisp:
+(save-match-data
+  (let ((pattern "^Line\\([[:digit:]]\\)-Data\\([[:digit:]]\\)")
+        (line-nums)
+        (data-nums))
+    (dolist (line (split-string "Line1-Data1\nBad\nLine2-Data2"))
+      (when (string-match pattern line)
+        (let ((line-num (concat "L" (match-string 1 line)))
+              (datum-num (concat "D" (match-string 2 line))))
+
+          ;; … Further processing now that data is named …
+
+          (push line-num line-nums)
+          (push datum-num data-nums))))
+    (list (nreverse line-nums) (nreverse data-nums))))
+</pre>
+</div>
+
+<p>
+Here is how one could currently do it with <code>loopy</code>:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">(require 'loopy)
+(save-match-data
+  (loopy (with (pattern "^Line\\([[:digit:]]\\)-Data\\([[:digit:]]\\)"))
+         ((list line (split-string "Line1-Data1\nBad\nLine2-Data2"))
+          (when (string-match pattern line)
+            (expr line-num (concat "L" (match-string 1 line)))
+            (expr datum-num (concat "D" (match-string 2 line)))
+
+            ;; … Further processing now that data is named …
+
+            (collect line-nums line-num)
+            (collect data-nums datum-num)))
+         (finally-return line-nums data-nums)))
+</pre>
+</div>
+
+<p>
+I believe that the value of the macro increases for longer loop bodies with
+several conditional commands.
+</p>
+
+<p>
+Another nice ability, one that I'm not sure <code>cl-loop</code> has, is
+skipping/continuing a loop iteration.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; Returns even numbers that aren't multiples of 10.
+(loopy ((list i (number-sequence 1 20))
+        (when (zerop (mod i 10))
+          (skip))
+        (when (cl-evenp i)
+          (push-into my-collection i)))
+       (finally-return (nreverse my-collection))) ; =&gt; (2 4 6 8 12 14 16 18)
+</pre>
+</div>
+</div>
+
+<div id="outline-container-translating-from-cl-loop" class="outline-3">
+<h3 id="translating-from-cl-loop"><span class="section-number-3">4.1</span> Translating from <code>cl-loop</code></h3>
+<div class="outline-text-3" id="text-translating-from-cl-loop">
+</div>
+
+<div id="outline-container-for-clauses" class="outline-4">
+<h4 id="for-clauses"><span class="section-number-4">4.1.1</span> For Clauses</h4>
+<div class="outline-text-4" id="text-for-clauses">
+<p>
+As Emacs has many functions that return lists, I decided to not implement an
+exact equivalent for every for-clause that <code>cl-loop</code> has.  Instead, one can
+just iterate through the return value of the appropriate function using the
+<code>list</code> command.
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left"><code>cl-loop</code></th>
+<th scope="col" class="org-left"><code>loopy</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>for VAR from EXPR1 to EXPR2 by EXPR3</code></td>
+<td class="org-left"><code>(list VAR (number-sequence EXPR1 EXPR2 EXPR3))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR in LIST [by FUNCTION]</code></td>
+<td class="org-left"><code>(list VAR LIST [FUNC])</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR on LIST [by FUNCTION]</code></td>
+<td class="org-left"><code>(cons VAR VAL [FUNC])</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR in-ref LIST by FUNCTION</code></td>
+<td class="org-left"><code>(list-ref VAR LIST [FUNC])</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR across ARRAY</code></td>
+<td class="org-left"><code>(array VAR ARRAY)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR across-ref ARRAY</code></td>
+<td class="org-left"><code>(array-ref VAR ARRAY)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the elements of SEQUENCE</code></td>
+<td class="org-left"><code>(seq VAR SEQUENCE)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the elements of-ref SEQUENCE</code></td>
+<td class="org-left"><code>(seq-ref VAR SEQUENCE)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the symbols [of OBARRAY]</code></td>
+<td class="org-left">None so far.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the hash-keys of HASH-TABLE</code></td>
+<td class="org-left"><code>(list VAR (hash-table-keys HASH-TABLE))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the hash-values of HASH-TABLE</code></td>
+<td class="org-left"><code>(list VAR (hash-table-values HASH-TABLE))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the key-codes of KEYMAP</code></td>
+<td class="org-left">None so far.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the key-bindings of KEYMAP</code></td>
+<td class="org-left">None so far.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the key-seqs of KEYMAP</code></td>
+<td class="org-left">None so far.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the overlays [of BUFFER]</code></td>
+<td class="org-left">None so far.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the intervals [of BUFFER]</code></td>
+<td class="org-left">None so far.</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the frames</code></td>
+<td class="org-left"><code>(list VAR (frame-list))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the windows [of FRAME]</code></td>
+<td class="org-left"><code>(list VAR (window-list FRAME))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR being the buffers</code></td>
+<td class="org-left"><code>(list VAR (buffer-list))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>for VAR = EXPR1 then EXPR2</code></td>
+<td class="org-left"><code>(expr VAR EXPR1 EXPR2)</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div id="outline-container-iteration-clauses" class="outline-4">
+<h4 id="iteration-clauses"><span class="section-number-4">4.1.2</span> Iteration Clauses</h4>
+<div class="outline-text-4" id="text-iteration-clauses">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left"><code>cl-loop</code></th>
+<th scope="col" class="org-left"><code>loopy</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>repeat INT</code></td>
+<td class="org-left"><code>(repeat INT)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>while COND</code></td>
+<td class="org-left"><code>(unless COND (leave))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>until COND</code></td>
+<td class="org-left"><code>(when COND (leave))</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>iter-by iterator</code></td>
+<td class="org-left">None so far.</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+The clauses <code>always</code>, <code>never</code>, <code>thereis</code> can be replaced with a combination
+of <code>loopy</code>'s loop commands and macro arguments.  Below is an example from the
+CL Lib manual.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; With `cl-loop':
+(if (cl-loop for size in size-list always (&gt; size 10))
+    (only-big-sizes)
+  (some-small-sizes))
+
+;; With `loopy`:
+;; Depends on whether the functions have a return value.
+(loopy ((list size size-list)
+        ;; `return` is just a wrapper for `cl-return`.
+        (when (&lt; size 10) (return (some-small-sizes))))
+       ;; Only runs if loop doesn't exit early.
+       (after-do (cl-return (only-big-sizes))))
+</pre>
+</div>
+
+<p>
+A seen in the above example, <code>loopy</code> does not always have a one-to-one
+translation to <code>cl-loop</code> (<a href="#a-slightly-more-complicated-example">though you
+could try a custom command</a>).
+</p>
+
+<p>
+It is not an explicit goal to be able to replace all uses of <code>cl-loop</code> with
+<code>loopy</code>.  I'd prefer that <code>loopy</code> be useful in places where <code>cl-loop</code> might
+not be enough, instead of forcing <code>loopy</code> into places that <code>cl-loop</code> already
+works well.
+</p>
+
+<p>
+Other options in the above example include <code>cl-every</code> and <code>seq-every-p</code>.
+</p>
+</div>
+</div>
+
+<div id="outline-container-accumulation-clauses" class="outline-4">
+<h4 id="accumulation-clauses"><span class="section-number-4">4.1.3</span> Accumulation Clauses</h4>
+<div class="outline-text-4" id="text-accumulation-clauses">
+<p>
+<b>NOTE</b>: In <code>loopy</code>, accumulation commands do not imply a return value.  You
+cannot simply do <code>(collect FORM)</code>; you must always give a variable into which
+to accumulate the form.
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left"><code>cl-loop</code></th>
+<th scope="col" class="org-left"><code>loopy</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>append FORM into VAR</code></td>
+<td class="org-left"><code>(append VAR FORM)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>collect FORM into VAR</code></td>
+<td class="org-left"><code>(collect VAR FORM)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>concat FORM into VAR</code></td>
+<td class="org-left"><code>(concat VAR FORM)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>count FORM into VAR</code></td>
+<td class="org-left"><code>(count VAR FORM)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>maximize FORM into VAR</code></td>
+<td class="org-left"><code>(max VAR FORM)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>minimize FORM into VAR</code></td>
+<td class="org-left"><code>(min VAR FORM)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>nconc FORM into VAR</code></td>
+<td class="org-left"><code>(nconc VAR FORM)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>sum FORM into VAR</code></td>
+<td class="org-left"><code>(sum VAR FORM)</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>vconcat FORM into VAR</code></td>
+<td class="org-left"><code>(vconcat VAR FORM)</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div id="outline-container-other-clauses" class="outline-4">
+<h4 id="other-clauses"><span class="section-number-4">4.1.4</span> Other Clauses</h4>
+<div class="outline-text-4" id="text-other-clauses">
+<p>
+In <code>loopy</code>, <code>if</code>, <code>when</code>, and <code>unless</code> can take multiple loop commands as
+arguments, and operate more like their Lisp counterparts.
+</p>
+
+<p>
+This means that <code>if</code> is not a synonym for <code>when</code>.  Just like the normal Lisp
+special form <code>if</code>, <code>(if COND cmd1 cmd2 cmd3)</code> only runs <code>cmd1</code> if <code>COND</code>
+evaluates to non-nil, and only runs commands <code>cmd2</code> and <code>cmd3</code> if <code>COND</code>
+evaluates to <code>nil</code>.
+</p>
+
+<p>
+<code>loopy</code> also provides the command <code>cond</code>, which works like the normal Lisp
+special form <code>cond</code>.
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left"><code>cl-loop</code></th>
+<th scope="col" class="org-left"><code>loopy</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>with var = value</code></td>
+<td class="org-left"><code>(with (VAR VALUE))</code> as a macro argument</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>if COND clause</code></td>
+<td class="org-left"><code>(if COND CMDS)</code> as a loop command</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>when COND clause</code></td>
+<td class="org-left"><code>(when COND CMDS)</code> as a loop command</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>unless COND clause</code></td>
+<td class="org-left"><code>(unless COND CMDS)</code> as a loop command</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>named NAME</code></td>
+<td class="org-left"><code>NAME</code> as a macro argument</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>initially [do] EXPRS</code></td>
+<td class="org-left"><code>(before-do EXPRS)</code> as a macro argument</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>finally [do] EXPRS</code></td>
+<td class="org-left"><code>(finally-do EXPRS)</code> as a macro argument</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>finally return EXPR</code></td>
+<td class="org-left"><code>(finally-return EXPR)</code> as a macro argument</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>do EXPR</code></td>
+<td class="org-left"><code>(do EXPRS)</code> as a loop command</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>return EXPR</code></td>
+<td class="org-left"><code>(return EXPR)</code> as a loop command</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgee93c5b" class="outline-2">
+<h2 id="orgee93c5b"><span class="section-number-2">5</span> Real-World Examples</h2>
+<div class="outline-text-2" id="text-5">
+<blockquote>
+<p>
+This section contains examples of loops that exist in real-world commands.
+To these loops in context, full examples of those commands can be found in
+the file <a href="examples.el">examples.el</a>.
+</p>
+</blockquote>
+
+<p>
+One command that could see a benefit from using <code>loopy</code> is <code>selectrum-swiper</code>
+from the <a href="https://github.com/raxod502/selectrum/wiki/Useful-Commands#swiper-like-jumping-to-matching-lines">Selectrum wiki</a>.  This command allows a user to jump to a matched
+line in the buffer.  Candidates are created by looping through text lines,
+formatting non-empty lines and collecting the formatted lines into a list of
+candidates.  At the same time, it selects a default candidate by finding the
+non-empty line closest to the current line.
+</p>
+
+<p>
+Here is the main portion of the command, which uses <code>cl-loop</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; ...
+(cl-loop with minimum-line-number = (line-number-at-pos (point-min) t)
+         with buffer-text-lines = (split-string (buffer-string) "\n")
+         with number-format = (concat
+                               "L%0"
+                               (number-to-string
+                                (length (number-to-string
+                                         (length buffer-text-lines))))
+                               "d: ")
+
+         with closest-candidate = nil
+         with distance-to-current-line = nil
+         with smallest-distance-to-current-line = most-positive-fixnum
+
+         with formatted-line = nil
+         with formatted-lines = nil
+
+         for txt in buffer-text-lines
+         for num = minimum-line-number then (1+ num)
+         unless (string-empty-p txt) ; Just skip empty lines.
+         do
+         (setq formatted-line (propertize
+                               txt
+                               'selectrum-candidate-display-prefix
+                               (propertize
+                                (format number-format num)
+                                'face 'completions-annotations)
+                               'line-num num)
+               distance-to-current-line (abs (- current-line-number num)))
+         (push formatted-line formatted-lines)
+         (when (&lt; distance-to-current-line
+                  smallest-distance-to-current-line)
+           (setq smallest-distance-to-current-line distance-to-current-line
+                 closest-candidate formatted-line))
+         finally return (cons closest-candidate
+                              (nreverse formatted-lines)))
+;; ...
+</pre>
+</div>
+
+<p>
+Here is how it could be done with <code>loopy</code>.  The logic in the original is a
+bit different, but this is still a good demonstration of the value of grouping
+loop commands under conditionals.  Because <code>cl-loop</code> doesn’t have an
+equivalent feature, one needs to declare more variables with the <code>with</code>
+keyword and rely on Lisp expressions for processing instead of clauses.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; ...
+(loopy (with (buffer-text-lines (split-string (buffer-string) "\n"))
+             (number-format
+              (concat "L%0"
+                      (number-to-string
+                       (length (number-to-string
+                                (length buffer-text-lines))))
+                      "d: ")))
+       (loop (list line-text buffer-text-lines)
+             (expr line-num (line-number-at-pos (point-min) t) (1+ line-num))
+             (unless (string-empty-p line-text)
+               (push-into formatted-lines
+                          (propertize line-text
+                                      'selectrum-candidate-display-prefix
+                                      (propertize
+                                       (format number-format line-num)
+                                       'face 'completions-annotations)
+                                      'line-num line-num))
+               ;; There are a few different ways that you could express this.
+               (when (null default-cand)
+                 (expr prev-dist +1.0e+INF dist-to-default-cand)
+                 (expr dist-to-default-cand (abs (- current-line-number
+                                                    line-num)))
+                 (when (&gt; dist-to-default-cand prev-dist)
+                   (expr default-cand (cadr formatted-lines))))))
+       ;; Could also use `cl-multiple-value-bind' and `finally-return',
+       ;; which has the benefit of not being captured by the loop's
+       ;; `let'-forms.
+       (finally-do (setq default-candidate default-cand
+                         formatted-candidates (nreverse formatted-lines))))
+;; ...
+</pre>
+</div>
+
+
+<p>
+Another command to compare against is <code>selectrum-outline</code>, from the same page.
+This command is a bit more complicated than <code>selectrum-swiper</code>, but the logic
+is similar.  The code loops through each line in the buffer, ignoring empty
+lines.  For each non-empty line found that matches a pre-determined regular
+expression (which describes a one-line heading), a history of parent headings
+are prepended to the string, which is collected into a list of formatted
+candidates.  At the same time, the loop find the current heading, which is
+assumed to be the closest heading before the current line.
+</p>
+
+<p>
+Because of the stated limitation with grouping under conditionals, I found this
+easier to write in normal ELisp.  Since I just want to compare structure, I’ve
+removed the comments.  You can find a commented version on Selectrum’s wiki.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; ...
+(let ((selectrum-should-sort-p nil)
+      (buffer-lines (split-string (buffer-string) "\n"))
+      (line-number 0)
+      (line-number-format)
+      (default-heading)
+      (current-line-number (line-number-at-pos (point)))
+      (backwards-prefix-list)
+      (prev-heading-text)
+      (prev-heading-level)
+      (formatted-headings))
+
+  (setq line-number-format
+        (concat "L%0"
+                (number-to-string
+                 (length (number-to-string (length buffer-lines))))
+                "d: "))
+
+  (save-match-data
+    (dolist (text-line buffer-lines)
+      (cl-incf line-number)
+      (when (string-match heading-regexp text-line)
+        (let ((heading-text (match-string-no-properties 2 text-line))
+              (heading-level
+               (length (match-string-no-properties 1 text-line)))
+              (formatted-heading))
+
+          (when (null prev-heading-level)
+            (setq prev-heading-level heading-level))
+
+          (cond ((&gt; heading-level prev-heading-level)
+                 (setq backwards-prefix-list (cons prev-heading-text
+                                                   backwards-prefix-list)
+                       prev-heading-level heading-level))
+                ((&lt; heading-level prev-heading-level)
+                 (setq backwards-prefix-list (last backwards-prefix-list
+                                                   heading-level)
+                       prev-heading-level heading-level)))
+
+          (setq prev-heading-text heading-text)
+
+          (when (and (null default-heading)
+                     (&gt; line-number current-line-number))
+            (setq default-heading (car formatted-headings)))
+
+          (push (propertize
+                 (concat (string-join (reverse backwards-prefix-list) "/")
+                         (and backwards-prefix-list "/")
+                         heading-text)
+                 'line-number line-number
+                 'selectrum-candidate-display-prefix
+                 (propertize
+                  (format line-number-format line-number)
+                  'face 'completions-annotations))
+                formatted-headings)))))
+  ;; ...
+  )
+</pre>
+</div>
+
+<p>
+Here is a version in <code>loopy</code>.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-emacs-lisp">;; ...
+(let (selectrum-should-sort-p
+      (current-line-number (line-number-at-pos (point) t)))
+  (save-match-data
+    (cl-multiple-value-bind (default-candidate formatted-candidates)
+        (loopy
+         (with (buffer-lines (split-string (buffer-string) "\n"))
+               (line-number-format
+                (concat "L%0"
+                        (number-to-string
+                         (length (number-to-string (length buffer-lines))))
+                        "d: ")))
+         (loop (expr line-number 1 (1+ line-number))
+               (list text-line buffer-lines)
+               (when (string-match heading-regexp text-line)
+                 (expr heading-text
+                       (match-string-no-properties 2 text-line))
+                 (expr heading-level
+                       (length (match-string-no-properties 1 text-line)))
+
+                 (cond ((&gt; heading-level (or prev-heading-level
+                                             heading-level))
+                        (push-into backwards-prefix-list prev-heading-text))
+                       ((&lt; heading-level (or prev-heading-level
+                                             heading-level))
+                        (expr backwards-prefix-list
+                              (last backwards-prefix-list heading-level))))
+
+                 (expr prev-heading-text heading-text)
+                 (expr prev-heading-level heading-level)
+
+                 (when (and (null default-heading)
+                            (&gt; (- line-number current-line-number) 0))
+                   (expr default-heading (car formatted-headings)))
+
+                 (push-into
+                  formatted-headings
+                  (propertize
+                   (concat (string-join (reverse backwards-prefix-list) "/")
+                           (and backwards-prefix-list "/")
+                           heading-text)
+                   'line-number line-number
+                   'selectrum-candidate-display-prefix
+                   (propertize (format line-number-format line-number)
+                               'face 'completions-annotations)))))
+         (finally-return default-heading (nreverse formatted-headings)))
+      ;; ...
+      )))
+</pre>
+</div>
+
+<p>
+In my opinion, the <code>loopy</code> version is a bit cleaner.  If one we’re writing
+code like this often (say, in a library), then the loop body could be
+simplified even further with <a href="#adding-custom-commands">custom commands</a>.
+</p>
+</div>
+</div>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+
+<div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1">1</a></sup> <div class="footpara"><p class="footpara">
+<a href="https://www.gnu.org/software/emacs/manual/html_node/cl/Loop-Facility.html#Loop-Facility">https://www.gnu.org/software/emacs/manual/html_node/cl/Loop-Facility.html#Loop-Facility</a>
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.2" class="footnum" href="#fnr.2">2</a></sup> <div class="footpara"><p class="footpara">
+<a href="https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequence-Functions.html">https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequence-Functions.html</a>,
+<a href="https://www.gnu.org/software/emacs/manual/html_mono/elisp.html#Sequence-Functions">elisp#Sequence Functions</a>
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.3" class="footnum" href="#fnr.3">3</a></sup> <div class="footpara"><p class="footpara">
+<a href="https://www.gnu.org/software/emacs/manual/html_node/cl/index.html">https://www.gnu.org/software/emacs/manual/html_node/cl/index.html</a>, <a href="https://www.gnu.org/software/emacs/manual/html_mono/cl.html#Top">cl</a>
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.4" class="footnum" href="#fnr.4">4</a></sup> <div class="footpara"><p class="footpara">
+<a href="https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html">https://www.gnu.org/software/emacs/manual/html_node/elisp/Sequences-Arrays-Vectors.html</a>,
+<a href="https://www.gnu.org/software/emacs/manual/html_mono/elisp.html#Sequences-Arrays-Vectors">elisp#Sequences Arrays Vectors</a>
+</p></div></div>
+
+
+</div>
+</div></div>
+<div id="postamble" class="status">
+<p class="author">Author: Earl Hyatt</p>
+<p class="date">Created: 2020-11-18 Wed 21:50</p>
+<p class="validation"><a href="https://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
