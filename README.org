@@ -2,16 +2,6 @@
 #+author: Earl Hyatt
 #+export_file_name: loopy
 
-# Make sure to export all headings as such.  Otherwise, some links to
-# sub-headings won’t work.
-#+options: H:6
-
-# Texinfo settings.  We’ll just generate an Info document from this README.
-#
-#+TEXINFO_FILENAME: loopy.info
-#+TEXINFO_DIR_CATEGORY: Emacs
-#+TEXINFO_DIR_TITLE: Loopy: (loopy)
-#+TEXINFO_DIR_DESC: A looping an iteration macro
 
 =loopy= is a macro meant for iterating and looping.  It is similar in usage to
 =cl-loop= [fn:cl-loop] but uses symbolic expressions rather than keywords.
