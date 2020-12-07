@@ -251,9 +251,9 @@
 ;;; Control Flow
 ;;;; Conditionals
 ;;;;; When
-(ert-deftest basic-when-parse ()
-  (should (equal (loopy--parse-conditional-forms 'when 't '((do (+ 1 1))))
-                 '((loopy--main-body when t (progn (+ 1 1)))))))
+;; (ert-deftest basic-when-parse ()
+;;   (should (equal (loopy--parse-conditional-forms 'when 't '((do (+ 1 1))))
+;;                  '((loopy--main-body when t (progn (+ 1 1)))))))
 
 (ert-deftest recursive-when-test ()
   (should (equal
@@ -306,16 +306,16 @@ Not multiple of 2: 7
 Not multiple of 3: 7")))
 
 ;;;;; Cond FORMS
-(ert-deftest parse-cond-form ()
-  (should (equal (loopy--parse-cond-form '(((= a 1)
-                                            (do (message "hi")))
-                                           ((= b 2)
-                                            (return 5))))
-                 '((loopy--main-body cond
-                                     ((= a 1) (progn (message "hi")))
-                                     ((= b 2) (cl-return-from nil 5)))))))
+;; (ert-deftest parse-cond-form ()
+;;   (should (equal (loopy--parse-cond-form '(((= a 1)
+;;                                             (do (message "hi")))
+;;                                            ((= b 2)
+;;                                             (return 5))))
+;;                  '((loopy--main-body cond
+;;                                      ((= a 1) (progn (message "hi")))
+;;                                      ((= b 2) (cl-return-from nil 5)))))))
 
-(ert-deftest parse-cond-loop ()
+(ert-deftest cond ()
   (should (equal (eval (quote (loopy ((list i (number-sequence 1 10))
                                       (cond
                                        ((cl-evenp i)
