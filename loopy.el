@@ -421,15 +421,20 @@ Optionally needs LOOP-NAME for block returns."
 
 ;;;;; Exit and Return Clauses
           ((or '(skip) '(continue))
-           (add-instruction '(loopy--main-body . (go loopy--continue-tag))))
+           (add-instruction '(loopy--main-body . (go loopy--continue-tag)))
+           (add-instruction '(loopy--skip-used . t)))
           (`(return ,val)
-           (add-instruction `(loopy--main-body . (cl-return-from ,loop-name ,val))))
+           (add-instruction `(loopy--main-body . (cl-return-from ,loop-name ,val)))
+           (add-instruction `(loopy--early-return-used . t)))
           (`(return-from ,name ,val)
-           (add-instruction `(loopy--main-body . (cl-return-from ,name ,val))))
+           (add-instruction `(loopy--main-body . (cl-return-from ,name ,val)))
+           (add-instruction `(loopy--early-return-used . t)))
           ((or '(leave) '(break))
-           (add-instruction `(loopy--main-body . (cl-return-from ,loop-name nil))))
+           (add-instruction `(loopy--main-body . (cl-return-from ,loop-name nil)))
+           (add-instruction `(loopy--early-return-used . t)))
           ((or `(leave-from ,name) `(break-from ,name))
-           (add-instruction `(loopy--main-body . (cl-return-from ,name nil))))
+           (add-instruction `(loopy--main-body . (cl-return-from ,name nil)))
+           (add-instruction `(loopy--early-return-used . t)))
 
 ;;;;; Accumulation Clauses
           (`(append ,var ,val)
@@ -575,6 +580,13 @@ Returns are always explicit.  See this package's README for more information."
             (loopy--post-conditions
              (push (cdr instruction) loopy--post-conditions))
 
+            ;; Code for conditionally constructing the loop body.
+            (loopy--early-return-used
+             (setq loopy--early-return-used t))
+
+            (loopy--skip-used
+             (setq loopy--skip-used t))
+
             ;; Places users probably shouldn't push to, but can if they want:
             (loopy--with-vars
              (push (cdr instruction) loopy--with-vars))
@@ -600,43 +612,92 @@ Returns are always explicit.  See this package's README for more information."
                         (cl-return-from ,loopy--name-arg nil))))))
 
 ;;;;; Constructing/Creating the returned code.
-    ;; Note: `let'/`let*' will signal an error if we accidentally substitute
-    ;;       `nil' as the variable declaration, since it will assume we are
-    ;;       trying to redefine a constant.  To avoid that, we just bind `_' to
-    ;;       `nil', which is used (at least in `pcase') as a throw-away symbol.
-    `(cl-symbol-macrolet (,@(or loopy--explicit-generalized-vars
-                                (list (list (gensym) nil))))
-       (let* (,@(or loopy--with-vars '((_))))
-         (let (,@(or (append loopy--implicit-vars loopy--explicit-vars)
-                     '((_))))
-           ;; If we need to, capture early return, those that has less
-           ;; priority than a final return.
-           (let ((loopy--early-return-capture
-                  (cl-block ,loopy--name-arg
-                    ,@loopy--before-do
-                    (while ,(cl-case (length loopy--pre-conditions)
-                              (0 t)
-                              (1 (car loopy--pre-conditions))
-                              (t (cons 'and loopy--pre-conditions)))
-                      (cl-tagbody
-                       ;; Note: `push'-ing things into the instruction list in
-                       ;;       `loopy--parse-body-forms' and then reading them
-                       ;;       back and then pushing into `loopy--main-body'
-                       ;;       counters out the flipped order normally caused by
-                       ;;       `push'.
-                       ,@loopy--main-body
-                       loopy--continue-tag
-                       ,@loopy--latter-body))
-                    ,@loopy--after-do
-                    ;; We don't want anything in `loopy--after-do' accidentally
-                    ;; giving us a return value, so we explicitly return nil.
-                    ;;
-                    ;; TODO: Is this actually needed?
-                    nil)))
-             ,@loopy--final-do
-             ,(if loopy--final-return
-                  loopy--final-return
-                'loopy--early-return-capture)))))))
+
+    ;; Construct the expanded code from the inside out.  The result should be
+    ;; something like the below code.  Unlike below, constructs are only used
+    ;; when needed.
+    ;;
+    ;; `(cl-symbol-macrolet (,@loopy--explicit-generalized-vars)
+    ;;    (let* (,@loopy--with-vars)
+    ;;      (let (,@(append loopy--implicit-vars loopy--explicit-vars))
+    ;;        ;; If we need to, capture early return, those that has less
+    ;;        ;; priority than a final return.
+    ;;        (let ((loopy--early-return-capture
+    ;;               (cl-block ,loopy--name-arg
+    ;;                 ,@loopy--before-do
+    ;;                 (while ,(cl-case (length loopy--pre-conditions)
+    ;;                           (0 t)
+    ;;                           (1 (car loopy--pre-conditions))
+    ;;                           (t (cons 'and loopy--pre-conditions)))
+    ;;                   (cl-tagbody
+    ;;                    ,@loopy--main-body
+    ;;                    loopy--continue-tag
+    ;;                    ,@loopy--latter-body))
+    ;;                 ,@loopy--after-do
+    ;;                 nil)))
+    ;;          ,@loopy--final-do
+    ;;          ,(if loopy--final-return
+    ;;               loopy--final-return
+    ;;             'loopy--early-return-capture)))))
+
+    (setq result loopy--main-body)
+    (when loopy--skip-used
+      (setq result `(cl-tagbody ,@result loopy--continue-tag)))
+    (when loopy--latter-body
+      (setq result (append result loopy--latter-body)))
+
+    ;; Now wrap loop body in the `while' form.
+    (setq result `(while ,(cl-case (length loopy--pre-conditions)
+                            (0 t)
+                            (1 (car loopy--pre-conditions))
+                            (t (cons 'and loopy--pre-conditions)))
+                    ;; If using a `cl-tag-body', just insert that one
+                    ;; expression, but if not, break apart into the while loop's
+                    ;; body.
+                    ,@(if loopy--skip-used
+                          (list result)
+                        result)))
+
+    ;; Now add the code to run before and after the loop.
+    (cond
+     ((and loopy--before-do loopy--after-do)
+      (setq result `(,@loopy--before-do ,result ,@loopy--after-do nil)))
+     (loopy--before-do
+      (setq result `(,@loopy--before-do ,result nil)))
+     (loopy--after-do
+      (setq result `(,result ,@loopy--after-do nil))))
+
+    ;; Wrap the loop in a `cl-block'.
+    (setq result `(cl-block ,loopy--name-arg
+                    ;; Respond differently if the while loop is alone in a list.
+                    ,@(if (or loopy--before-do loopy--after-do)
+                          result
+                        (list result))))
+
+    ;; Decide whether we need to maybe respond to an early return.
+    (if loopy--final-return
+        (if loopy--final-do
+            (setq result `(progn ,result ,@loopy--final-do ,loopy--final-return))
+          (setq result `(progn ,result ,loopy--final-return)))
+      (when loopy--final-do
+        (setq result `(prog1 ,result ,@loopy--final-do))))
+
+    ;; Declare the implicit and explicit variables.
+    (when (or loopy--implicit-vars loopy--explicit-vars)
+      (setq result `(let ,(append loopy--implicit-vars loopy--explicit-vars)
+                      ,result)))
+
+    ;; Declare the With variables.
+    (when loopy--with-vars
+      (setq result `(let* ,loopy--with-vars ,result)))
+
+    ;; Declare the symbol macros.
+    (when loopy--explicit-generalized-vars
+      (setq result `(cl-symbol-macrolet ,loopy--explicit-generalized-vars
+                      ,result)))
+
+    ;; Return the constructed code.
+    result))
 
 (provide 'loopy)
 ;;; loopy.el ends here
