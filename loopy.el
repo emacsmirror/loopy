@@ -127,6 +127,7 @@ These run in a `progn'.")
 
 (defvar loopy--skip-used nil
   "Whether a skip/continue command is present in the loop  main body.")
+
 ;;;; Miscellaneous Functions
 (defun loopy--bound-p (var-name)
   "Check if VAR-NAME (a symbol) is already bound for the macro.
@@ -372,10 +373,12 @@ Optionally needs LOOP-NAME for block returns."
              (add-instruction `(loopy--implicit-vars . (,index-holder 0)))
              (add-instruction `(loopy--explicit-vars . (,var nil)))
              (add-instruction
-              `(loopy--main-body . (setq ,var (if (consp ,val-holder)
-                                                  (pop ,val-holder)
-                                                (aref ,val-holder ,index-holder))
-                                         ,index-holder (1+ ,index-holder))))
+              `(loopy--main-body . (setq ,var
+                                         (if (consp ,val-holder)
+                                             (pop ,val-holder)
+                                           (aref ,val-holder ,index-holder)))))
+             (add-instruction
+              `(loopy--latter-body . (setq ,index-holder (1+ ,index-holder))))
              (add-instruction `(loopy--pre-conditions
                                 . (and ,val-holder
                                        (or (consp ,val-holder)
