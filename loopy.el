@@ -631,7 +631,11 @@ Returns are always explicit.  See this package's README for more information."
           ;; Need a variable to track whether `result' is currently one
           ;; expression, as that affects how it should be built.  For example,
           ;; `(progn (thing1) (thing2))' vs `((thing1) (thing2))'
-          result-is-one-expression)
+          result-is-one-expression
+          ;; Note whether we're using a `cl-block', which we default to
+          ;; returning `nil'.  If not present, try to ensure that the macro
+          ;; defaults to returning `nil'.
+          using-cl-block)
 
       ;; This temporary function is just for convenience.  Since it checks the
       ;; structure of `result', it should always be used like:
@@ -674,15 +678,14 @@ Returns are always explicit.  See this package's README for more information."
         ;; after the `while' loop.
         (cond
          ((and loopy--before-do loopy--after-do)
-          (setq result `(,@loopy--before-do ,result ,@loopy--after-do nil)))
+          (setq result `(,@loopy--before-do ,result ,@loopy--after-do)
+                result-is-one-expression nil))
          (loopy--before-do
-          (setq result `(,@loopy--before-do ,result nil)))
+          (setq result `(,@loopy--before-do ,result)
+                result-is-one-expression nil))
          (loopy--after-do
-          (setq result `(,result ,@loopy--after-do nil)))
-         ;; TODO: This needed here?  Is return value a problem is no `cl-block'?
-         (t
-          (setq result `(,result nil))))
-        (setq result-is-one-expression nil)
+          (setq result `(,result ,@loopy--after-do)
+                result-is-one-expression nil)))
 
         ;; Wrap the loop in a `cl-block' when an early return is used, when
         ;; the loop is named, or when post conditions are used (which exit the
@@ -690,18 +693,31 @@ Returns are always explicit.  See this package's README for more information."
         (when (or loopy--early-return-used loopy--name-arg
                   loopy--post-conditions)
           (setq result `(cl-block ,loopy--name-arg
-                          ;; Respond differently if the while loop is alone in a
-                          ;; list.
                           ,@(get-result)
-                          ;; TODO: Always put return value here, but ignore
-                          ;; trying to return nil if unused?
-                          ;; nil
-                          )
+                          ;; Be sure that the `cl-block' defaults to returning
+                          ;; nil.  This can be overridden by any call to
+                          ;; `cl-return-from'.
+                          nil)
                 ;; Will always be a single expression after wrapping with
                 ;; `cl-block'.
-                result-is-one-expression t))
+                result-is-one-expression t
+                using-cl-block t))
 
-        ;; Decide whether we need to maybe respond to an early return.
+        ;;TODO: Simplify this if-form.
+        ;;
+        ;; Try to keep the return value of the expanded code as `nil' by
+        ;; default.
+        ;; - If final-return is used, then there's no problem, and we just use
+        ;;   that.
+        ;; - If there's final-do, then we need to check whether we're using a
+        ;;   `cl-block', which we've set to return `nil' unless `cl-return-from'
+        ;;   is used.
+        ;;   - If there is a block, just use it as the first expression in
+        ;;     `prog1'.
+        ;;   - If there isn't a `cl-block', append `nil' after the final do.
+        ;; - If there's no final-do or final-return, then just append `nil' to
+        ;;   the end of `result' if not using a `cl-block'.
+
         (if loopy--final-return
             (if loopy--final-do
                 (setq result `(,@(get-result)
@@ -710,13 +726,18 @@ Returns are always explicit.  See this package's README for more information."
               (setq result `(,@(get-result)
                              ,loopy--final-return)
                     result-is-one-expression nil))
-          ;; Inner loops might give a return value, so we assume that we might
-          ;; want to return a value when no final return is given.  This won't
-          ;; change the default return value of nil.
-          (when loopy--final-do
-            (setq result `(prog1 ,@(get-result)
-                            ,@loopy--final-do)
-                  result-is-one-expression t)))
+          ;; If no final-return:
+          (if loopy--final-do
+              (if using-cl-block
+                  (setq result `(prog1 ,result ,@loopy--final-do)
+                        result-is-one-expression t)
+                (setq result `(,@(get-result) ,@loopy--final-do nil)
+                      result-is-one-expression nil))
+            ;; If there is no final-return, no final-do, and no `cl-block', just
+            ;; add `nil' to end of result.
+            (unless using-cl-block
+              (setq result `(,@(get-result) nil)
+                    result-is-one-expression nil))))
 
         ;; Declare the implicit and explicit variables.
         (when (or loopy--implicit-vars loopy--explicit-vars)
