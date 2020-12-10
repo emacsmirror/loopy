@@ -394,7 +394,7 @@ Not multiple of 3: 7")))
 
 
 ;;; Custom Commands
-(ert-deftest custom-command ()
+(ert-deftest custom-command-sum ()
   (cl-defun my-loopy-sum-command ((_ target &rest items))
     "Set TARGET to the sum of ITEMS."
     `((loopy--explicit-vars . (,target nil))
@@ -405,6 +405,39 @@ Not multiple of 3: 7")))
              (eval (quote (loopy (loop (target-sum my-target 1 2 3)
                                        (leave))
                                  (finally-return my-target)))))))
+
+;; NOTE: Also tests that post-conditions work as expected.
+(ert-deftest custom-command-always ()
+  (cl-defun my--loopy-always-command-parser ((_ &rest conditions))
+    "Parse a command of the form `(always [CONDITIONS])'.
+     If any condition is `nil', `loopy' should immediately return nil.
+     Otherwise, `loopy' should return t."
+    (let (instructions)
+      ;; Return t if loop completes successfully.
+      (push `(loopy--after-do . (cl-return t)) instructions)
+      ;; Check all conditions at the end of the loop body, forcing an exit if any
+      ;; evaluate to nil.  Since the default return value of the macro is nil, we
+      ;; don’t need to do anything else.
+      ;;
+      ;; NOTE: We must not add anything to `loopy--final-return', since that
+      ;;       would override the value of any early returns.
+      (dolist (condition conditions)
+        (push `(loopy--post-conditions . ,condition) instructions))
+      instructions))
+
+  (add-to-list 'loopy-custom-command-parsers
+               (cons 'always #'my--loopy-always-command-parser))
+
+  ;; One condition: => t
+  (should (and
+           (eval (quote
+                  (loopy ((list i (number-sequence 1 9)) (always (< i 10))))))
+
+           ;; Two conditions: => nil
+           (not (eval (quote
+                       (loopy ((list i (number-sequence 1 9))
+                               (list j '(2 4 6 8 9))
+                               (always (< i 10) (cl-evenp j))))))))))
 
 ;; Local Variables:
 ;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)
