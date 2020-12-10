@@ -527,10 +527,7 @@ Returns are always explicit.  See this package's README for more information."
 
         ;; -- Variables for constructing code --
         (loopy--early-return-used)
-        (loopy--skip-used)
-
-        ;; The expanded code.
-        (result))
+        (loopy--skip-used))
 
 ;;;;; Interpreting the macro arguments.
     ;; Check what was passed to the macro.
@@ -601,16 +598,6 @@ Returns are always explicit.  See this package's README for more information."
             (t
              (error "Loopy: Unknown body instruction: %s" instruction)))))))
 
-    ;; Post-conditions can just go at end of latter-body.
-    (when loopy--post-conditions
-      (setq loopy--latter-body
-            (append loopy--latter-body
-                    `((unless ,(cl-case (length loopy--post-conditions)
-                                 (0 t)
-                                 (1 (car loopy--post-conditions))
-                                 (t (cons 'and loopy--post-conditions)))
-                        (cl-return-from ,loopy--name-arg nil))))))
-
 ;;;;; Constructing/Creating the returned code.
 
     ;; Construct the expanded code from the inside out.  The result should be
@@ -640,67 +627,116 @@ Returns are always explicit.  See this package's README for more information."
     ;;               loopy--final-return
     ;;             'loopy--early-return-capture)))))
 
-    (setq result loopy--main-body)
-    (when loopy--skip-used
-      (setq result `(cl-tagbody ,@result loopy--continue-tag)))
-    (when loopy--latter-body
-      (setq result (append result loopy--latter-body)))
+    (let (result
+          ;; Need a variable to track whether `result' is currently one
+          ;; expression, as that affects how it should be built.  For example,
+          ;; `(progn (thing1) (thing2))' vs `((thing1) (thing2))'
+          result-is-one-expression)
 
-    ;; Now wrap loop body in the `while' form.
-    (setq result `(while ,(cl-case (length loopy--pre-conditions)
-                            (0 t)
-                            (1 (car loopy--pre-conditions))
-                            (t (cons 'and loopy--pre-conditions)))
-                    ;; If using a `cl-tag-body', just insert that one
-                    ;; expression, but if not, break apart into the while loop's
-                    ;; body.
-                    ,@(if loopy--skip-used
-                          (list result)
-                        result)))
+      ;; This temporary function is just for convenience.  Since it checks the
+      ;; structure of `result', it should always be used like:
+      ;; ,@(get-result).
+      (cl-flet ((get-result () (if result-is-one-expression
+                                   (list result)
+                                 result)))
 
-    ;; Now add the code to run before and after the loop.
-    (cond
-     ((and loopy--before-do loopy--after-do)
-      (setq result `(,@loopy--before-do ,result ,@loopy--after-do nil)))
-     (loopy--before-do
-      (setq result `(,@loopy--before-do ,result nil)))
-     (loopy--after-do
-      (setq result `(,result ,@loopy--after-do nil))))
+        (setq result loopy--main-body)
 
-    ;; Wrap the loop in a `cl-block' when an early return is used or when the
-    ;; loop is named.
-    (when (or loopy--early-return-used loopy--name-arg)
-      (setq result `(cl-block ,loopy--name-arg
-                      ;; Respond differently if the while loop is alone in a
-                      ;; list.
-                      ,@(if (or loopy--before-do loopy--after-do)
-                            result
-                          (list result)))))
+        (when loopy--skip-used
+          (setq result `(cl-tagbody ,@result loopy--continue-tag)
+                result-is-one-expression t))
 
-    ;; Decide whether we need to maybe respond to an early return.
-    (if loopy--final-return
-        (if loopy--final-do
-            (setq result `(progn ,result ,@loopy--final-do ,loopy--final-return))
-          (setq result `(progn ,result ,loopy--final-return)))
-      (when loopy--final-do
-        (setq result `(prog1 ,result ,@loopy--final-do))))
+        (when loopy--latter-body
+          (setq result (append result loopy--latter-body)))
 
-    ;; Declare the implicit and explicit variables.
-    (when (or loopy--implicit-vars loopy--explicit-vars)
-      (setq result `(let ,(append loopy--implicit-vars loopy--explicit-vars)
-                      ,result)))
+        (when loopy--post-conditions
+          (setq result
+                (append result
+                        `((unless ,(cl-case (length loopy--post-conditions)
+                                     (0 t)
+                                     (1 (car loopy--post-conditions))
+                                     (t (cons 'and loopy--post-conditions)))
+                            (cl-return-from ,loopy--name-arg nil))))))
 
-    ;; Declare the With variables.
-    (when loopy--with-vars
-      (setq result `(let* ,loopy--with-vars ,result)))
+        ;; Now wrap loop body in the `while' form.
+        (setq result `(while ,(cl-case (length loopy--pre-conditions)
+                                (0 t)
+                                (1 (car loopy--pre-conditions))
+                                (t (cons 'and loopy--pre-conditions)))
+                        ;; If using a `cl-tag-body', just insert that one
+                        ;; expression, but if not, break apart into the while
+                        ;; loop's body.
+                        ,@(get-result))
+              ;; Will always be a single expression after wrapping with `while'.
+              result-is-one-expression t)
 
-    ;; Declare the symbol macros.
-    (when loopy--explicit-generalized-vars
-      (setq result `(cl-symbol-macrolet ,loopy--explicit-generalized-vars
-                      ,result)))
+        ;; Now ensure return value is nil and add the code to run before and
+        ;; after the `while' loop.
+        (cond
+         ((and loopy--before-do loopy--after-do)
+          (setq result `(,@loopy--before-do ,result ,@loopy--after-do nil)))
+         (loopy--before-do
+          (setq result `(,@loopy--before-do ,result nil)))
+         (loopy--after-do
+          (setq result `(,result ,@loopy--after-do nil)))
+         ;; TODO: This needed here?  Is return value a problem is no `cl-block'?
+         (t
+          (setq result `(,result nil))))
+        (setq result-is-one-expression nil)
 
-    ;; Return the constructed code.
-    result))
+        ;; Wrap the loop in a `cl-block' when an early return is used or when
+        ;; the loop is named.
+        (when (or loopy--early-return-used loopy--name-arg)
+          (setq result `(cl-block ,loopy--name-arg
+                          ;; Respond differently if the while loop is alone in a
+                          ;; list.
+                          ,@(get-result)
+                          ;; TODO: Always put return value here, but ignore
+                          ;; trying to return nil if unused?
+                          ;; nil
+                          )
+                ;; Will always be a single expression after wrapping with
+                ;; `cl-block'.
+                result-is-one-expression t))
+
+        ;; Decide whether we need to maybe respond to an early return.
+        (if loopy--final-return
+            (if loopy--final-do
+                (setq result `(,@(get-result)
+                               ,@loopy--final-do ,loopy--final-return)
+                      result-is-one-expression nil)
+              (setq result `(,@(get-result)
+                             ,loopy--final-return)
+                    result-is-one-expression nil))
+          ;; Inner loops might give a return value, so we assume that we might
+          ;; want to return a value when no final return is given.  This won't
+          ;; change the default return value of nil.
+          (when loopy--final-do
+            (setq result `(prog1 ,@(get-result)
+                            ,@loopy--final-do)
+                  result-is-one-expression t)))
+
+        ;; Declare the implicit and explicit variables.
+        (when (or loopy--implicit-vars loopy--explicit-vars)
+          (setq result `(let ,(append loopy--implicit-vars loopy--explicit-vars)
+                          ,@(get-result))
+                result-is-one-expression t))
+
+        ;; Declare the With variables.
+        (when loopy--with-vars
+          (setq result `(let* ,loopy--with-vars ,@(get-result))
+                result-is-one-expression t))
+
+        ;; Declare the symbol macros.
+        (when loopy--explicit-generalized-vars
+          (setq result `(cl-symbol-macrolet ,loopy--explicit-generalized-vars
+                          ,@(get-result))
+                ;; TODO: Not using this, but maybe later?
+                ;; result-is-one-expression t
+                ))
+
+        ;; Return the constructed code.
+        result))))
 
 (provide 'loopy)
 ;;; loopy.el ends here
