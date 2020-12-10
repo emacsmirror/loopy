@@ -684,9 +684,11 @@ Returns are always explicit.  See this package's README for more information."
           (setq result `(,result nil))))
         (setq result-is-one-expression nil)
 
-        ;; Wrap the loop in a `cl-block' when an early return is used or when
-        ;; the loop is named.
-        (when (or loopy--early-return-used loopy--name-arg)
+        ;; Wrap the loop in a `cl-block' when an early return is used, when
+        ;; the loop is named, or when post conditions are used (which exit the
+        ;; loop via `cl-return-from').
+        (when (or loopy--early-return-used loopy--name-arg
+                  loopy--post-conditions)
           (setq result `(cl-block ,loopy--name-arg
                           ;; Respond differently if the while loop is alone in a
                           ;; list.
