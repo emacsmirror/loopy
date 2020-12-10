@@ -600,13 +600,13 @@ Returns are always explicit.  See this package's README for more information."
 
 ;;;;; Constructing/Creating the returned code.
 
-    ;; Construct the expanded code from the inside out.  The result should be
+    ;; Construct the expanded code from the inside out.  The result should work
     ;; something like the below code.  Unlike below, constructs are only used
     ;; when needed.
     ;;
-    ;; `(cl-symbol-macrolet (,@loopy--explicit-generalized-vars)
-    ;;    (let* (,@loopy--with-vars)
-    ;;      (let (,@(append loopy--implicit-vars loopy--explicit-vars))
+    ;; `(cl-symbol-macrolet ,loopy--explicit-generalized-vars
+    ;;    (let* ,loopy--with-vars
+    ;;      (let ,(append loopy--implicit-vars loopy--explicit-vars)
     ;;        ;; If we need to, capture early return, those that has less
     ;;        ;; priority than a final return.
     ;;        (let ((loopy--early-return-capture
