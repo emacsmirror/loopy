@@ -116,9 +116,6 @@ mapping features.
     more.
   - De-structuring can be useful, but this can already be done using repeated
     =expr= commands.
-  - Currently, code is evaluated even if it is unused.  Conditionally building
-    the code that is evaluated would be more efficient, but decreases
-    readability.
 
 * How to Install                                                   :noexport:
   Currently, Loopy must be installed manually.
