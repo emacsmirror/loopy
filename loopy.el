@@ -667,12 +667,15 @@ Returns are always explicit.  See this package's README for more information."
      (loopy--after-do
       (setq result `(,result ,@loopy--after-do nil))))
 
-    ;; Wrap the loop in a `cl-block'.
-    (setq result `(cl-block ,loopy--name-arg
-                    ;; Respond differently if the while loop is alone in a list.
-                    ,@(if (or loopy--before-do loopy--after-do)
-                          result
-                        (list result))))
+    ;; Wrap the loop in a `cl-block' when an early return is used or when the
+    ;; loop is named.
+    (when (or loopy--early-return-used loopy--name-arg)
+      (setq result `(cl-block ,loopy--name-arg
+                      ;; Respond differently if the while loop is alone in a
+                      ;; list.
+                      ,@(if (or loopy--before-do loopy--after-do)
+                            result
+                          (list result)))))
 
     ;; Decide whether we need to maybe respond to an early return.
     (if loopy--final-return
