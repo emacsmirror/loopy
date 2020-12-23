@@ -162,6 +162,29 @@
                       (eval (quote (loopy ((array [i j k] [[1 2 3] [4 5 6]]))
                                           (return i j k))))))))
 
+
+(ert-deftest array-recursive-destructuring ()
+  (should
+   (and
+    (equal '(5 5 6)
+           (eval (quote (loopy ((array (a [b c]) [(1 [1 2]) (5 [5 6])]))
+                               (finally-return (list a b c))))))
+    (equal '(4 5 6)
+           (eval
+            (quote
+             (loopy ((array [a [b c]] [[1 [2 3]] [4 [5 6]]]))
+                    (return a b c)))))
+    (equal '(4 5 6)
+           (eval
+            (quote
+             (loopy ((array [a [b [c]]] [[1 [2 [3]]] [4 [5 [6]]]]))
+                    (return a b c)))))
+    (equal '(4 5 6)
+           (eval
+            (quote
+             (loopy ((array [a (b c)] [[1 (2 3)] [4 (5 6)]]))
+                    (return a b c))))))))
+
 ;;;;; Array Ref
 (ert-deftest array-ref ()
   (should (equal "aaa"

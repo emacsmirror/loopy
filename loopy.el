@@ -295,19 +295,20 @@ variable."
            (apply #'append (nreverse instructions)))))
 
       (array
-       (let ((value-holder (gensym)))
-         ;; We need a value holder so that `value-expression' is only evaluated
-         ;; once.
-         `(,@(loopy--initialize-vars
-              'loopy--explicit-vars
-              (cons value-holder (cl-coerce var 'list)))
-           (loopy--main-body
-            . (setq ,value-holder ,value-expression
-                    ,@(apply #'append
-                             (seq-map-indexed
-                              (lambda (symbol index)
-                                `(,symbol (aref ,value-holder ,index)))
-                              var)))))))
+       ;; For arrays, we always need a value holder so that `value-expression'
+       ;; is evaluated only once.
+       (let* ((value-holder (gensym))
+              (instructions
+               `(((loopy--implicit-vars . (,value-holder nil))
+                  (loopy--main-body . (setq ,value-holder ,value-expression))))))
+         (cl-loop for symbol-or-seq across var
+                  for index from 0
+                  do (push (loopy--create-destructured-assignment
+                            symbol-or-seq `(aref ,value-holder ,index))
+                           instructions))
+
+         ;; Return the list of instructions.
+         (apply #'append (nreverse instructions))))
       (t
        (error "Don't know how to destructure this: %s" var)))))
 
