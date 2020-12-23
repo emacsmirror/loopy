@@ -248,56 +248,52 @@ variable."
          ;; check the "normalized" var list.
          (let* ((last-var (cl-first normalized-reverse-var))
                 (last-var-is-symbol (symbolp last-var))
-                (value-holder (gensym))
-                (instructions))
+                ;; To only evaluate `value-expression' once, we bind it's value
+                ;; to last declared element/variable in `var', and set the
+                ;; remaining variables by `pop'-ing that lastly listed, firstly
+                ;; set variable.  However, if that variable is actually a
+                ;; sequence, then we need to use a `value-holder' instead.
+                (value-holder (if last-var-is-symbol last-var (gensym)))
+                (instructions
+                 `(((,(if last-var-is-symbol    ; We're going to append lists
+                          'loopy--explicit-vars ; of instructions, so we make
+                        'loopy--implicit-vars)  ; a list of 1 element, and
+                     . (,value-holder nil))     ; in that element place two
+                    (loopy--main-body           ; instructions.
+                     . (setq ,value-holder ,value-expression))))))
 
-           ;; To only evaluate `value-expression' once, we bind it's value to
-           ;; last declared element/variable in `var', and set the remaining
-           ;; variables by `pop'-ing that lastly listed, firstly set variable.
-           ;; However, if that variable is actually a sequence, then we need to
-           ;; use a `value-holder' instead.
-           (setq instructions
-                 (if last-var-is-symbol
-                     `((loopy--explicit-vars . (,last-var nil))
-                       (loopy--main-body . (setq ,last-var ,value-expression)))
-                   `((loopy--implicit-vars . (,value-holder nil))
-                     (loopy--main-body . (setq ,value-holder ,value-expression)))))
+           (let ((passed-value-expression `(pop ,value-holder)))
+             (dolist (symbol-or-seq (reverse (cl-rest normalized-reverse-var)))
+               (push (loopy--create-destructured-assignment
+                      symbol-or-seq passed-value-expression)
+                     instructions)))
 
-           (cl-loop
-            with passed-value-expression = `(pop ,(if last-var-is-symbol
-                                                      last-var
-                                                    value-holder))
-            for symbol-or-seq in (reverse (cl-rest normalized-reverse-var))
-            do (setq instructions
-                     (append instructions
-                             (loopy--create-destructured-assignment
-                              symbol-or-seq passed-value-expression))))
-
-           ;; Now come back to end.
-           (if last-var-is-symbol
-               (if is-proper-list
-                   ;; If not a proper list (as the B in '(A . B)), then it's
-                   ;; already the correct value.
-                   (setq instructions
-                         (append instructions
-                                 `((loopy--main-body
-                                    . (setq ,last-var (car ,last-var)))))))
+           ;; Now come back to end.  If `var' is not a proper list and
+           ;; `last-var' is a symbol (as with the B in '(A . B)) , then B is now
+           ;; already the correct value (which is the ending `cdr' of the list),
+           ;; and we don't have to do anything else.
+           (if (and last-var-is-symbol is-proper-list)
+               ;; Otherwise, if `var' is a proper list and `last-var' is a
+               ;; symbol, then we need to take the `car' of that `cdr'.
+               (push `((loopy--main-body
+                        . (setq ,last-var (car ,last-var))))
+                     instructions)
+             ;; Otherwise, `last-var' is a sequence.
              (if is-proper-list
-                 ;; If last var is sequence, then we now have a list like ((C D))
-                 ;; from (A B (C D)).  We only want to pass in the (C D).
-                 (setq instructions
-                       (append instructions
-                               (loopy--create-destructured-assignment
-                                last-var `(car ,value-holder))))
+                 ;; If `var' is a proper list, then we now have a list like ((C
+                 ;; D)) from (A B (C D)).  We only want to pass in the (C D).
+                 (push (loopy--create-destructured-assignment
+                        last-var `(car ,value-holder))
+                       instructions)
                ;; Otherwise, we might have something like [C D] from
                ;; (A B . [C D]), where we don't need to take the `car'.
-               (setq instructions
-                     (append instructions
-                             (loopy--create-destructured-assignment
-                              last-var value-holder)))))
+               (push (loopy--create-destructured-assignment
+                      last-var value-holder)
+                     instructions)))
 
-           (cl-return-from loopy--create-destructured-assignment
-             instructions))))
+           ;; Return the list of instructions.
+           (apply #'append (nreverse instructions)))))
+
       (array
        (let ((value-holder (gensym)))
          ;; We need a value holder so that `value-expression' is only evaluated
