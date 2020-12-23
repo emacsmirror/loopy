@@ -247,6 +247,23 @@
                       (eval (quote (loopy ((list [i j k] '([1 2 3] [4 5 6])))
                                           (return i j k))))))))
 
+(ert-deftest list-recursive-destructuring ()
+  (should
+   (and
+    (equal '(5 5 6)
+           (eval (quote (loopy ((list (a (b c)) '((1 (1 2)) (5 (5 6)))))
+                               (finally-return (list a b c))))))
+    (equal '(5 5 6)
+           ;; This is more of an evaluation-time test.
+           (eval (quote (loopy ((list (a . (b c)) '((1 . (1 2)) (5 . (5 6)))))
+                               (finally-return (list a b c))))))
+    (equal '(4 5 6)
+           (loopy ((list (a . [b c]) '((1 . [2 3]) (4 . [5 6]))))
+                  (return a b c)))
+    (equal '(5 5 6)
+           (eval (quote (loopy ((list (a (b (c))) '((1 (1 (2))) (5 (5 (6))))))
+                               (finally-return (list a b c)))))))))
+
 ;;;; List Ref
 (ert-deftest list-ref ()
   (should (equal  '(7 7 7)
