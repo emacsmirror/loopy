@@ -197,28 +197,30 @@ variable."
       (cl-typecase var
         ;; Check if `var' is a single symbol.
         (symbol
+         ;; Most functions expect a list of instructions, not one.
          `((loopy--explicit-generalized-vars . (,var ,value-expression))))
         (list
          ;; If `var' is not proper, then the end of `var' can't be `car'-ed
          ;; safely, as it is just a symbol and not a list.  Therefore, if `var'
          ;; is still non-nil after the `pop'-ing, we know to set the remaining
          ;; symbol that is now `var' to some Nth `cdr'.
-         (let ((set-list) (index 0))
+         (let ((instructions) (index 0))
            (while (car-safe var)
-             (push `(loopy--explicit-generalized-vars
-                     . (,(pop var) (nth ,index ,value-expression)))
-                   set-list)
-             (cl-incf index))
+             (push (loopy--create-destructured-assignment
+                    (pop var) `(nth ,index ,value-expression) 'generalized)
+                   instructions)
+             (setq index (1+ index)))
            (when var
-             (push `(loopy--explicit-generalized-vars
-                     . (,var (nthcdr ,index ,value-expression)))
-                   set-list))
-           set-list))
+             (push (loopy--create-destructured-assignment
+                    var `(nthcdr ,index ,value-expression) 'generalized)
+                   instructions))
+           (apply #'append (nreverse instructions))))
         (array
-         (seq-map-indexed (lambda (symbol index)
-                            `(loopy--explicit-generalized-vars
-                              . (,symbol (aref ,value-expression ,index))))
-                          var))
+         (cl-loop for symbol-or-seq across var
+                  for index from 0
+                  append (loopy--create-destructured-assignment
+                          symbol-or-seq `(aref ,value-expression ,index)
+                          'generalized)))
         (t
          (error "Don't know how to destructure this: %s" var)))
 
