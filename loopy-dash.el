@@ -92,7 +92,7 @@ For accumulation, we don't want Dash to assign to the named
        (while (car-safe var-list)
          (push (loopy--dash-copy-var-list (pop var-list))
                copied-var-list))
-       (let ((correct-order (nreverse copied-var-list)))
+       (let ((correct-order (reverse copied-var-list)))
          ;; If it was a dotted list, then `var-list' is still non-nil.
          (when var-list
            (setcdr (last correct-order)
@@ -113,7 +113,7 @@ should only be used if VAR-OR-VAL is a variable."
 
     ;; Make sure variables are in order of appearance for the loop body.
     (setq loopy--dash-accumulation-new-names
-          (nreverse loopy--dash-accumulation-new-names))
+          (reverse loopy--dash-accumulation-new-names))
 
     `(;; Declare what Dash will assign to as implicit.
       ,@(--map `(loopy--implicit-vars . (,(car it) nil))
