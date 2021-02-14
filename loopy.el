@@ -178,6 +178,9 @@ These run in a `progn'.")
 
 (defvar loopy--destructuring-function nil
   "The destructuring function to use.  If nil, `loopy-default-destructuring-function'.")
+(defvar loopy--accumulation-parser nil
+  "The accumulation parser to use.
+If nil, `loopy-default-accumulation-parsing-function'.")
 
 ;;;; Errors
 (define-error 'loopy-error
@@ -709,142 +712,144 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
     (loopy--latter-body   . (setq ,index-holder (1+ ,index-holder)))
     (loopy--pre-conditions . (< ,index-holder ,length-holder))))
 
+(defun loopy--parse-accumulation-commands (accumulation-command)
+  "Pass the accumulation command to the appropriate destructuring parser."
+  (if (= 2 (length accumulation-command))
+      ;; If only two arguments, use an implicit accumulating variable.
+      (loopy--parse-accumulation-commands-implicit accumulation-command)
+    (funcall (or loopy--accumulation-parser
+                 loopy-default-accumulation-parsing-function)
+             accumulation-command)))
+
 ;; TODO: Some of the accumulations commands can be made more
 ;;       efficient/complicated depending on how the variables are being used.
 ;;       See `cl--parse-loop-clause' for examples.
-(cl-defun loopy--parse-accumulation-commands ((name var-or-val &optional val))
+(cl-defun loopy--parse-accumulation-commands-default ((name var val))
   "Parse the accumulation loop commands, like `collect', `append', etc.
 
 NAME is the name of the command.  VAR is a variable name.  VAL is a value."
-  (if val
-      (cl-etypecase var-or-val
-        (symbol
-         `((loopy--explicit-vars
-            ;;  Not all commands can have the variable initialized to nil.
-            . (,var-or-val ,(cl-case name
-                              ((sum count)    0)
-                              ((max maximize) -1.0e+INF)
-                              ((min minimize) +1.0e+INF))))
-           (loopy--main-body
-            . ,(cl-ecase name
-                 (append
-                  `(setq ,var-or-val (append ,var-or-val ,val)))
-                 (collect
-                  `(setq ,var-or-val (append ,var-or-val (list ,val))))
-                 (concat
-                  `(setq ,var-or-val (concat ,var-or-val ,val)))
-                 (vconcat
-                  `(setq ,var-or-val (vconcat ,var-or-val ,val)))
-                 (count
-                  `(if ,val (setq ,var-or-val (1+ ,var-or-val))))
-                 ((max maximize)
-                  `(setq ,var-or-val (max ,var-or-val ,val)))
-                 ((min minimize)
-                  `(setq ,var-or-val (min ,var-or-val ,val)))
-                 (nconc
-                  `(setq ,var-or-val (nconc ,var-or-val ,val)))
-                 ((push-into push)
-                  `(push ,val ,var-or-val))
-                 (sum
-                  `(setq ,var-or-val (+ ,var-or-val ,val)))))
-           (loopy--implicit-return . ,var-or-val)))
-        (list
-         (let ((value-holder (gensym (concat (symbol-name name) "-destructuring-list-")))
-               (is-proper-list (proper-list-p var-or-val))
-               (normalized-reverse-var))
-           (let ((instructions `(((loopy--implicit-vars . (,value-holder nil))
-                                  (loopy--main-body . (setq ,value-holder ,val))))))
-             ;; If `var-or-val' is a list, always create a "normalized" variable
-             ;; list, since proper lists are easier to work with, as many
-             ;; looping/mapping functions expect them.
-             (while (car-safe var-or-val)
-               (push (pop var-or-val) normalized-reverse-var))
-             ;; If the last element in `var-or-val' was a dotted pair, then
-             ;; `var-or-val' is now a single symbol, which must still be added
-             ;; to the normalized `var-or-val' list.
-             (when var-or-val (push var-or-val normalized-reverse-var))
+  (cl-etypecase var
+    (symbol
+     `((loopy--explicit-vars
+        ;;  Not all commands can have the variable initialized to nil.
+        . (,var ,(cl-case name
+                   ((sum count)    0)
+                   ((max maximize) -1.0e+INF)
+                   ((min minimize) +1.0e+INF))))
+       (loopy--main-body
+        . ,(cl-ecase name
+             (append `(setq ,var (append ,var ,val)))
+             (collect `(setq ,var (append ,var (list ,val))))
+             (concat `(setq ,var (concat ,var ,val)))
+             (vconcat `(setq ,var (vconcat ,var ,val)))
+             (count `(if ,val (setq ,var (1+ ,var))))
+             ((max maximize) `(setq ,var (max ,var ,val)))
+             ((min minimize) `(setq ,var (min ,var ,val)))
+             (nconc `(setq ,var (nconc ,var ,val)))
+             ((push-into push) `(push ,val ,var))
+             (sum `(setq ,var (+ ,var ,val)))))
+       (loopy--implicit-return . ,var)))
+    (list
+     (let ((value-holder (gensym (concat (symbol-name name) "-destructuring-list-")))
+           (is-proper-list (proper-list-p var))
+           (normalized-reverse-var))
+       (let ((instructions `(((loopy--implicit-vars . (,value-holder nil))
+                              (loopy--main-body . (setq ,value-holder ,val))))))
+         ;; If `var' is a list, always create a "normalized" variable
+         ;; list, since proper lists are easier to work with, as many
+         ;; looping/mapping functions expect them.
+         (while (car-safe var)
+           (push (pop var) normalized-reverse-var))
+         ;; If the last element in `var' was a dotted pair, then
+         ;; `var' is now a single symbol, which must still be added
+         ;; to the normalized `var' list.
+         (when var (push var normalized-reverse-var))
 
-             (dolist (symbol-or-seq (reverse (cl-rest normalized-reverse-var)))
-               (push (loopy--parse-accumulation-commands
-                      (list name symbol-or-seq `(pop ,value-holder)))
-                     instructions))
+         (dolist (symbol-or-seq (reverse (cl-rest normalized-reverse-var)))
+           (push (loopy--parse-accumulation-commands
+                  (list name symbol-or-seq `(pop ,value-holder)))
+                 instructions))
 
-             ;; Decide what to do for final assignment.
-             (push (loopy--parse-accumulation-commands
-                    (list name (cl-first normalized-reverse-var)
-                          (if is-proper-list
-                              `(pop ,value-holder)
-                            value-holder)))
-                   instructions)
+         ;; Decide what to do for final assignment.
+         (push (loopy--parse-accumulation-commands
+                (list name (cl-first normalized-reverse-var)
+                      (if is-proper-list
+                          `(pop ,value-holder)
+                        value-holder)))
+               instructions)
 
-             (apply #'append (nreverse instructions)))))
+         (apply #'append (nreverse instructions)))))
 
-        (array
-         (let* ((value-holder (gensym (concat (symbol-name name) "-destructuring-array-")))
-                (instructions
-                 `(((loopy--implicit-vars . (,value-holder nil))
-                    (loopy--main-body . (setq ,value-holder ,val))))))
-           (cl-loop for symbol-or-seq across var-or-val
-                    for index from 0
-                    do (push (loopy--parse-accumulation-commands
-                              (list
-                               name symbol-or-seq `(aref ,value-holder ,index)))
-                             instructions))
-           (apply #'append (nreverse instructions)))))
+    (array
+     (let* ((value-holder (gensym (concat (symbol-name name) "-destructuring-array-")))
+            (instructions
+             `(((loopy--implicit-vars . (,value-holder nil))
+                (loopy--main-body . (setq ,value-holder ,val))))))
+       (cl-loop for symbol-or-seq across var
+                for index from 0
+                do (push (loopy--parse-accumulation-commands
+                          (list
+                           name symbol-or-seq `(aref ,value-holder ,index)))
+                         instructions))
+       (apply #'append (nreverse instructions))))))
 
-    ;; If not `val' given, then `var-or-val' is the value expression.  There is
-    ;; no destructuring in this case.
-    (let ((value-holder (gensym (concat (symbol-name name) "-implicit-"))))
-      `((loopy--implicit-vars . (,value-holder ,(cl-case name
-                                                  ((sum count)    0)
-                                                  ((max maximize) -1.0e+INF)
-                                                  ((min minimize) +1.0e+INF))))
-        ,@(cl-ecase name
-            ;; NOTE: Some commands have different behavior when a
-            ;;       variable is not specified.
-            ;;       - `collect' uses the `push'-`nreverse' idiom.
-            ;;       - `append' uses the `reverse'-`nconc'-`nreverse' idiom.
-            ;;       - `nconc' uses the `nreverse'-`nconc'-`nreverse' idiom.
-            (append
-             `((loopy--main-body
-                . (setq ,value-holder (nconc (reverse ,var-or-val)
-                                             ,value-holder)))
-               (loopy--implicit-return . (nreverse ,value-holder))))
-            (collect
-             `((loopy--main-body
-                . (setq ,value-holder (cons ,var-or-val ,value-holder)))
-               (loopy--implicit-return . (nreverse ,value-holder))))
-            (concat
-             `((loopy--main-body
-                . (setq ,value-holder (concat ,value-holder ,var-or-val)))
-               (loopy--implicit-return . ,value-holder)))
-            (vconcat
-             `((loopy--main-body
-                . (setq ,value-holder (vconcat ,value-holder ,var-or-val)))
-               (loopy--implicit-return . ,value-holder)))
-            (count
-             `((loopy--main-body
-                . (if ,var-or-val (setq ,value-holder (1+ ,value-holder))))
-               (loopy--implicit-return . ,value-holder)))
-            ((max maximize)
-             `((loopy--main-body
-                . (setq ,value-holder (max ,value-holder ,var-or-val)))
-               (loopy--implicit-return . ,value-holder)))
-            ((min minimize)
-             `((loopy--main-body
-                . (setq ,value-holder (min ,value-holder ,var-or-val)))
-               (loopy--implicit-return . ,value-holder)))
-            (nconc
-             `((loopy--main-body
-                . (setq ,value-holder (nconc (nreverse ,var-or-val) ,value-holder)))
-               (loopy--implicit-return . (nreverse ,value-holder))))
-            ((push-into push)
-             `((loopy--main-body . (push ,var-or-val ,value-holder))
-               (loopy--implicit-return . ,value-holder)))
-            (sum
-             `((loopy--main-body
-                . (setq ,value-holder (+ ,value-holder ,var-or-val)))
-               (loopy--implicit-return . ,value-holder))))))))
+(cl-defun loopy--parse-accumulation-commands-implicit ((name value-expression))
+  "Parse the accumulation command that uses an implicit variable.
+
+For better efficiency, accumulation commands with implicit variables can
+have different behavior than their explicit counterparts."
+
+  (let ((value-holder (gensym (concat (symbol-name name) "-implicit-"))))
+    `((loopy--implicit-vars . (,value-holder ,(cl-case name
+                                                ((sum count)    0)
+                                                ((max maximize) -1.0e+INF)
+                                                ((min minimize) +1.0e+INF))))
+      ,@(cl-ecase name
+          ;; NOTE: Some commands have different behavior when a
+          ;;       variable is not specified.
+          ;;       - `collect' uses the `push'-`nreverse' idiom.
+          ;;       - `append' uses the `reverse'-`nconc'-`nreverse' idiom.
+          ;;       - `nconc' uses the `nreverse'-`nconc'-`nreverse' idiom.
+          (append
+           `((loopy--main-body
+              . (setq ,value-holder (nconc (reverse ,value-expression)
+                                           ,value-holder)))
+             (loopy--implicit-return . (nreverse ,value-holder))))
+          (collect
+           `((loopy--main-body
+              . (setq ,value-holder (cons ,value-expression ,value-holder)))
+             (loopy--implicit-return . (nreverse ,value-holder))))
+          (concat
+           `((loopy--main-body
+              . (setq ,value-holder (concat ,value-holder ,value-expression)))
+             (loopy--implicit-return . ,value-holder)))
+          (vconcat
+           `((loopy--main-body
+              . (setq ,value-holder (vconcat ,value-holder ,value-expression)))
+             (loopy--implicit-return . ,value-holder)))
+          (count
+           `((loopy--main-body
+              . (if ,value-expression (setq ,value-holder (1+ ,value-holder))))
+             (loopy--implicit-return . ,value-holder)))
+          ((max maximize)
+           `((loopy--main-body
+              . (setq ,value-holder (max ,value-holder ,value-expression)))
+             (loopy--implicit-return . ,value-holder)))
+          ((min minimize)
+           `((loopy--main-body
+              . (setq ,value-holder (min ,value-holder ,value-expression)))
+             (loopy--implicit-return . ,value-holder)))
+          (nconc
+           `((loopy--main-body
+              . (setq ,value-holder (nconc (nreverse ,value-expression) ,value-holder)))
+             (loopy--implicit-return . (nreverse ,value-holder))))
+          ((push-into push)
+           `((loopy--main-body . (push ,value-expression ,value-holder))
+             (loopy--implicit-return . ,value-holder)))
+          (sum
+           `((loopy--main-body
+              . (setq ,value-holder (+ ,value-holder ,value-expression)))
+             (loopy--implicit-return . ,value-holder)))))))
 
 (cl-defun loopy--parse-early-exit-commands ((&whole command name &rest args))
   "Parse the  `return' and `return-from' loop commands.
