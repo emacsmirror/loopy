@@ -77,6 +77,12 @@ NOTE: This functionality might change in the future.")
 
 Each item is of the form (FLAG . FLAG-FUNCTION).")
 
+(defvar loopy--valid-macro-arguments
+  '( flag flags with let* without no-init loop before-do before
+     after-do after finally-do finally finally-return return)
+  "List of valid keywords for `loopy' macro arguments.
+
+This variable is used to signal an error instead of silently failing.")
 
 (defvar loopy--loop-name nil
   "A symbol that names the loop, appropriate for use in `cl-block'.")
@@ -1119,7 +1125,9 @@ Returns are always explicit.  See this package's README for more information."
             (loopy--final-return
              (push (cdr instruction) loopy--final-return))
             (t
-             (error "Loopy: Unknown body instruction: %s" instruction)))))))
+             (error "Loopy: Unknown body instruction: %s" instruction)))))
+       ((not (memq (car arg) loopy--valid-macro-arguments))
+        (error "Loopy: Unknown macro argument: %s" (car arg)))))
 
     ;; Make sure the order-dependent lists are in the correct order.
     (setq loopy--main-body (nreverse loopy--main-body)
