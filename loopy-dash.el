@@ -136,16 +136,16 @@ should only be used if VAR-OR-VAL is a variable."
       ,@(-map (-lambda ((given-var . dash-copy))
                 `(loopy--main-body
                   . ,(cl-ecase name
-                       (append `(setq ,given-var (append ,dash-copy ,given-var)))
-                       (collect `(setq ,given-var (append ,dash-copy (list ,given-var))))
-                       (concat `(setq ,given-var (concat ,dash-copy ,given-var)))
-                       (vconcat `(setq ,given-var (vconcat ,dash-copy ,given-var)))
+                       (append `(setq ,given-var (append ,given-var ,dash-copy)))
+                       (collect `(setq ,given-var (append ,given-var (list ,dash-copy))))
+                       (concat `(setq ,given-var (concat ,given-var ,dash-copy)))
+                       (vconcat `(setq ,given-var (vconcat ,given-var ,dash-copy)))
                        (count `(if ,dash-copy (setq ,given-var (1+ ,given-var))))
                        ((max maximize) `(setq ,given-var (max ,dash-copy ,given-var)))
                        ((min minimize) `(setq ,given-var (min ,dash-copy ,given-var)))
-                       (nconc `(setq ,given-var (nconc ,dash-copy ,given-var)))
-                       ((push-into push) `(setq ,given-var (push ,given-var ,dash-copy)))
-                       (sum `(setq ,given-var (+ ,dash-copy ,val))))))
+                       (nconc `(setq ,given-var (nconc ,given-var ,dash-copy)))
+                       ((push-into push) `(push ,dash-copy ,given-var))
+                       (sum `(setq ,given-var (+ ,dash-copy ,given-var))))))
               loopy--dash-accumulation-new-names))))
 
 (provide 'loopy-dash)
