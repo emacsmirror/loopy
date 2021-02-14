@@ -78,34 +78,47 @@ Needed since `-flatten' doesn't work on vectors."
 NAME is the name of the command.  VAR-OR-VAL is a variable name
 or, if using implicit variables, a value .  VAL is a value, and
 should only be used if VAR-OR-VAL is a variable."
-  (let ((var-list (-flatten (loopy--dash-vars-to-list var))))
-    `(,@(-mapcat
-         (-lambda ((sub-var sub-val))
-           ;; Only apply accumulation to named sub-variables.  If symbol is
-           ;; a Dash source, don't accumulate, just let through.
-           (if (memq sub-var var-list)
-               `((loopy--explicit-vars
-                  . (,sub-var ,(cl-case name
-                                 ((sum count)    0)
-                                 ((max maximize) -1.0e+INF)
-                                 ((min minimize) +1.0e+INF))))
-                 (loopy--main-body
-                  . ,(cl-ecase name
-                       (append `(setq ,sub-var (append ,sub-var ,sub-val)))
-                       (collect `(setq ,sub-var (append ,sub-var (list ,sub-val))))
-                       (concat `(setq ,sub-var (concat ,sub-var ,sub-val)))
-                       (vconcat `(setq ,sub-var (vconcat ,sub-var ,sub-val)))
-                       (count `(if ,sub-val (setq ,sub-var (1+ ,sub-var))))
-                       ((max maximize) `(setq ,sub-var (max ,sub-var ,sub-val)))
-                       ((min minimize) `(setq ,sub-var (min ,sub-var ,sub-val)))
-                       (nconc `(setq ,sub-var (nconc ,sub-var ,sub-val)))
-                       ((push-into push) `(push ,sub-val ,sub-var))
-                       (sum `(setq ,sub-var (+ ,sub-var ,sub-val)))))
-                 (loopy--implicit-return . ,sub-var))
-             `((loopy--implicit-vars . (,sub-var nil))
-               (loopy--main-body . (setq ,sub-var ,sub-val)))))
-         ;; Get Dash's destructuring, and feed to the lambda.
-         (dash--match var val)))))
+  (let* ((var-list (-flatten (loopy--dash-vars-to-list var)))
+         (copied-var-list (--map (cons it (gensym (format "copy-%s-" it)))
+                                 var-list))
+         (destructurings (dash--match var val)))
+    (remq
+     nil
+     `(,@(-mapcat (-lambda ((var _))
+                    (when (memq var var-list)
+                      (let ((copy-name (cdr (assq var copied-var-list))))
+                        `((loopy--implicit-vars . (,copy-name nil))
+                          (loopy--explicit-vars . (,var
+                                                   ,(cl-case name
+                                                      ((sum count)    0)
+                                                      ((max maximize) -1.0e+INF)
+                                                      ((min minimize) +1.0e+INF))))
+                          (loopy--implicit-return . ,var)
+                          ;; Copy of the value of var.
+                          (loopy--main-body . (setq ,copy-name ,var))))))
+                  destructurings)
+
+       ;; Let Dash overwrite the values it wishes.
+       (loopy--main-body . (setq ,@(-flatten-n 1 destructurings)))
+
+       ;; Restore those values when this command completes.
+       ,@(-map (-lambda ((var _))
+                 (when (memq var var-list)
+                   `(loopy--main-body
+                     . ,(cl-ecase name
+                          (append `(setq ,var (append ,(cdr (assq var copied-var-list)) ,var)))
+                          (collect `(setq ,var (append ,(cdr (assq var copied-var-list)) (list ,var))))
+                          (concat `(setq ,var (concat ,(cdr (assq var copied-var-list)) ,var)))
+                          (vconcat `(setq ,var (vconcat ,(cdr (assq var copied-var-list)) ,var)))
+                          (count (setq ,var (if var
+                                                (1+ ,(cdr (assq var copied-var-list)))
+                                              ,(cdr (assq var copied-var-list)))))
+                          ((max maximize) `(setq ,var (max ,(cdr (assq var copied-var-list)) ,var)))
+                          ((min minimize) `(setq ,var (min ,(cdr (assq var copied-var-list)) ,var)))
+                          (nconc `(setq ,var (nconc ,(cdr (assq var copied-var-list)) ,var)))
+                          ((push-into push) `(setq ,var (push ,var ,(cdr (assq var copied-var-list)))))
+                          (sum `(setq ,var (+ ,(cdr (assq var copied-var-list)) ,val)))))))
+               destructurings)))))
 
 (provide 'loopy-dash)
 ;;; loopy-dash.el ends here
