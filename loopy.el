@@ -719,13 +719,41 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
     (loopy--pre-conditions . (< ,index-holder ,length-holder))))
 
 (defun loopy--parse-accumulation-commands (accumulation-command)
-  "Pass the accumulation command to the appropriate destructuring parser."
-  (if (= 2 (length accumulation-command))
-      ;; If only two arguments, use an implicit accumulating variable.
-      (loopy--parse-accumulation-commands-implicit accumulation-command)
+  "Pass the accumulation command to the appropriate parser.
+
+- If no variable named, use `loopy--parse-accumulation-commands-implicit'.
+- If only one variable name given, create a list of instructions here.
+- Otherwise, use the value of `loopy--accumulation-parser'
+  or the value of `loopy-default-accumulation-parsing-function'."
+  (cond
+   ((= 2 (length accumulation-command))
+    ;; If only two arguments, use an implicit accumulating variable.
+    (loopy--parse-accumulation-commands-implicit accumulation-command))
+   ;; If there is only one symbol (i.e., no destructuring), just do what's
+   ;; normal.
+   ((symbolp (cl-second accumulation-command))
+    (cl-destructuring-bind (name var val) accumulation-command
+      `((loopy--explicit-vars . (,var ,(cl-case name
+                                         ((sum count)    0)
+                                         ((max maximize) -1.0e+INF)
+                                         ((min minimize) +1.0e+INF)
+                                         (t nil))))
+        (loopy--implicit-return . ,var)
+        (loopy--main-body . ,(cl-ecase name
+                               (append `(setq ,var (append ,var ,val)))
+                               (collect `(setq ,var (append ,var (list ,val))))
+                               (concat `(setq ,var (concat ,var ,val)))
+                               (vconcat `(setq ,var (vconcat ,var ,val)))
+                               (count `(if ,val (setq ,var (1+ ,var))))
+                               ((max maximize) `(setq ,var (max ,val ,var)))
+                               ((min minimize) `(setq ,var (min ,val ,var)))
+                               (nconc `(setq ,var (nconc ,var ,val)))
+                               ((push-into push) `(push ,val ,var))
+                               (sum `(setq ,var (+ ,val ,var))))))))
+   (t
     (funcall (or loopy--accumulation-parser
                  loopy-default-accumulation-parsing-function)
-             accumulation-command)))
+             accumulation-command))))
 
 ;; TODO: Some of the accumulations commands can be made more
 ;;       efficient/complicated depending on how the variables are being used.
@@ -735,26 +763,6 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
 
 NAME is the name of the command.  VAR is a variable name.  VAL is a value."
   (cl-etypecase var
-    (symbol
-     `((loopy--explicit-vars
-        ;;  Not all commands can have the variable initialized to nil.
-        . (,var ,(cl-case name
-                   ((sum count)    0)
-                   ((max maximize) -1.0e+INF)
-                   ((min minimize) +1.0e+INF))))
-       (loopy--main-body
-        . ,(cl-ecase name
-             (append `(setq ,var (append ,var ,val)))
-             (collect `(setq ,var (append ,var (list ,val))))
-             (concat `(setq ,var (concat ,var ,val)))
-             (vconcat `(setq ,var (vconcat ,var ,val)))
-             (count `(if ,val (setq ,var (1+ ,var))))
-             ((max maximize) `(setq ,var (max ,var ,val)))
-             ((min minimize) `(setq ,var (min ,var ,val)))
-             (nconc `(setq ,var (nconc ,var ,val)))
-             ((push-into push) `(push ,val ,var))
-             (sum `(setq ,var (+ ,var ,val)))))
-       (loopy--implicit-return . ,var)))
     (list
      (let ((value-holder (gensym (concat (symbol-name name) "-destructuring-list-")))
            (is-proper-list (proper-list-p var))
