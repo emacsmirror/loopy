@@ -72,53 +72,91 @@ Needed since `-flatten' doesn't work on vectors."
    (t
     (seq-map #'loopy--dash-get-vars sequence))))
 
+(defvar loopy--dash-accumulation-new-names nil
+  "The names of copies of variable names that Dash will destructure.
+
+Each element is `(old-name . new-name)', where new-name is based
+on old name.  For example, `(i . loopy--copy-i-378)', where `i'
+is the name explicitly given by the user and the copy is what
+Dash assigns to when destructuring.
+
+See `loopy--dash-copy-var-list'.")
+
+(defun loopy--dash-copy-var-list (var-list)
+  "Get a new VAR-LIST same structure and a correspondence alist.
+
+New list has similarly named variables.
+
+For accumulation, we don't want Dash to assign to the named
+  variables, so we pass it this instead."
+  (cl-typecase var-list
+    (symbol
+     (if (string-match-p "\\&\\|:" (symbol-name var-list))
+         var-list ; Don't rename symbols like "&as", "&plist", or ":foo".
+       (let ((dash-copy (gensym (format "loopy--copy-%s-" var-list))))
+         (push (cons var-list dash-copy)
+               loopy--dash-accumulation-new-names)
+         dash-copy)))
+    (list
+     (let ((copied-var-list))
+       (while (car-safe var-list)
+         (push (loopy--dash-copy-var-list (pop var-list))
+               copied-var-list))
+       (let ((correct-order (nreverse copied-var-list)))
+         ;; If it was a dotted list, then `var-list' is still non-nil.
+         (when var-list
+           (setcdr (last correct-order)
+                   (loopy--dash-copy-var-list var-list)))
+         correct-order)))
+    (array
+     (cl-map 'vector #'loopy--dash-copy-var-list var-list))))
+
 (cl-defun loopy--parse-accumulation-commands-dash ((name var val))
   "Parse the accumulation loop commands, like `collect', `append', etc.
 
 NAME is the name of the command.  VAR-OR-VAL is a variable name
 or, if using implicit variables, a value .  VAL is a value, and
 should only be used if VAR-OR-VAL is a variable."
-  (let* ((var-list (-flatten (loopy--dash-vars-to-list var)))
-         (copied-var-list (--map (cons it (gensym (format "copy-%s-" it)))
-                                 var-list))
-         (destructurings (dash--match var val)))
-    (remq
-     nil
-     `(,@(-mapcat (-lambda ((var _))
-                    (when (memq var var-list)
-                      (let ((copy-name (cdr (assq var copied-var-list))))
-                        `((loopy--implicit-vars . (,copy-name nil))
-                          (loopy--explicit-vars . (,var
-                                                   ,(cl-case name
+  (let* ((loopy--dash-accumulation-new-names nil)
+         (copied-var-list (loopy--dash-copy-var-list var))
+         (destructurings (dash--match copied-var-list val)))
+
+    ;; Make sure variables are in order of appearance for the loop body.
+    (setq loopy--dash-accumulation-new-names
+          (nreverse loopy--dash-accumulation-new-names))
+
+    `(;; Declare what Dash will assign to as implicit.
+      ,@(--map `(loopy--implicit-vars . (,(car it) nil))
+               destructurings)
+      ;; Declare as explicit what the user actually named.
+      ,@(--map `(loopy--explicit-vars . (,(car it) ,(cl-case name
                                                       ((sum count)    0)
                                                       ((max maximize) -1.0e+INF)
-                                                      ((min minimize) +1.0e+INF))))
-                          (loopy--implicit-return . ,var)
-                          ;; Copy of the value of var.
-                          (loopy--main-body . (setq ,copy-name ,var))))))
-                  destructurings)
-
-       ;; Let Dash overwrite the values it wishes.
-       (loopy--main-body . (setq ,@(-flatten-n 1 destructurings)))
-
-       ;; Restore those values when this command completes.
-       ,@(-map (-lambda ((var _))
-                 (when (memq var var-list)
-                   `(loopy--main-body
-                     . ,(cl-ecase name
-                          (append `(setq ,var (append ,(cdr (assq var copied-var-list)) ,var)))
-                          (collect `(setq ,var (append ,(cdr (assq var copied-var-list)) (list ,var))))
-                          (concat `(setq ,var (concat ,(cdr (assq var copied-var-list)) ,var)))
-                          (vconcat `(setq ,var (vconcat ,(cdr (assq var copied-var-list)) ,var)))
-                          (count (setq ,var (if var
-                                                (1+ ,(cdr (assq var copied-var-list)))
-                                              ,(cdr (assq var copied-var-list)))))
-                          ((max maximize) `(setq ,var (max ,(cdr (assq var copied-var-list)) ,var)))
-                          ((min minimize) `(setq ,var (min ,(cdr (assq var copied-var-list)) ,var)))
-                          (nconc `(setq ,var (nconc ,(cdr (assq var copied-var-list)) ,var)))
-                          ((push-into push) `(setq ,var (push ,var ,(cdr (assq var copied-var-list)))))
-                          (sum `(setq ,var (+ ,(cdr (assq var copied-var-list)) ,val)))))))
-               destructurings)))))
+                                                      ((min minimize) +1.0e+INF)
+                                                      (t nil))))
+               ;; Alist of (old-name . new-name)
+               loopy--dash-accumulation-new-names)
+      ;; Declare the explicitly given variables as implicit returns.
+      ,@(--map `(loopy--implicit-return . ,(car it))
+               loopy--dash-accumulation-new-names)
+      ;; Let Dash perform the destructuring on the copied variable names.
+      (loopy--main-body . (setq ,@(-flatten-n 1 destructurings)))
+      ;; Accumulate the values of those copied variable names into the
+      ;; explicitly given variables.
+      ,@(-map (-lambda ((given-var . dash-copy))
+                `(loopy--main-body
+                  . ,(cl-ecase name
+                       (append `(setq ,given-var (append ,dash-copy ,given-var)))
+                       (collect `(setq ,given-var (append ,dash-copy (list ,given-var))))
+                       (concat `(setq ,given-var (concat ,dash-copy ,given-var)))
+                       (vconcat `(setq ,given-var (vconcat ,dash-copy ,given-var)))
+                       (count `(if ,dash-copy (setq ,given-var (1+ ,given-var))))
+                       ((max maximize) `(setq ,given-var (max ,dash-copy ,given-var)))
+                       ((min minimize) `(setq ,given-var (min ,dash-copy ,given-var)))
+                       (nconc `(setq ,given-var (nconc ,dash-copy ,given-var)))
+                       ((push-into push) `(setq ,given-var (push ,given-var ,dash-copy)))
+                       (sum `(setq ,given-var (+ ,dash-copy ,val))))))
+              loopy--dash-accumulation-new-names))))
 
 (provide 'loopy-dash)
 ;;; loopy-dash.el ends here
