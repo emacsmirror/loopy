@@ -62,16 +62,6 @@
                destructurings)
       (loopy--main-body . (setq ,@(-flatten-n 1 destructurings))))))
 
-(defun loopy--dash-vars-to-list (sequence)
-  "Return a list (maybe of sublists) of elements in sequence.
-
-Needed since `-flatten' doesn't work on vectors."
-  (cond
-   ((symbolp sequence) sequence)
-   ((consp sequence) sequence)
-   (t
-    (seq-map #'loopy--dash-get-vars sequence))))
-
 (defvar loopy--dash-accumulation-new-names nil
   "The names of copies of variable names that Dash will destructure.
 
