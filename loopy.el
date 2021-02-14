@@ -49,17 +49,21 @@
   :prefix "loopy-"
   :link '(url-link "https://github.com/okamsn/loopy"))
 
-(defvar loopy-valid-destructuring-functions
-  #'(loopy--create-destructured-assignment-default)
-  "A list of functions that `loopy' can use for destructured assignment.")
-
 (defcustom loopy-default-destructuring-function
   #'loopy--create-destructured-assignment-default
-  "The default function `loopy' uses for destructured assignment.
-
-This should be a member of `loopy--valid-destructuring-functions'."
+  "The default function `loopy' uses for destructured assignment."
   :type '(choice (const :tag "Default `loopy' destructuring."
                         #'loopy--create-destructured-assignment-default)
+                 (function :tag "Some function.")))
+
+(defcustom loopy-default-accumulation-parsing-function
+  #'loopy--parse-accumulation-commands-default
+  "The default function `loopy' uses for parsing accumulation commands.
+
+This is like `loopy-default-destructuring-function', but
+accumulation commands use their own kind of destructuring. "
+  :type '(choice (const :tag "Default `loopy' destructuring."
+                        #'loopy--parse-accumulation-commands)
                  (function :tag "Some function.")))
 
 ;;;; Important Variables
@@ -177,7 +181,9 @@ These run in a `progn'.")
   "Whether a command uses a tag-body to jump to the end of the `cl-block'.")
 
 (defvar loopy--destructuring-function nil
-  "The destructuring function to use.  If nil, `loopy-default-destructuring-function'.")
+  "The destructuring function to use.
+If nil, `loopy-default-destructuring-function'.")
+
 (defvar loopy--accumulation-parser nil
   "The accumulation parser to use.
 If nil, `loopy-default-accumulation-parsing-function'.")
