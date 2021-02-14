@@ -72,6 +72,12 @@ This should be a member of `loopy--valid-destructuring-functions'."
 
 NOTE: This functionality might change in the future.")
 
+(defvar loopy--flags-setup nil
+  "Alist of functions to run on presence of their respective flag.
+
+Each item is of the form (FLAG . FLAG-FUNCTION).")
+
+
 (defvar loopy--loop-name nil
   "A symbol that names the loop, appropriate for use in `cl-block'.")
 
@@ -1028,10 +1034,19 @@ Returns are always explicit.  See this package's README for more information."
         (loopy--implicit-return)
 
         ;; -- Variables for constructing code --
+        (loopy--destructuring-function)
         (loopy--skip-used)
         (loopy--tagbody-exit-used))
 
 ;;;;; Interpreting the macro arguments.
+
+    ;; Process any flags passed to the macro.
+    (when-let ((loopy--flags (cdr (or (assq 'flags body)
+                                      (assq 'flag body)))))
+      (dolist (flag loopy--flags)
+        (funcall (cdr (assq flag loopy--flags-setup)))))
+
+
     ;; Check the remaining arguments passed to the macro.
 
     (dolist (arg body)
