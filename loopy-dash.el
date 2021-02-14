@@ -1,4 +1,4 @@
-;;; loopy-dash.el --- Dash support for `loopy'. -*- lexical-binding: t; -*-
+;;; loopy-dash.el --- Dash destructuring for `loopy' -*- lexical-binding: t; -*-
 
 ;; Copyright (c) 2020 Earl Hyatt
 
@@ -43,18 +43,18 @@
 (defvar loopy--destructuring-function)
 (defvar loopy--flags-setup)
 
-(defun loopy--flag-setup-dash ()
+(defun loopy-dash--flag-setup ()
   "Make this `loopy' loop use Dash destructuring."
   (setq
-   loopy--destructuring-function #'loopy--create-destructured-assignment-dash
-   loopy--accumulation-parser #'loopy--parse-accumulation-commands-dash))
+   loopy--destructuring-function #'loopy-dash--create-destructured-assignment
+   loopy--accumulation-parser #'loopy-dash--parse-accumulation-commands))
 
 (with-eval-after-load 'loopy
   (add-to-list 'loopy--flags-setup
-               (cons 'dash #'loopy--flag-setup-dash)))
+               (cons 'dash #'loopy-dash--flag-setup)))
 
 ;;;; The actual functions:
-(defun loopy--create-destructured-assignment-dash
+(defun loopy-dash--create-destructured-assignment
     (var value-expression)
   "Create a list of instructions for using Dash's destructuring in `loopy'."
   (let ((destructurings (dash--match var value-expression)))
@@ -62,7 +62,7 @@
                destructurings)
       (loopy--main-body . (setq ,@(-flatten-n 1 destructurings))))))
 
-(defvar loopy--dash-accumulation-new-names nil
+(defvar loopy-dash--accumulation-destructured-symbols nil
   "The names of copies of variable names that Dash will destructure.
 
 Each element is `(old-name . new-name)', where new-name is based
@@ -70,50 +70,53 @@ on old name.  For example, `(i . loopy--copy-i-378)', where `i'
 is the name explicitly given by the user and the copy is what
 Dash assigns to when destructuring.
 
-See `loopy--dash-copy-var-list'.")
+See `loopy-dash--transform-var-list'.")
 
-(defun loopy--dash-copy-var-list (var-list)
-  "Get a new VAR-LIST same structure and a correspondence alist.
+(defun loopy-dash--transform-var-list (var-list)
+  "Get a new VAR-LIST same structure but different variable names.
 
-New list has similarly named variables.
+This function will push transformations to
+`loopy-dash--accumulation-destructured-symbols'.
 
 For accumulation, we don't want Dash to assign to the named
   variables, so we pass it this instead."
   (cl-typecase var-list
     (symbol
-     (if (string-match-p "\\&\\|:" (symbol-name var-list))
-         var-list ; Don't rename symbols like "&as", "&plist", or ":foo".
+     ;; Don't create copies for symbols like "&as", ":foo", or "_".
+     (if (string-match-p (rx (or "&" "|" (seq string-start "_" string-end)))
+                         (symbol-name var-list))
+         var-list
        (let ((dash-copy (gensym (format "loopy--copy-%s-" var-list))))
          (push (cons var-list dash-copy)
-               loopy--dash-accumulation-new-names)
+               loopy-dash--accumulation-destructured-symbols)
          dash-copy)))
     (list
      (let ((copied-var-list))
        (while (car-safe var-list)
-         (push (loopy--dash-copy-var-list (pop var-list))
+         (push (loopy-dash--transform-var-list (pop var-list))
                copied-var-list))
        (let ((correct-order (reverse copied-var-list)))
          ;; If it was a dotted list, then `var-list' is still non-nil.
          (when var-list
            (setcdr (last correct-order)
-                   (loopy--dash-copy-var-list var-list)))
+                   (loopy-dash--transform-var-list var-list)))
          correct-order)))
     (array
-     (cl-map 'vector #'loopy--dash-copy-var-list var-list))))
+     (cl-map 'vector #'loopy-dash--transform-var-list var-list))))
 
-(cl-defun loopy--parse-accumulation-commands-dash ((name var val))
+(cl-defun loopy-dash--parse-accumulation-commands ((name var val))
   "Parse the accumulation loop commands, like `collect', `append', etc.
 
 NAME is the name of the command.  VAR-OR-VAL is a variable name
 or, if using implicit variables, a value .  VAL is a value, and
 should only be used if VAR-OR-VAL is a variable."
-  (let* ((loopy--dash-accumulation-new-names nil)
-         (copied-var-list (loopy--dash-copy-var-list var))
+  (let* ((loopy-dash--accumulation-destructured-symbols nil)
+         (copied-var-list (loopy-dash--transform-var-list var))
          (destructurings (dash--match copied-var-list val)))
 
     ;; Make sure variables are in order of appearance for the loop body.
-    (setq loopy--dash-accumulation-new-names
-          (reverse loopy--dash-accumulation-new-names))
+    (setq loopy-dash--accumulation-destructured-symbols
+          (reverse loopy-dash--accumulation-destructured-symbols))
 
     `(;; Declare what Dash will assign to as implicit.
       ,@(--map `(loopy--implicit-vars . (,(car it) nil))
@@ -125,10 +128,10 @@ should only be used if VAR-OR-VAL is a variable."
                                                       ((min minimize) +1.0e+INF)
                                                       (t nil))))
                ;; Alist of (old-name . new-name)
-               loopy--dash-accumulation-new-names)
+               loopy-dash--accumulation-destructured-symbols)
       ;; Declare the explicitly given variables as implicit returns.
       ,@(--map `(loopy--implicit-return . ,(car it))
-               loopy--dash-accumulation-new-names)
+               loopy-dash--accumulation-destructured-symbols)
       ;; Let Dash perform the destructuring on the copied variable names.
       (loopy--main-body . (setq ,@(-flatten-n 1 destructurings)))
       ;; Accumulate the values of those copied variable names into the
@@ -146,7 +149,7 @@ should only be used if VAR-OR-VAL is a variable."
                        (nconc `(setq ,given-var (nconc ,given-var ,dash-copy)))
                        ((push-into push) `(push ,dash-copy ,given-var))
                        (sum `(setq ,given-var (+ ,dash-copy ,given-var))))))
-              loopy--dash-accumulation-new-names))))
+              loopy-dash--accumulation-destructured-symbols))))
 
 (provide 'loopy-dash)
 ;;; loopy-dash.el ends here
