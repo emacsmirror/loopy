@@ -52,19 +52,15 @@
 (defcustom loopy-default-destructuring-function
   #'loopy--create-destructured-assignment-default
   "The default function `loopy' uses for destructured assignment."
-  :type '(choice (const :tag "Default `loopy' destructuring."
-                        #'loopy--create-destructured-assignment-default)
-                 (function :tag "Some function.")))
+  :type 'function)
 
 (defcustom loopy-default-accumulation-parsing-function
   #'loopy--parse-accumulation-commands-default
   "The default function `loopy' uses for parsing accumulation commands.
 
 This is like `loopy-default-destructuring-function', but
-accumulation commands use their own kind of destructuring. "
-  :type '(choice (const :tag "Default `loopy' destructuring."
-                        #'loopy--parse-accumulation-commands)
-                 (function :tag "Some function.")))
+accumulation commands use their own kind of destructuring."
+  :type 'function)
 
 ;;;; Important Variables
 ;; These only set in the `loopy' macro, but that might change in the future.  It
