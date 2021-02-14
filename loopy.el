@@ -42,10 +42,35 @@
 (require 'seq)
 (require 'subr-x)
 
+;;;; Custom User Options
+(defgroup loopy nil
+  "A looping and iteration macro."
+  :group 'tools
+  :prefix "loopy-"
+  :link '(url-link "https://github.com/okamsn/loopy"))
+
+(defvar loopy-valid-destructuring-functions
+  #'(loopy--create-destructured-assignment-default)
+  "A list of functions that `loopy' can use for destructured assignment.")
+
+(defcustom loopy-default-destructuring-function
+  #'loopy--create-destructured-assignment-default
+  "The default function `loopy' uses for destructured assignment.
+
+This should be a member of `loopy--valid-destructuring-functions'."
+  :type '(choice (const :tag "Default `loopy' destructuring."
+                        #'loopy--create-destructured-assignment-default)
+                 (function :tag "Some function.")))
+
 ;;;; Important Variables
 ;; These only set in the `loopy' macro, but that might change in the future.  It
 ;; might be cleaner code to modify from the parsing function, after the macro
 ;; has already set them to nil.
+
+(defvar loopy--flags nil
+  "Symbols/flags whose presence changes the behavior of `loopy'.
+
+NOTE: This functionality might change in the future.")
 
 (defvar loopy--loop-name nil
   "A symbol that names the loop, appropriate for use in `cl-block'.")
@@ -145,6 +170,9 @@ These run in a `progn'.")
 (defvar loopy--tagbody-exit-used nil
   "Whether a command uses a tag-body to jump to the end of the `cl-block'.")
 
+(defvar loopy--destructuring-function nil
+  "The destructuring function to use.  If nil, `loopy-default-destructuring-function'.")
+
 ;;;; Errors
 (define-error 'loopy-error
   "Error in `loopy' macro")
@@ -203,7 +231,23 @@ PLACE should be `loopy--explicit-vars' or `loopy--implicit-vars'."
   (when (symbolp vars) (setq vars (list vars)))
   (mapcar (lambda (var) (cons place `(,var ,value))) vars))
 
-(cl-defun loopy--create-destructured-assignment
+(defun loopy--create-destructured-assignment
+    (var value-expression &optional generalized)
+  "Create the destructured assignment.
+
+VAR is the variables into which to destructure VALUE-EXPRESSION,
+also known as a lambda list.
+
+If `generalized', always use the default function."
+  ;; TODO: Setf-able places in other destructuring methods?
+  (if generalized
+      (loopy--create-destructured-assignment-default
+       var value-expression generalized)
+    (funcall (or loopy--destructuring-function
+                 loopy-default-destructuring-function)
+             var value-expression)))
+
+(cl-defun loopy--create-destructured-assignment-default
     (var value-expression &optional generalized)
   "If needed, use destructuring to initialize and assign to variables.
 
@@ -232,19 +276,19 @@ variable."
          ;; symbol that is now `var' to some Nth `cdr'.
          (let ((instructions) (index 0))
            (while (car-safe var)
-             (push (loopy--create-destructured-assignment
+             (push (loopy--create-destructured-assignment-default
                     (pop var) `(nth ,index ,value-expression) 'generalized)
                    instructions)
              (setq index (1+ index)))
            (when var
-             (push (loopy--create-destructured-assignment
+             (push (loopy--create-destructured-assignment-default
                     var `(nthcdr ,index ,value-expression) 'generalized)
                    instructions))
            (apply #'append (nreverse instructions))))
         (array
          (cl-loop for symbol-or-seq across var
                   for index from 0
-                  append (loopy--create-destructured-assignment
+                  append (loopy--create-destructured-assignment-default
                           symbol-or-seq `(aref ,value-expression ,index)
                           'generalized)))
         (t
@@ -300,7 +344,7 @@ variable."
 
            (let ((passed-value-expression `(pop ,value-holder)))
              (dolist (symbol-or-seq (reverse (cl-rest normalized-reverse-var)))
-               (push (loopy--create-destructured-assignment
+               (push (loopy--create-destructured-assignment-default
                       symbol-or-seq passed-value-expression)
                      instructions)))
 
@@ -318,12 +362,12 @@ variable."
              (if is-proper-list
                  ;; If `var' is a proper list, then we now have a list like ((C
                  ;; D)) from (A B (C D)).  We only want to pass in the (C D).
-                 (push (loopy--create-destructured-assignment
+                 (push (loopy--create-destructured-assignment-default
                         last-var `(car ,value-holder))
                        instructions)
                ;; Otherwise, we might have something like [C D] from
                ;; (A B . [C D]), where we don't need to take the `car'.
-               (push (loopy--create-destructured-assignment
+               (push (loopy--create-destructured-assignment-default
                       last-var value-holder)
                      instructions)))
 
@@ -339,7 +383,7 @@ variable."
                   (loopy--main-body . (setq ,value-holder ,value-expression))))))
          (cl-loop for symbol-or-seq across var
                   for index from 0
-                  do (push (loopy--create-destructured-assignment
+                  do (push (loopy--create-destructured-assignment-default
                             symbol-or-seq `(aref ,value-holder ,index))
                            instructions))
 
