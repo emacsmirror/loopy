@@ -190,6 +190,17 @@ If nil, `loopy-default-destructuring-function'.")
   "The accumulation parser to use.
 If nil, `loopy-default-accumulation-parsing-function'.")
 
+(defvar loopy--implicit-accumulation-final-update nil
+  "Actions to perform on the implicit accumulation variable.
+
+So as to avoid conflicts, there can be only one final action.
+This variable is a list of such actions, but only the action at
+the head of the list will be performed.
+
+For example, it is usually more efficient to build a list in
+reverse order, so a final update might be to reverse a backwards
+list so that it is in the correct order.")
+
 ;;;; Errors
 (define-error 'loopy-error
   "Error in `loopy' macro")
@@ -815,7 +826,10 @@ NAME is the name of the command.  VAR is a variable name.  VAL is a value."
 For better efficiency, accumulation commands with implicit variables can
 have different behavior than their explicit counterparts."
 
-  (let ((value-holder (gensym (concat (symbol-name name) "-implicit-"))))
+  (let ((value-holder (intern (if loopy--loop-name
+                                  (concat "loopy-" loopy--loop-name
+                                          "-result")
+                                "loopy-result"))))
     `((loopy--implicit-vars . (,value-holder ,(cl-case name
                                                 ((sum count)    0)
                                                 ((max maximize) -1.0e+INF)
@@ -830,7 +844,9 @@ have different behavior than their explicit counterparts."
            `((loopy--main-body
               . (setq ,value-holder (nconc (reverse ,value-expression)
                                            ,value-holder)))
-             (loopy--implicit-return . (nreverse ,value-holder))))
+             (loopy--implicit-accumulation-final-update
+              . (setq ,value-holder (nreverse ,value-holder)))
+             (loopy--implicit-return . ,value-holder)))
           (collect
            `((loopy--main-body
               . (setq ,value-holder (cons ,value-expression ,value-holder)))
@@ -1057,7 +1073,8 @@ Returns are always explicit.  See this package's README for more information."
         ;; -- Variables for constructing code --
         (loopy--destructuring-function)
         (loopy--skip-used)
-        (loopy--tagbody-exit-used))
+        (loopy--tagbody-exit-used)
+        (loopy--implicit-accumulation-final-update))
 
 ;;;;; Interpreting the macro arguments.
 
@@ -1108,6 +1125,8 @@ Returns are always explicit.  See this package's README for more information."
             (loopy--implicit-return
              (unless (loopy--already-implicit-return (cdr instruction))
                (push (cdr instruction) loopy--implicit-return)))
+            (loopy--implicit-accumulation-final-update
+             (push (cdr instruction) loopy--implicit-accumulation-final-update))
 
             ;; Code for conditionally constructing the loop body.
             (loopy--skip-used
@@ -1213,17 +1232,24 @@ Returns are always explicit.  See this package's README for more information."
               ;; Will always be a single expression after wrapping with `while'.
               result-is-one-expression t)
 
+        ;; Make sure that the implicit accumulation variable is correctly
+        ;; updated after the loop, if need be.
+        (when loopy--implicit-accumulation-final-update
+          (setq result `(,@(get-result)
+                         ,(car loopy--implicit-accumulation-final-update))
+                result-is-one-expression nil))
+
         ;; Now ensure return value is nil and add the code to run before and
         ;; after the `while' loop.
         (cond
          ((and loopy--before-do loopy--after-do)
-          (setq result `(,@loopy--before-do ,result ,@loopy--after-do)
+          (setq result `(,@loopy--before-do ,@(get-result) ,@loopy--after-do)
                 result-is-one-expression nil))
          (loopy--before-do
-          (setq result `(,@loopy--before-do ,result)
+          (setq result `(,@loopy--before-do ,@(get-result))
                 result-is-one-expression nil))
          (loopy--after-do
-          (setq result `(,result ,@loopy--after-do)
+          (setq result `(,@(get-result) ,@loopy--after-do)
                 result-is-one-expression nil)))
 
         (when loopy--tagbody-exit-used
