@@ -471,9 +471,9 @@ This uses the command name (such as `list' in `(list i my-list)')."
       (if (eq 'loopy--main-body (car instruction))
           (push (cdr instruction) conditional-body)
         (push instruction full-instructions)))
-    (push `(loopy--main-body . (,name ,condition ,@(nreverse conditional-body)))
-          full-instructions)
-    full-instructions))
+    ;; Return the instructions.
+    (cons `(loopy--main-body . (,name ,condition ,@(nreverse conditional-body)))
+          (nreverse full-instructions))))
 
 (cl-defun loopy--parse-group-command ((_ &rest body))
   "Parse the `group' loop command.
@@ -484,10 +484,9 @@ BODY is one or more commands to be grouped by a `progn' form."
       (if (eq (car instruction) 'loopy--main-body)
           (push (cdr instruction) progn-body)
         (push instruction full-instructions)))
-    (push (cons 'loopy--main-body
-                (cons 'progn (nreverse progn-body)))
-          full-instructions)
-    full-instructions))
+    ;; Return the instructions.
+    (cons `(loopy--main-body . (progn ,@(nreverse progn-body)))
+          (nreverse full-instructions))))
 
 (cl-defun loopy--parse-if-command ((_
                                     condition
@@ -514,13 +513,13 @@ BODY is one or more commands to be grouped by a `progn' form."
           (if (= 1 (length if-true-main-body))
               (car if-true-main-body)
             (cons 'progn (nreverse if-true-main-body))))
-    (push `(loopy--main-body
+
+    ;; Return the list of instructions.
+    (cons `(loopy--main-body
             . (if ,condition
                   ,if-true-main-body
                 ,@(nreverse if-false-main-body)))
-          full-instructions)
-    ;; Return the list of instructions.
-    full-instructions))
+          (nreverse full-instructions))))
 
 (cl-defun loopy--parse-cond-command ((_ &rest clauses))
   "Parse the `cond' command.  This works like the `cond' special form.
@@ -530,7 +529,8 @@ loop commands.
 
 The Lisp expression and the loopy-body instructions from each
 command are inserted into a `cond' special form."
-  (let (full-instructions actual-cond-clauses)
+  (let ((full-instructions)
+        (actual-cond-clauses))
     (dolist (clause clauses)
       (let ((instructions (loopy--parse-loop-commands (cl-rest clause)))
             clause-body)
@@ -544,7 +544,7 @@ command are inserted into a `cond' special form."
     ;; Wrap the `actual-cond-clauses' in a `cond' special form, and return all
     ;; instructions.
     (cons `(loopy--main-body . ,(cons 'cond (nreverse actual-cond-clauses)))
-          full-instructions)))
+          (nreverse full-instructions))))
 
 (cl-defun loopy--parse-do-command ((_ &rest expressions))
   "Parse the `do' loop command.
@@ -1152,7 +1152,15 @@ Returns are always explicit.  See this package's README for more information."
 
     ;; Make sure the order-dependent lists are in the correct order.
     (setq loopy--main-body (nreverse loopy--main-body)
-          loopy--with-vars (nreverse loopy--with-vars))
+          loopy--with-vars (nreverse loopy--with-vars)
+          loopy--implicit-return (when (consp loopy--implicit-return)
+                                   (if (= 1 (length loopy--implicit-return))
+                                       ;; If implicit return is just a single thing,
+                                       ;; don't use a list.
+                                       (car loopy--implicit-return)
+                                     ;; If multiple items, be sure to use a list
+                                     ;; in the correct order.
+                                     `(list ,@(nreverse loopy--implicit-return)))))
 
 ;;;;; Constructing/Creating the returned code.
 
@@ -1212,13 +1220,12 @@ Returns are always explicit.  See this package's README for more information."
                                      (0 t)
                                      (1 (car loopy--post-conditions))
                                      (t (cons 'and loopy--post-conditions)))
+                            ;; If the loop exits early, we should still use the
+                            ;; implicit return.  That isn't a problem for the
+                            ;; `while' loop, but we need to be more explicit
+                            ;; here.
                             (cl-return-from ,loopy--loop-name
-                              ,(cond
-                                ((null loopy--implicit-return) nil)
-                                ((= 1 (length loopy--implicit-return))
-                                 (car loopy--implicit-return))
-                                (t
-                                 `(list ,@(nreverse loopy--implicit-return))))))))))
+                              ,loopy--implicit-return))))))
 
         ;; Now wrap loop body in the `while' form.
         (setq result `(while ,(cl-case (length loopy--pre-conditions)
@@ -1264,15 +1271,10 @@ Returns are always explicit.  See this package's README for more information."
         ;; at a certain point.
         (setq result `(cl-block ,loopy--loop-name
                         ,@(get-result)
-                        ;; Be sure that the `cl-block' defaults to returning
-                        ;; nil.  This can be overridden by any call to
-                        ;; `cl-return-from'.
-                        ,(cond
-                          ((null loopy--implicit-return) nil)
-                          ((= 1 (length loopy--implicit-return))
-                           (car loopy--implicit-return))
-                          (t
-                           `(list ,@(nreverse loopy--implicit-return)))))
+                        ;; Be sure that the `cl-block' defaults to returning the
+                        ;; implicit return, which can be nil.  This can be
+                        ;; overridden by any call to `cl-return-from'.
+                        ,loopy--implicit-return)
               ;; Will always be a single expression after wrapping with
               ;; `cl-block'.
               result-is-one-expression t)
