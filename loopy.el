@@ -850,7 +850,9 @@ have different behavior than their explicit counterparts."
           (collect
            `((loopy--main-body
               . (setq ,value-holder (cons ,value-expression ,value-holder)))
-             (loopy--implicit-return . (nreverse ,value-holder))))
+             (loopy--implicit-accumulation-final-update
+              . (setq ,value-holder (nreverse ,value-holder)))
+             (loopy--implicit-return . ,value-holder)))
           (concat
            `((loopy--main-body
               . (setq ,value-holder (concat ,value-holder ,value-expression)))
@@ -874,7 +876,9 @@ have different behavior than their explicit counterparts."
           (nconc
            `((loopy--main-body
               . (setq ,value-holder (nconc (nreverse ,value-expression) ,value-holder)))
-             (loopy--implicit-return . (nreverse ,value-holder))))
+             (loopy--implicit-accumulation-final-update
+              . (setq ,value-holder (nreverse ,value-holder)))
+             (loopy--implicit-return . ,value-holder)))
           ((push-into push)
            `((loopy--main-body . (push ,value-expression ,value-holder))
              (loopy--implicit-return . ,value-holder)))
