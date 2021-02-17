@@ -1372,9 +1372,7 @@ Returns are always explicit.  See this package's README for more information."
         (when loopy--explicit-generalized-vars
           (setq result `(cl-symbol-macrolet ,loopy--explicit-generalized-vars
                           ,@(get-result))
-                ;; TODO: Not using this, but maybe later?
-                ;; result-is-one-expression t
-                ))
+                result-is-one-expression t))
 
         ;; Final check: If `result' is not one expression, then wrap `result' in
         ;; a `progn'.  Otherwise, the return value of the first expression would
