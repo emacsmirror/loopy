@@ -62,6 +62,34 @@ This is like `loopy-default-destructuring-function', but
 accumulation commands use their own kind of destructuring."
   :type 'function)
 
+(defcustom loopy-split-implied-accumulation-results nil
+  "Whether `loopy' should split implied accumulations into seprate variables.
+
+The default behavior is that accumulation command with implied
+variables (such as `(collect my-value)') as accumulate into the
+same value, by default named `loopy-result'.
+
+If you want to use destructuring with accumulation commands like
+`collect', `append', or `nconc', it might be faster to enable
+this, either by customizing this variable or using the flag `split'.")
+
+;;;; Flags
+
+(defvar loopy--flags-setup nil
+  "Alist of functions to run on presence of their respective flag.
+
+Each item is of the form (FLAG . FLAG-FUNCTION).")
+
+(defvar loopy--split-implied-accumulation-results-internal nil
+  "Internal variable, see `loopy-split-implied-accumulation-results'.")
+
+(defun loopy--split-flag-setup ()
+  "Set `loopy-split-implied-accumulation-results' to t inside the loop."
+  (setq loopy--split-implied-accumulation-results-internal t))
+
+(add-to-list 'loopy--flags-setup
+             (cons 'split #'loopy--split-flag-setup))
+
 ;;;; Important Variables
 ;; These only set in the `loopy' macro, but that might change in the future.  It
 ;; might be cleaner code to modify from the parsing function, after the macro
@@ -72,10 +100,6 @@ accumulation commands use their own kind of destructuring."
 
 NOTE: This functionality might change in the future.")
 
-(defvar loopy--flags-setup nil
-  "Alist of functions to run on presence of their respective flag.
-
-Each item is of the form (FLAG . FLAG-FUNCTION).")
 
 (defvar loopy--valid-macro-arguments
   '( flag flags with let* without no-init loop before-do before
@@ -844,10 +868,17 @@ NAME is the name of the command.  VAR is a variable name.  VAL is a value."
 For better efficiency, accumulation commands with implicit variables can
 have different behavior than their explicit counterparts."
 
-  (let ((value-holder (intern (if loopy--loop-name
-                                  (concat "loopy-" (symbol-name loopy--loop-name)
-                                          "-result")
-                                "loopy-result"))))
+  (let* ((splitting-implicit-vars
+          (or loopy-split-implied-accumulation-results
+              loopy--split-implied-accumulation-results-internal))
+         (value-holder (if splitting-implicit-vars
+                           (gensym (concat (symbol-name name) "-implicit-"))
+                         ;; Note: This must be `intern', not `make-symbol', as
+                         ;;       the user can refer to it later.
+                         (intern (if loopy--loop-name
+                                     (concat "loopy-" (symbol-name loopy--loop-name)
+                                             "-result")
+                                   "loopy-result")))))
     `((loopy--implicit-vars . (,value-holder ,(cl-case name
                                                 ((sum count)    0)
                                                 ((max maximize) -1.0e+INF)
@@ -862,15 +893,21 @@ have different behavior than their explicit counterparts."
            `((loopy--main-body
               . (setq ,value-holder (nconc (reverse ,value-expression)
                                            ,value-holder)))
-             (loopy--implicit-accumulation-final-update
-              . (setq ,value-holder (nreverse ,value-holder)))
-             (loopy--implicit-return . ,value-holder)))
+             ,@(if splitting-implicit-vars
+                   (list `(loopy--implicit-return . (nreverse ,value-holder)))
+                 (list
+                  `(loopy--implicit-accumulation-final-update
+                    . (setq ,value-holder (nreverse ,value-holder)))
+                  `(loopy--implicit-return . ,value-holder)))))
           (collect
            `((loopy--main-body
               . (setq ,value-holder (cons ,value-expression ,value-holder)))
-             (loopy--implicit-accumulation-final-update
-              . (setq ,value-holder (nreverse ,value-holder)))
-             (loopy--implicit-return . ,value-holder)))
+             ,@(if splitting-implicit-vars
+                   (list `(loopy--implicit-return . (nreverse ,value-holder)))
+                 (list
+                  `(loopy--implicit-accumulation-final-update
+                    . (setq ,value-holder (nreverse ,value-holder)))
+                  `(loopy--implicit-return . ,value-holder)))))
           (concat
            `((loopy--main-body
               . (setq ,value-holder (concat ,value-holder ,value-expression)))
@@ -894,9 +931,12 @@ have different behavior than their explicit counterparts."
           (nconc
            `((loopy--main-body
               . (setq ,value-holder (nconc (nreverse ,value-expression) ,value-holder)))
-             (loopy--implicit-accumulation-final-update
-              . (setq ,value-holder (nreverse ,value-holder)))
-             (loopy--implicit-return . ,value-holder)))
+             ,@(if splitting-implicit-vars
+                   (list `(loopy--implicit-return . (nreverse ,value-holder)))
+                 (list
+                  `(loopy--implicit-accumulation-final-update
+                    . (setq ,value-holder (nreverse ,value-holder)))
+                  `(loopy--implicit-return . ,value-holder)))))
           ((push-into push)
            `((loopy--main-body . (push ,value-expression ,value-holder))
              (loopy--implicit-return . ,value-holder)))
@@ -1096,7 +1136,10 @@ Returns are always explicit.  See this package's README for more information."
         (loopy--destructuring-function)
         (loopy--skip-used)
         (loopy--tagbody-exit-used)
-        (loopy--implicit-accumulation-final-update))
+        (loopy--implicit-accumulation-final-update)
+
+        ;; -- Built-in Flags --
+        (loopy--split-implied-accumulation-results-internal))
 
 ;;;;; Interpreting the macro arguments.
 
