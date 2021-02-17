@@ -845,7 +845,7 @@ For better efficiency, accumulation commands with implicit variables can
 have different behavior than their explicit counterparts."
 
   (let ((value-holder (intern (if loopy--loop-name
-                                  (concat "loopy-" loopy--loop-name
+                                  (concat "loopy-" (symbol-name loopy--loop-name)
                                           "-result")
                                 "loopy-result"))))
     `((loopy--implicit-vars . (,value-holder ,(cl-case name
