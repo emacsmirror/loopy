@@ -79,7 +79,7 @@ Each item is of the form (FLAG . FLAG-FUNCTION).")
 
 (defvar loopy--valid-macro-arguments
   '( flag flags with let* without no-init loop before-do before
-     after-do after finally-do finally finally-return return)
+     after-do after else-do else finally-do finally finally-return return)
   "List of valid keywords for `loopy' macro arguments.
 
 This variable is used to signal an error instead of silently failing.")
