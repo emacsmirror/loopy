@@ -1175,6 +1175,7 @@ Returns are always explicit.  See this package's README for more information."
     ;; Make sure the order-dependent lists are in the correct order.
     (setq loopy--main-body (nreverse loopy--main-body)
           loopy--with-vars (nreverse loopy--with-vars)
+          loopy--implicit-vars (nreverse loopy--implicit-vars)
           loopy--implicit-return (when (consp loopy--implicit-return)
                                    (if (= 1 (length loopy--implicit-return))
                                        ;; If implicit return is just a single thing,
@@ -1346,14 +1347,14 @@ Returns are always explicit.  See this package's README for more information."
             (if loopy--implicit-vars
                 (setq result
                       `(let* ,(cons '(loopy--implicit-accumulation-updated nil)
-                                    (nreverse loopy--implicit-vars))
+                                    loopy--implicit-vars)
                          ,@(get-result))
                       result-is-one-expression t)
               (setq result `(let ((loopy--implicit-accumulation-updated nil))
                               ,@(get-result))
                     result-is-one-expression t))
           (when loopy--implicit-vars
-            (setq result `(let* ,(nreverse loopy--implicit-vars)
+            (setq result `(let* ,loopy--implicit-vars
                             ,@(get-result))
                   result-is-one-expression t)))
 
