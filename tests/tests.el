@@ -517,6 +517,15 @@
                                     (collect i))
                                    (return loopy-my-loop-result))))))))
 
+;;;;; Split flag
+(ert-deftest split-flag ()
+  (should (equal '((1 3) (2))
+                 (eval (quote (loopy (flag split)
+                                     ((list i '(1 2 3))
+                                      (if (cl-oddp i)
+                                          (collect i)
+                                        (collect i)))))))))
+
 ;;;;; Append
 (ert-deftest append ()
   (should (equal '(1 2 3 4 5 6)
