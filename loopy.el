@@ -333,14 +333,6 @@ expansion, we generally only want the actual symbol."
       (lambda function-form)
       (t (error "This function form is unrecognized: %s" function-form)))))
 
-(defun loopy--initialize-vars (place vars &optional value)
-  "Create instructions for initializing variables in VARS to VALUE in PLACE.
-
-PLACE should be `loopy--explicit-vars' or `loopy--implicit-vars'."
-  ;; Just make sure it's always a sequence.
-  (when (symbolp vars) (setq vars (list vars)))
-  (mapcar (lambda (var) (cons place `(,var ,value))) vars))
-
 (defun loopy--destructure-for-iteration-command (var value-expression)
   "Destructure VALUE-EXPRESSION according to VAR for a loop command.
 
