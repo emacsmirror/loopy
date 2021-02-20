@@ -333,6 +333,18 @@ PLACE should be `loopy--explicit-vars' or `loopy--implicit-vars'."
   (when (symbolp vars) (setq vars (list vars)))
   (mapcar (lambda (var) (cons place `(,var ,value))) vars))
 
+(defun loopy--destructure-for-generalized-command (var value-expression)
+  "Destructure for commands that use generalized (`setf'-able) places.
+
+Return a list of instructions for naming these `setf'-able places."
+  (let ((destructurings
+         (loopy--destructure-generalized-variables var value-expression))
+        (instructions nil))
+    (dolist (destructuring destructurings)
+      (push (cons 'loopy--explicit-generalized-vars
+                   destructuring)
+            instructions))
+    (nreverse instructions)))
 (defun loopy--create-destructured-assignment
     (var value-expression &optional generalized)
   "Create the destructured assignment.
@@ -493,6 +505,40 @@ variable."
          (apply #'append (nreverse instructions))))
       (t
        (error "Don't know how to destructure this: %s" var)))))
+(defun loopy--destructure-generalized-variables (var value-expression)
+  "Destructure `setf'-able places.
+
+Returns a list of variable-value pairs (not dotted), suitable for
+substituting into `cl-symbol-macrolet'."
+  (cl-typecase var
+    ;; Check if `var' is a single symbol.
+    (symbol
+     ;; Return a list of lists, even for only one symbol.
+     `((,(if (eq var '_) (gensym "destructuring-ref-") var)
+        ,value-expression)))
+    (list
+     ;; If `var' is not proper, then the end of `var' can't be `car'-ed
+     ;; safely, as it is just a symbol and not a list.  Therefore, if `var'
+     ;; is still non-nil after the `pop'-ing, we know to set the remaining
+     ;; symbol that is now `var' to some Nth `cdr'.
+     (let ((destructured-values) (index 0))
+       (while (car-safe var)
+         (push (loopy--destructure-generalized-variables
+                (pop var) `(nth ,index ,value-expression))
+               destructured-values)
+         (setq index (1+ index)))
+       (when var
+         (push (loopy--destructure-generalized-variables
+                var `(nthcdr ,index ,value-expression))
+               destructured-values))
+       (apply #'append (nreverse destructured-values))))
+    (array
+     (cl-loop for symbol-or-seq across var
+              for index from 0
+              append (loopy--destructure-generalized-variables
+                      symbol-or-seq `(aref ,value-expression ,index))))
+    (t
+     (error "Don't know how to destructure this: %s" var))))
 
 ;;;; Custom Commands and Parsing
 (defgroup loopy nil
@@ -697,8 +743,8 @@ the loop literally (not even in a `progn')."
 
 VAR is a variable name.  VAL is an array value.  VALUE-HOLDER
 holds the array value.  INDEX-HOLDER holds the index value."
-  `(,@(loopy--create-destructured-assignment
-       var `(aref ,value-holder ,index-holder) 'generalized)
+  `(,@(loopy--destructure-for-generalized-command
+       var `(aref ,value-holder ,index-holder))
     (loopy--implicit-vars  . (,value-holder ,val))
     (loopy--implicit-vars  . (,index-holder 0))
     (loopy--latter-body    . (setq ,index-holder (1+ ,index-holder)))
@@ -745,7 +791,7 @@ VAR is the name of a setf-able place.  VAL is a list value.  FUNC
 is a function used to update VAL (default `cdr').  VAL-HOLDER is
 a variable name that holds the list."
   `((loopy--implicit-vars . (,val-holder ,val))
-    ,@(loopy--create-destructured-assignment var `(car ,val-holder) 'generalized)
+    ,@(loopy--destructure-for-generalized-command var `(car ,val-holder))
     (loopy--latter-body . (setq ,val-holder (,(loopy--get-function-symbol func)
                                              ,val-holder)))
     (loopy--pre-conditions . (consp ,val-holder))))
@@ -800,8 +846,8 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
   `((loopy--implicit-vars . (,value-holder ,val))
     (loopy--implicit-vars . (,length-holder (length ,value-holder)))
     (loopy--implicit-vars . (,index-holder 0))
-    ,@(loopy--create-destructured-assignment
-       var `(elt ,value-holder ,index-holder) 'generalized)
+    ,@(loopy--destructure-for-generalized-command
+       var `(elt ,value-holder ,index-holder))
     (loopy--latter-body   . (setq ,index-holder (1+ ,index-holder)))
     (loopy--pre-conditions . (< ,index-holder ,length-holder))))
 
