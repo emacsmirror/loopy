@@ -81,7 +81,7 @@
   :link '(url-link "https://github.com/okamsn/loopy"))
 
 (defcustom loopy-default-destructuring-function
-  #'loopy--create-destructured-assignment-default
+  #'loopy--destructure-variables-default
   "The default function `loopy' uses for destructured assignment."
   :type 'function)
 
@@ -341,6 +341,121 @@ PLACE should be `loopy--explicit-vars' or `loopy--implicit-vars'."
   (when (symbolp vars) (setq vars (list vars)))
   (mapcar (lambda (var) (cons place `(,var ,value))) vars))
 
+(defun loopy--destructure-for-iteration-command (var value-expression)
+  "Destructure VALUE-EXPRESSION according to VAR for a loop command.
+
+Note that this does not apply to commands which use generalized
+variables (`setf'-able places).  For that, see the function
+`loopy--destructure-for-generalized-command'.
+
+Return a list of instructions for initializing the variables and
+destructuring into them in the loop body."
+  (let ((destructurings
+         (funcall (or loopy--destructuring-function
+                      loopy-default-destructuring-function)
+                  var value-expression))
+        (instructions nil))
+    (dolist (destructuring destructurings)
+      (push `(loopy--loop-vars . (,(cl-first destructuring) nil))
+            instructions))
+    (cons `(loopy--main-body
+            . (setq ,@(apply #'append destructurings)))
+          instructions)))
+
+(defun loopy--destructure-variables-default (var value-expression)
+  "Destructure VALUE-EXPRESSION according to VAR.
+
+Return a list of variable-value pairs (not dotted), suitable for
+substituting into a `let*' form or being combined under a
+`setq' form."
+  (cl-typecase var
+    (symbol
+     `((,(if (eq var '_) (gensym "discarded-value-") var)
+        ,value-expression)))
+    (list
+     ;; NOTE: (A . (B C)) is really just (A B C), so you can't have a
+     ;;       non-proper list with a list as the last element.  However, the
+     ;;       last element can be an array.
+     ;;
+     (let* ((is-proper-list (proper-list-p var))
+            (normalized-reverse-var nil))
+       ;; If `var' is a list, always create a "normalized" variable list,
+       ;; since proper lists are easier to work with, as many looping/mapping
+       ;; functions expect them.
+       (while (car-safe var)
+         (push (pop var) normalized-reverse-var))
+       ;; If the last element in `var' was a dotted pair, then `var' is now a
+       ;; single symbol, which must still be added to the normalized `var'
+       ;; list.
+       (when var (push var normalized-reverse-var))
+
+       ;; The `last' of (A B . C) is (B . C), but we actually want C, so we
+       ;; check the "normalized" var list.
+       (let* ((last-var (cl-first normalized-reverse-var))
+              (last-var-is-symbol (symbolp last-var))
+              ;; To only evaluate `value-expression' once, we bind it's value
+              ;; to last declared element/variable in `var', and set the
+              ;; remaining variables by `pop'-ing that lastly listed, firstly
+              ;; set variable.  However, if that variable is actually a
+              ;; sequence, then we need to use a `value-holder' instead.
+              (value-holder (if last-var-is-symbol
+                                (if (eq '_ last-var)
+                                    (gensym "discarded-value-")
+                                  last-var)
+                              (gensym "destructuring-list-")))
+              (destructurings
+               ;; Will push lists of destructurings, and then append together
+               ;; with `apply'.
+               `(((,value-holder ,value-expression)))))
+
+         (let ((passed-value-expression `(pop ,value-holder)))
+           (dolist (symbol-or-seq (reverse (cl-rest normalized-reverse-var)))
+             (push (loopy--destructure-variables-default
+                    symbol-or-seq passed-value-expression)
+                   destructurings)))
+
+         ;; Now come back to end.  If `var' is not a proper list and
+         ;; `last-var' is a symbol (as with the B in '(A . B)) , then B is now
+         ;; already the correct value (which is the ending `cdr' of the list),
+         ;; and we don't have to do anything else.
+         (if (and last-var-is-symbol is-proper-list)
+             ;; Otherwise, if `var' is a proper list and `last-var' is a
+             ;; symbol, then we need to take the `car' of that `cdr'.
+             (push `((,value-holder (car ,value-holder)))
+                   destructurings)
+           ;; Otherwise, `last-var' is a sequence.
+           (if is-proper-list
+               ;; If `var' is a proper list, then we now have a list like ((C
+               ;; D)) from (A B (C D)).  We only want to pass in the (C D).
+               (push (loopy--destructure-variables-default
+                      last-var `(car ,value-holder))
+                     destructurings)
+             ;; Otherwise, we might have something like [C D] from
+             ;; (A B . [C D]), where we don't need to take the `car'.
+             (push (loopy--destructure-variables-default
+                    last-var value-holder)
+                   destructurings)))
+
+         ;; Return the list of instructions.
+         (apply #'append (nreverse destructurings)))))
+
+    (array
+     ;; For arrays, we always need a value holder so that `value-expression'
+     ;; is evaluated only once.
+     (let* ((value-holder (gensym "destructuring-array-"))
+            (destructurings
+             `(((,value-holder ,value-expression)))))
+       (cl-loop for symbol-or-seq across var
+                for index from 0
+                do (push (loopy--destructure-variables-default
+                          symbol-or-seq `(aref ,value-holder ,index))
+                         destructurings))
+
+       ;; Return the list of instructions.
+       (apply #'append (nreverse destructurings))))
+    (t
+     (error "Don't know how to destructure this: %s" var))))
+
 (defun loopy--destructure-for-generalized-command (var value-expression)
   "Destructure for commands that use generalized (`setf'-able) places.
 
@@ -353,166 +468,7 @@ Return a list of instructions for naming these `setf'-able places."
                    destructuring)
             instructions))
     (nreverse instructions)))
-(defun loopy--create-destructured-assignment
-    (var value-expression &optional generalized)
-  "Create the destructured assignment.
 
-VAR is the variables into which to destructure VALUE-EXPRESSION,
-also known as a lambda list.
-
-If `generalized', always use the default function."
-  ;; TODO: Setf-able places in other destructuring methods?
-  (if generalized
-      (loopy--create-destructured-assignment-default
-       var value-expression generalized)
-    (funcall (or loopy--destructuring-function
-                 loopy-default-destructuring-function)
-             var value-expression)))
-
-(cl-defun loopy--create-destructured-assignment-default
-    (var value-expression &optional generalized)
-  "If needed, use destructuring to initialize and assign to variables.
-
-VAR is a symbol for a variable name, or a list of such
-symbols (as a dotted pair or as a normal list).  VALUE-EXPRESSION
-is the value expression to be assigned and maybe destructured,
-such as an expression meaning the head of a list or an element in
-an array.
-
-Optional GENERALIZED means to create a generalized variable in
-`loopy--explicit-generalized-vars' instead of creating a normal
-variable."
-  (if generalized
-      (cl-typecase var
-        ;; Check if `var' is a single symbol.
-        (symbol
-         (if (eq var '_)
-             `((loopy--explicit-generalized-vars
-                . (,(gensym "destructuring-ref-") ,value-expression)))
-           ;; Most functions expect a list of instructions, not one.
-           `((loopy--explicit-generalized-vars . (,var ,value-expression)))))
-        (list
-         ;; If `var' is not proper, then the end of `var' can't be `car'-ed
-         ;; safely, as it is just a symbol and not a list.  Therefore, if `var'
-         ;; is still non-nil after the `pop'-ing, we know to set the remaining
-         ;; symbol that is now `var' to some Nth `cdr'.
-         (let ((instructions) (index 0))
-           (while (car-safe var)
-             (push (loopy--create-destructured-assignment-default
-                    (pop var) `(nth ,index ,value-expression) 'generalized)
-                   instructions)
-             (setq index (1+ index)))
-           (when var
-             (push (loopy--create-destructured-assignment-default
-                    var `(nthcdr ,index ,value-expression) 'generalized)
-                   instructions))
-           (apply #'append (nreverse instructions))))
-        (array
-         (cl-loop for symbol-or-seq across var
-                  for index from 0
-                  append (loopy--create-destructured-assignment-default
-                          symbol-or-seq `(aref ,value-expression ,index)
-                          'generalized)))
-        (t
-         (error "Don't know how to destructure this: %s" var)))
-
-    ;; Otherwise assigning normal variables:
-    (cl-typecase var
-      (symbol
-       (if (eq var '_)
-           (let ((value-holder (gensym "discarded-value-")))
-             `((loopy--explicit-vars . (,value-holder nil))
-               (loopy--main-body     . (setq ,value-holder ,value-expression))))
-         `((loopy--explicit-vars . (,var nil))
-           (loopy--main-body     . (setq ,var ,value-expression)))))
-      (list
-       ;; NOTE: (A . (B C)) is really just (A B C), so you can't have a
-       ;;       non-proper list with a list as the last element.  However, the
-       ;;       last element can be an array.
-       ;;
-       (let* ((is-proper-list (proper-list-p var))
-              (normalized-reverse-var nil))
-         ;; If `var' is a list, always create a "normalized" variable list,
-         ;; since proper lists are easier to work with, as many looping/mapping
-         ;; functions expect them.
-         (while (car-safe var)
-           (push (pop var) normalized-reverse-var))
-         ;; If the last element in `var' was a dotted pair, then `var' is now a
-         ;; single symbol, which must still be added to the normalized `var'
-         ;; list.
-         (when var (push var normalized-reverse-var))
-
-         ;; The `last' of (A B . C) is (B . C), but we actually want C, so we
-         ;; check the "normalized" var list.
-         (let* ((last-var (cl-first normalized-reverse-var))
-                (last-var-is-symbol (symbolp last-var))
-                ;; To only evaluate `value-expression' once, we bind it's value
-                ;; to last declared element/variable in `var', and set the
-                ;; remaining variables by `pop'-ing that lastly listed, firstly
-                ;; set variable.  However, if that variable is actually a
-                ;; sequence, then we need to use a `value-holder' instead.
-                (value-holder (if last-var-is-symbol
-                                  (if (eq '_ last-var)
-                                      (gensym "discarded-value-")
-                                    last-var)
-                                (gensym "destructuring-list-")))
-                (instructions
-                 `(((,(if last-var-is-symbol    ; We're going to append lists
-                          'loopy--explicit-vars ; of instructions, so we make
-                        'loopy--implicit-vars)  ; a list of 1 element, and
-                     . (,value-holder nil))     ; in that element place two
-                    (loopy--main-body           ; instructions.
-                     . (setq ,value-holder ,value-expression))))))
-
-           (let ((passed-value-expression `(pop ,value-holder)))
-             (dolist (symbol-or-seq (reverse (cl-rest normalized-reverse-var)))
-               (push (loopy--create-destructured-assignment-default
-                      symbol-or-seq passed-value-expression)
-                     instructions)))
-
-           ;; Now come back to end.  If `var' is not a proper list and
-           ;; `last-var' is a symbol (as with the B in '(A . B)) , then B is now
-           ;; already the correct value (which is the ending `cdr' of the list),
-           ;; and we don't have to do anything else.
-           (if (and last-var-is-symbol is-proper-list)
-               ;; Otherwise, if `var' is a proper list and `last-var' is a
-               ;; symbol, then we need to take the `car' of that `cdr'.
-               (push `((loopy--main-body
-                        . (setq ,value-holder (car ,value-holder))))
-                     instructions)
-             ;; Otherwise, `last-var' is a sequence.
-             (if is-proper-list
-                 ;; If `var' is a proper list, then we now have a list like ((C
-                 ;; D)) from (A B (C D)).  We only want to pass in the (C D).
-                 (push (loopy--create-destructured-assignment-default
-                        last-var `(car ,value-holder))
-                       instructions)
-               ;; Otherwise, we might have something like [C D] from
-               ;; (A B . [C D]), where we don't need to take the `car'.
-               (push (loopy--create-destructured-assignment-default
-                      last-var value-holder)
-                     instructions)))
-
-           ;; Return the list of instructions.
-           (apply #'append (nreverse instructions)))))
-
-      (array
-       ;; For arrays, we always need a value holder so that `value-expression'
-       ;; is evaluated only once.
-       (let* ((value-holder (gensym "destructuring-array-"))
-              (instructions
-               `(((loopy--implicit-vars . (,value-holder nil))
-                  (loopy--main-body . (setq ,value-holder ,value-expression))))))
-         (cl-loop for symbol-or-seq across var
-                  for index from 0
-                  do (push (loopy--create-destructured-assignment-default
-                            symbol-or-seq `(aref ,value-holder ,index))
-                           instructions))
-
-         ;; Return the list of instructions.
-         (apply #'append (nreverse instructions))))
-      (t
-       (error "Don't know how to destructure this: %s" var)))))
 (defun loopy--destructure-generalized-variables (var value-expression)
   "Destructure `setf'-able places.
 
@@ -691,17 +647,17 @@ the loop literally (not even in a `progn')."
         (value-selector (gensym "expr-value-selector-")))
     (cl-case arg-length
       ;; If no values, repeatedly set to `nil'.
-      (0 (loopy--create-destructured-assignment
+      (0 (loopy--destructure-for-iteration-command
           var nil))
       ;; If one value, repeatedly set to that value.
-      (1 (loopy--create-destructured-assignment
+      (1 (loopy--destructure-for-iteration-command
           var (car vals)))
       ;; If two values, repeatedly check against `value-selector' to
       ;; determine if we should assign the first or second value.  This is
       ;; how `cl-loop' does it.
       (2
        `((loopy--implicit-vars . (,value-selector t))
-         ,@(loopy--create-destructured-assignment
+         ,@(loopy--destructure-for-iteration-command
             var `(if ,value-selector ,(cl-first vals) ,(cl-second vals)))
          (loopy--latter-body . (setq ,value-selector nil))))
       (t
@@ -717,7 +673,7 @@ the loop literally (not even in a `progn')."
          ;;
          ;; E.g., for '(a b c),
          ;; use '(cond ((> cnt 1) c) ((> cnt 0) b) ((> cnt -1) a))
-         ,@(loopy--create-destructured-assignment
+         ,@(loopy--destructure-for-iteration-command
             var (let ((body-code nil) (index 0))
                   (dolist (value vals)
                     (push `((> ,value-selector ,(1- index))
@@ -738,7 +694,7 @@ the loop literally (not even in a `progn')."
 - Optional INDEX-HOLDER holds the index value."
   `((loopy--implicit-vars  . (,value-holder ,val))
     (loopy--implicit-vars  . (,index-holder 0))
-    ,@(loopy--create-destructured-assignment var
+    ,@(loopy--destructure-for-iteration-command var
                                              `(aref ,value-holder ,index-holder))
     (loopy--latter-body    . (setq ,index-holder (1+ ,index-holder)))
     (loopy--pre-conditions . (< ,index-holder (length ,value-holder)))))
@@ -771,7 +727,7 @@ is a function by which to update VAR (default `cdr')."
     ;; TODO: For destructuring, do we actually need the extra variable?
     (let ((value-holder (gensym "cons-")))
       `((loopy--implicit-vars . (,value-holder ,val))
-        ,@(loopy--create-destructured-assignment var value-holder)
+        ,@(loopy--destructure-for-iteration-command var value-holder)
         (loopy--latter-body
          . (setq ,value-holder (,(loopy--get-function-symbol func)
                                 ,value-holder)))
@@ -789,7 +745,7 @@ the list."
     (loopy--latter-body
      . (setq ,val-holder (,(loopy--get-function-symbol func) ,val-holder)))
     (loopy--pre-conditions . (consp ,val-holder))
-    ,@(loopy--create-destructured-assignment var `(car ,val-holder))))
+    ,@(loopy--destructure-for-iteration-command var `(car ,val-holder))))
 
 (cl-defun loopy--parse-list-ref-command
     ((_ var val &optional (func #'cdr)) &optional (val-holder (gensym "list-ref-")))
@@ -831,7 +787,7 @@ holds VAL.  INDEX-HOLDER holds an index that point into VALUE-HOLDER."
   ;;       just checks the type for each iteration, so we do that too.
   `((loopy--implicit-vars . (,value-holder ,val))
     (loopy--implicit-vars . (,index-holder 0))
-    ,@(loopy--create-destructured-assignment
+    ,@(loopy--destructure-for-iteration-command
        var `(if (consp ,value-holder)
                 (pop ,value-holder)
               (aref ,value-holder ,index-holder)))
