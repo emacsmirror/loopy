@@ -186,6 +186,13 @@ To create `setf'-able variables, the symbol needs to be expanded
 to a form that can be treated as such.  In this case, with
 `cl-symbol-macrolet'.")
 
+(defvar loopy--loop-vars nil
+  "A list of symbols and values to initialize variables for loop commands.
+
+This list includes variables explicitly named in a command (such
+as the `i' in `(list i my-list)'), variables required for
+destructuring, and variables required for looping.")
+
 (defvar loopy--before-do nil
   "A list of expressions to evaluate before the loop starts.
 This is done using a `progn'.")
@@ -302,6 +309,7 @@ The variable can exist in `loopy--with-vars', `loopy--explicit-vars',
 or `loopy--explicit-generalized-vars'."
   (or (memq var-name (mapcar #'car loopy--with-vars))
       (memq var-name (mapcar #'car loopy--explicit-vars))
+      (memq var-name (mapcar #'car loopy--loop-vars))
       (memq var-name (mapcar #'car loopy--explicit-generalized-vars))
       (memq var-name loopy--without-vars)))
 
@@ -1240,6 +1248,7 @@ see the Info node `(loopy)' distributed with this package."
         ;; -- Vars for processing loop commands --
         (loopy--implicit-vars)
         (loopy--explicit-vars)
+        (loopy--loop-vars)
         (loopy--explicit-generalized-vars)
         (loopy--pre-conditions)
         (loopy--main-body)
@@ -1287,6 +1296,10 @@ see the Info node `(loopy)' distributed with this package."
           (cl-case (car instruction)
             (loopy--explicit-generalized-vars
              (push (cdr instruction) loopy--explicit-generalized-vars))
+            (loopy--loop-vars
+             ;; Don't wont to accidentally rebind variables to `nil'.
+             (unless (loopy--bound-p (cadr instruction))
+               (push (cdr instruction) loopy--loop-vars)))
             (loopy--implicit-vars
              ;; Don't wont to accidentally rebind variables to `nil'.
              (unless (loopy--bound-p (cadr instruction))
@@ -1519,6 +1532,11 @@ see the Info node `(loopy)' distributed with this package."
         (when loopy--explicit-vars
           (setq result `(let ,loopy--explicit-vars
                           ,@(get-result))
+                result-is-one-expression t))
+
+        ;; Declare the Loop Variables.
+        (when loopy--loop-vars
+          (setq result `(let* ,loopy--loop-vars ,@(get-result))
                 result-is-one-expression t))
 
         ;; Declare the With variables.
