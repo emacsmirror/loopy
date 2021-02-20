@@ -86,7 +86,7 @@
   :type 'function)
 
 (defcustom loopy-default-accumulation-parsing-function
-  #'loopy--parse-accumulation-commands-default
+  #'loopy--destructure-for-accumulation-command-instructions
   "The default function `loopy' uses for parsing accumulation commands.
 
 This is like `loopy-default-destructuring-function', but
@@ -844,11 +844,12 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
                  loopy-default-accumulation-parsing-function)
              accumulation-command))))
 
-;; TODO: Some of the accumulations commands can be made more
-;;       efficient/complicated depending on how the variables are being used.
-;;       See `cl--parse-loop-clause' for examples.
-(cl-defun loopy--parse-accumulation-commands-default ((name var val))
-  "Parse the accumulation loop commands, like `collect', `append', etc.
+(cl-defun loopy--destructure-for-accumulation-command-instructions
+    ((name var val))
+  "Return instructions for destructuring accumulation commands.
+
+Unlike `loopy--destructure-for-iteration-command', this function
+does destructuring and returns instructions.
 
 NAME is the name of the command.  VAR is a variable name.  VAL is a value."
   (cl-etypecase var
