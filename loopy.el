@@ -160,27 +160,7 @@ They are created by passing (with (VAR1 VAL1) (VAR2 VAL2) ...) to `loopy'.")
 This is used in `loopy--bound-p', and is of the form (VAR1 VAR2 ...).
 There are no values in this list, only variable names.")
 
-(defvar loopy--implicit-vars nil
-  "A list of variables and their values implicitly created by loop commands.
-
-This is a list of ((VAR1 VAL1) (VAR2 VAL2) ...).
-They are inserted into the variable declarations of a `let' binding.
-
-For example, using (list i '(1 2 3)) will create an implicit variable
-containing '(1 2 3).  This makes iteration easier.")
-
-(defvar loopy--explicit-vars nil
-  "A list of variables and values explicitly named in loop commands.
-
-This is a list of ((VAR1 VAL1) (VAR2 VAL2) ...).
-They are inserted into the variable declarations of a `let' binding.
-
-This is useful for lexically scoping variables, and for declaring
-an initial value before a different value assigned in the loop.
-
-For example, using (list i '(1 2 3)) will create an explicit variable `i'.")
-
-(defvar loopy--explicit-generalized-vars nil
+(defvar loopy--generalized-vars nil
   "A list of symbols and macro expansions explicitly named in loop commands.
 
 To create `setf'-able variables, the symbol needs to be expanded
@@ -290,12 +270,11 @@ t.")
 This can happen when multiple loop commands refer to the same
 variable, or when a variable is introduced via `with'.
 
-The variable can exist in `loopy--with-vars', `loopy--explicit-vars',
-or `loopy--explicit-generalized-vars'."
+The variable can exist in `loopy--with-vars', `loopy--loop-vars',
+or `loopy--generalized-vars'."
   (or (memq var-name (mapcar #'car loopy--with-vars))
-      (memq var-name (mapcar #'car loopy--explicit-vars))
       (memq var-name (mapcar #'car loopy--loop-vars))
-      (memq var-name (mapcar #'car loopy--explicit-generalized-vars))
+      (memq var-name (mapcar #'car loopy--generalized-vars))
       (memq var-name loopy--without-vars)))
 
 (defun loopy--already-implicit-return (var-name)
@@ -441,7 +420,7 @@ Return a list of instructions for naming these `setf'-able places."
          (loopy--destructure-generalized-variables var value-expression))
         (instructions nil))
     (dolist (destructuring destructurings)
-      (push (cons 'loopy--explicit-generalized-vars
+      (push (cons 'loopy--generalized-vars
                    destructuring)
             instructions))
     (nreverse instructions)))
@@ -568,10 +547,8 @@ see the Info node `(loopy)' distributed with this package."
                                  (cons 'list return-val))))
 
         ;; -- Vars for processing loop commands --
-        (loopy--implicit-vars)
-        (loopy--explicit-vars)
         (loopy--loop-vars)
-        (loopy--explicit-generalized-vars)
+        (loopy--generalized-vars)
         (loopy--pre-conditions)
         (loopy--main-body)
         (loopy--latter-body)
@@ -616,19 +593,12 @@ see the Info node `(loopy)' distributed with this package."
           ;; Do it this way instead of with `set', cause was getting errors
           ;; about void variables.
           (cl-case (car instruction)
-            (loopy--explicit-generalized-vars
-             (push (cdr instruction) loopy--explicit-generalized-vars))
+            (loopy--generalized-vars
+             (push (cdr instruction) loopy--generalized-vars))
             (loopy--loop-vars
-             ;; Don't wont to accidentally rebind variables to `nil'.
+             ;; Don't want to accidentally rebind variables to `nil'.
              (unless (loopy--bound-p (cadr instruction))
                (push (cdr instruction) loopy--loop-vars)))
-            (loopy--implicit-vars
-             ;; Don't wont to accidentally rebind variables to `nil'.
-             (unless (loopy--bound-p (cadr instruction))
-               (push (cdr instruction) loopy--implicit-vars)))
-            (loopy--explicit-vars
-             (unless (loopy--bound-p (cadr instruction))
-               (push (cdr instruction) loopy--explicit-vars)))
             (loopy--pre-conditions
              (push (cdr instruction) loopy--pre-conditions))
             (loopy--main-body
@@ -668,7 +638,7 @@ see the Info node `(loopy)' distributed with this package."
     ;; Make sure the order-dependent lists are in the correct order.
     (setq loopy--main-body (nreverse loopy--main-body)
           loopy--with-vars (nreverse loopy--with-vars)
-          loopy--implicit-vars (nreverse loopy--implicit-vars)
+          loopy--loop-vars (nreverse loopy--loop-vars)
           loopy--implicit-return (when (consp loopy--implicit-return)
                                    (if (= 1 (length loopy--implicit-return))
                                        ;; If implicit return is just a single thing,
@@ -684,9 +654,9 @@ see the Info node `(loopy)' distributed with this package."
     ;; something like the below code.  Unlike below, constructs are only used
     ;; when needed.
     ;;
-    ;; `(cl-symbol-macrolet ,loopy--explicit-generalized-vars
+    ;; `(cl-symbol-macrolet ,loopy--generalized-vars
     ;;    (let* ,loopy--with-vars
-    ;;      (let ,(append loopy--implicit-vars loopy--explicit-vars)
+    ;;      (let* ,loopy--loop-vars
     ;;        ;; If we need to, capture early return, those that has less
     ;;        ;; priority than a final return.
     ;;        (let ((loopy--early-return-capture
@@ -827,38 +797,17 @@ see the Info node `(loopy)' distributed with this package."
             (setq result `(prog1 ,result ,@loopy--final-do)
                   result-is-one-expression t)))
 
-        ;; Declare the implicit and explicit variables.
-
-        ;; Implicit variables must be in a `let*' in case one refers to another,
-        ;; like in `seq-ref'.
-        ;;
-        ;; If there are final updates to made and a tag-body exit that can skip
-        ;; them, then we must include `loopy--implicit-accumulation-updated' in
-        ;; the list of implicit variables.
-        (if (and loopy--implicit-accumulation-final-update
-                 loopy--tagbody-exit-used)
-            (if loopy--implicit-vars
-                (setq result
-                      `(let* ,(cons '(loopy--implicit-accumulation-updated nil)
-                                    loopy--implicit-vars)
-                         ,@(get-result))
-                      result-is-one-expression t)
-              (setq result `(let ((loopy--implicit-accumulation-updated nil))
-                              ,@(get-result))
-                    result-is-one-expression t))
-          (when loopy--implicit-vars
-            (setq result `(let* ,loopy--implicit-vars
-                            ,@(get-result))
-                  result-is-one-expression t)))
-
-        (when loopy--explicit-vars
-          (setq result `(let ,loopy--explicit-vars
-                          ,@(get-result))
-                result-is-one-expression t))
-
-        ;; Declare the Loop Variables.
+        ;; Declare the loop variables.
         (when loopy--loop-vars
           (setq result `(let* ,loopy--loop-vars ,@(get-result))
+                result-is-one-expression t))
+
+        ;; If there are final updates to made and a tag-body exit that can skip
+        ;; them, then we must initialize `loopy--implicit-accumulation-updated'.
+        (when (and loopy--implicit-accumulation-final-update
+                   loopy--tagbody-exit-used)
+          (setq result `(let ((loopy--implicit-accumulation-updated nil))
+                          ,@(get-result))
                 result-is-one-expression t))
 
         ;; Declare the With variables.
@@ -867,8 +816,8 @@ see the Info node `(loopy)' distributed with this package."
                 result-is-one-expression t))
 
         ;; Declare the symbol macros.
-        (when loopy--explicit-generalized-vars
-          (setq result `(cl-symbol-macrolet ,loopy--explicit-generalized-vars
+        (when loopy--generalized-vars
+          (setq result `(cl-symbol-macrolet ,loopy--generalized-vars
                           ,@(get-result))
                 result-is-one-expression t))
 
