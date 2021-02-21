@@ -81,44 +81,65 @@
   :prefix "loopy-"
   :link '(url-link "https://github.com/okamsn/loopy"))
 
-(defcustom loopy-default-destructuring-function
-  #'loopy--destructure-variables-default
-  "The default function `loopy' uses for destructured assignment."
-  :type 'function)
+(defcustom loopy-default-flags nil
+  "Which flags should alter the behavior of `loopy' by default.
 
-(defcustom loopy-default-accumulation-parsing-function
-  #'loopy--parse-destructuring-accumulation-command
-  "The default function `loopy' uses for parsing accumulation commands.
-
-This is like `loopy-default-destructuring-function', but
-accumulation commands use their own kind of destructuring."
-  :type 'function)
-
-(defcustom loopy-split-implied-accumulation-results nil
-  "Whether `loopy' should split implied accumulations into seprate variables.
-
-The default behavior is that accumulation command with implied
-variables (such as `(collect my-value)') as accumulate into the
-same value, by default named `loopy-result'.
-
-If you want to use destructuring with accumulation commands like
-`collect', `append', or `nconc', it might be faster to enable
-this, either by customizing this variable or using the flag `split'."
-  :type 'boolean)
+This is a list of symbols, each symbol corresponding to a
+function in the variable `loopy--flags-setup'."
+  :type '(repeat symbol))
 
 ;;;; Flags
+;;;;; Variables that can be set by flags
+(defvar loopy--split-implied-accumulation-results nil
+  "Whether implicit accumulation commands should use separate variables.
 
+Nil means that each accumulation command without a named
+accumulation variable should accumulate into the same variable,
+by default named `loopy-result'.")
+
+(defvar loopy--basic-destructuring-function nil
+  "The basic destructuring function to use.
+
+The function named by this variable is used to produce lists of
+undotted variable-value pairs, suitable for substituting into a
+`let*' form or being combined under a `setq' form.
+
+The function is used for destructuring in iteration loop
+commands (like `list' or `array') and for destructuring the
+variables given in the `with' macro argument.
+
+Th function is not used for accumulation commands, since those
+commands have their own kind of destructuring.  For that, see the
+variable `loopy--destructuring-accumulation-parser'.
+
+If nil, use `loopy--destructure-variables-default'.")
+
+(defvar loopy--destructuring-accumulation-parser nil
+  "The function used to parse destructuring accumulation commands.
+
+Accumulation commands are generally incompatible with the
+destructuring produced by the function named by the variable
+`loopy--basic-destructuring-function'.  Instead, parsers for
+destructuring accumulation commands are able to produce
+instructions however they see fit.
+
+Unlike `loopy--basic-destructuring-function', the function named
+by this variable returns instructions, not a list of
+variable-value pairs.
+
+If nil, use `loopy--parse-destructuring-accumulation-command'.")
+
+;;;;; For setting up flags
 (defvar loopy--flags-setup nil
   "Alist of functions to run on presence of their respective flag.
 
 Each item is of the form (FLAG . FLAG-FUNCTION).")
 
-(defvar loopy--split-implied-accumulation-results-internal nil
-  "Internal variable, see `loopy-split-implied-accumulation-results'.")
-
+;;;;; Built-in flags
+;;;;;; Split
 (defun loopy--split-flag-setup ()
   "Set `loopy-split-implied-accumulation-results' to t inside the loop."
-  (setq loopy--split-implied-accumulation-results-internal t))
+  (setq loopy--split-implied-accumulation-results t))
 
 (add-to-list 'loopy--flags-setup
              (cons 'split #'loopy--split-flag-setup))
@@ -127,12 +148,10 @@ Each item is of the form (FLAG . FLAG-FUNCTION).")
 ;; These only set in the `loopy' macro, but that might change in the future.  It
 ;; might be cleaner code to modify from the parsing function, after the macro
 ;; has already set them to nil.
-
 (defvar loopy--flags nil
   "Symbols/flags whose presence changes the behavior of `loopy'.
 
 NOTE: This functionality might change in the future.")
-
 
 (defvar loopy--valid-macro-arguments
   '( flag flags with let* without no-init loop before-do before
@@ -229,38 +248,6 @@ These run in a `progn'.")
 This has the effect of leaving the loop without immediately
 returning a value.")
 
-(defvar loopy--basic-destructuring-function nil
-  "The basic destructuring function to use.
-
-The function named by this variable is used to produce lists of
-undotted variable-value pairs, suitable for substituting into a
-`let*' form or being combined under a `setq' form.
-
-The function is used for destructuring in iteration loop
-commands (like `list' or `array') and for destructuring the
-variables given in the `with' macro argument.
-
-Th function is not used for accumulation commands, since those
-commands have their own kind of destructuring.  For that, see the
-variable `loopy--destructuring-accumulation-parser'.
-
-If nil, `loopy-default-destructuring-function'.")
-
-(defvar loopy--destructuring-accumulation-parser nil
-  "The function used to parse destructuring accumulation commands.
-
-Accumulation commands are generally incompatible with the
-destructuring produced by the function named by the variable
-`loopy--basic-destructuring-function'.  Instead, parsers for
-destructuring accumulation commands are able to produce
-instructions however they see fit.
-
-Unlike `loopy--basic-destructuring-function', the function named
-by this variable returns instructions, not a list of
-variable-value pairs.
-
-If nil, `loopy-default-accumulation-parsing-function'.")
-
 (defvar loopy--implicit-accumulation-final-update nil
   "Actions to perform on the implicit accumulation variable.
 
@@ -319,7 +306,7 @@ Return a list of variable-value pairs (not dotted), suitable for
 substituting into a `let*' form or being combined under a
 `setq' form."
   (funcall (or loopy--basic-destructuring-function
-               loopy-default-destructuring-function)
+               #'loopy--destructure-variables-default)
            var value-expression))
 
 (defun loopy--destructure-variables-default (var value-expression)
@@ -512,13 +499,14 @@ see the Info node `(loopy)' distributed with this package."
         (loopy--implicit-return)
 
         ;; -- Variables for constructing code --
-        (loopy--basic-destructuring-function)
         (loopy--skip-used)
         (loopy--tagbody-exit-used)
         (loopy--implicit-accumulation-final-update)
 
-        ;; -- Built-in Flags --
-        (loopy--split-implied-accumulation-results-internal))
+        ;; -- Flag Variables --
+        (loopy--basic-destructuring-function)
+        (loopy--destructuring-accumulation-parser)
+        (loopy--split-implied-accumulation-results))
 
 ;;;;; Interpreting the macro arguments.
 
