@@ -648,9 +648,7 @@ variables (`setf'-able places).  For that, see the function
 Return a list of instructions for initializing the variables and
 destructuring into them in the loop body."
   (let ((destructurings
-         (funcall (or loopy--basic-destructuring-function
-                      loopy-default-destructuring-function)
-                  var value-expression))
+         (loopy--destructure-variables var value-expression))
         (instructions nil))
     (dolist (destructuring destructurings)
       (push `(loopy--loop-vars . (,(cl-first destructuring) nil))

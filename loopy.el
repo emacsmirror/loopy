@@ -312,6 +312,16 @@ Accumulation commands can operate on the same variable, and we
 ;; Note that functions which are only used for commands are found in
 ;; `loopy-commands.el'.  The functions found here are used generally.
 
+(defun loopy--destructure-variables (var value-expression)
+  "Destructure VALUE-EXPRESSION into VAR via `loopy--basic-destructuring-function'.
+
+Return a list of variable-value pairs (not dotted), suitable for
+substituting into a `let*' form or being combined under a
+`setq' form."
+  (funcall (or loopy--basic-destructuring-function
+               loopy-default-destructuring-function)
+           var value-expression))
+
 (defun loopy--destructure-variables-default (var value-expression)
   "Destructure VALUE-EXPRESSION according to VAR.
 
