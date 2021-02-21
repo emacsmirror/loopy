@@ -87,7 +87,7 @@
   :type 'function)
 
 (defcustom loopy-default-accumulation-parsing-function
-  #'loopy--destructure-for-accumulation-command-instructions
+  #'loopy--parse-destructuring-accumulation-command
   "The default function `loopy' uses for parsing accumulation commands.
 
 This is like `loopy-default-destructuring-function', but

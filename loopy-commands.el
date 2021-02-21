@@ -404,14 +404,14 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
 (defun loopy--parse-accumulation-commands (accumulation-command)
   "Pass ACCUMULATION-COMMAND to the appropriate parser, returning instructions.
 
-- If no variable named, use `loopy--parse-accumulation-commands-implicit'.
+- If no variable named, use `loopy--parse-implicit-accumulation-commands'.
 - If only one variable name given, create a list of instructions here.
 - Otherwise, use the value of `loopy--accumulation-parser'
   or the value of `loopy-default-accumulation-parsing-function'."
   (cond
    ((= 2 (length accumulation-command))
     ;; If only two arguments, use an implicit accumulating variable.
-    (loopy--parse-accumulation-commands-implicit accumulation-command))
+    (loopy--parse-implicit-accumulation-commands accumulation-command))
    ;; If there is only one symbol (i.e., no destructuring), just do what's
    ;; normal.
    ((symbolp (cl-second accumulation-command))
@@ -439,7 +439,7 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
              accumulation-command))))
 
 
-(cl-defun loopy--parse-accumulation-commands-implicit ((name value-expression))
+(cl-defun loopy--parse-implicit-accumulation-commands ((name value-expression))
   "Parse the accumulation command with implicit variable.
 
 For better efficiency, accumulation commands with implicit variables can
@@ -659,7 +659,7 @@ destructuring into them in the loop body."
             . (setq ,@(apply #'append destructurings)))
           instructions)))
 
-(cl-defun loopy--destructure-for-accumulation-command-instructions
+(cl-defun loopy--parse-destructuring-accumulation-command
     ((name var val))
   "Return instructions for destructuring accumulation commands.
 
