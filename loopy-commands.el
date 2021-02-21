@@ -43,7 +43,18 @@
 ;; `(loopy)'.
 
 ;;; Code:
-(require 'loopy)
+;; Cant require `loopy', as that would be recursive.
+(require 'cl-lib)
+(require 'seq)
+(require 'subr-x)
+
+(defvar loopy--accumulation-parser)
+(defvar loopy-default-accumulation-parsing-function)
+(defvar loopy-split-implied-accumulation-results)
+(defvar loopy--split-implied-accumulation-results-internal)
+(defvar loopy--loop-name)
+(defvar loopy-default-destructuring-function)
+(defvar loopy--destructuring-function)
 
 
 ;;;; Custom Commands and Parsing
@@ -101,6 +112,19 @@ This uses the command name (such as `list' in `(list i my-list)')."
   "Loopy: Bad command arguments"
   'loopy-error)
 
+;;;; Helpful Functions
+(defun loopy--get-function-symbol (function-form)
+  "Return the actual symbol described by FUNCTION-FORM.
+
+When a quoted argument is passed to a macro, it can appear
+as `(quote my-var)' or `(function my-func)' inside the body.  For
+expansion, we generally only want the actual symbol."
+  (if (nlistp function-form)
+      function-form
+    (cl-case (car function-form)
+      ((function quote) (cadr function-form))
+      (lambda function-form)
+      (t (error "This function form is unrecognized: %s" function-form)))))
 
 ;;;; Included parsing functions.
 ;;;;; Genereric Evaluation
@@ -378,7 +402,7 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
 
 ;;;;; Accumulation
 (defun loopy--parse-accumulation-commands (accumulation-command)
-  "Pass the accumulation command to the appropriate parser.
+  "Pass ACCUMULATION-COMMAND to the appropriate parser, returning instructions.
 
 - If no variable named, use `loopy--parse-accumulation-commands-implicit'.
 - If only one variable name given, create a list of instructions here.
@@ -393,10 +417,10 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
    ((symbolp (cl-second accumulation-command))
     (cl-destructuring-bind (name var val) accumulation-command
       `((loopy--loop-vars . (,var ,(cl-case name
-                                         ((sum count)    0)
-                                         ((max maximize) -1.0e+INF)
-                                         ((min minimize) +1.0e+INF)
-                                         (t nil))))
+                                     ((sum count)    0)
+                                     ((max maximize) -1.0e+INF)
+                                     ((min minimize) +1.0e+INF)
+                                     (t nil))))
         (loopy--implicit-return . ,var)
         (loopy--main-body . ,(cl-ecase name
                                (append `(setq ,var (append ,var ,val)))
@@ -414,64 +438,15 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
                  loopy-default-accumulation-parsing-function)
              accumulation-command))))
 
-(cl-defun loopy--destructure-for-accumulation-command-instructions
-    ((name var val))
-  "Return instructions for destructuring accumulation commands.
-
-Unlike `loopy--destructure-for-iteration-command', this function
-does destructuring and returns instructions.
-
-NAME is the name of the command.  VAR is a variable name.  VAL is a value."
-  (cl-etypecase var
-    (list
-     (let ((value-holder (gensym (concat (symbol-name name) "-destructuring-list-")))
-           (is-proper-list (proper-list-p var))
-           (normalized-reverse-var))
-       (let ((instructions `(((loopy--loop-vars . (,value-holder nil))
-                              (loopy--main-body . (setq ,value-holder ,val))))))
-         ;; If `var' is a list, always create a "normalized" variable
-         ;; list, since proper lists are easier to work with, as many
-         ;; looping/mapping functions expect them.
-         (while (car-safe var)
-           (push (pop var) normalized-reverse-var))
-         ;; If the last element in `var' was a dotted pair, then
-         ;; `var' is now a single symbol, which must still be added
-         ;; to the normalized `var' list.
-         (when var (push var normalized-reverse-var))
-
-         (dolist (symbol-or-seq (reverse (cl-rest normalized-reverse-var)))
-           (push (loopy--parse-accumulation-commands
-                  (list name symbol-or-seq `(pop ,value-holder)))
-                 instructions))
-
-         ;; Decide what to do for final assignment.
-         (push (loopy--parse-accumulation-commands
-                (list name (cl-first normalized-reverse-var)
-                      (if is-proper-list
-                          `(pop ,value-holder)
-                        value-holder)))
-               instructions)
-
-         (apply #'append (nreverse instructions)))))
-
-    (array
-     (let* ((value-holder (gensym (concat (symbol-name name) "-destructuring-array-")))
-            (instructions
-             `(((loopy--loop-vars . (,value-holder nil))
-                (loopy--main-body . (setq ,value-holder ,val))))))
-       (cl-loop for symbol-or-seq across var
-                for index from 0
-                do (push (loopy--parse-accumulation-commands
-                          (list
-                           name symbol-or-seq `(aref ,value-holder ,index)))
-                         instructions))
-       (apply #'append (nreverse instructions))))))
 
 (cl-defun loopy--parse-accumulation-commands-implicit ((name value-expression))
-  "Parse the accumulation command that uses an implicit variable.
+  "Parse the accumulation command with implicit variable.
 
 For better efficiency, accumulation commands with implicit variables can
-have different behavior than their explicit counterparts."
+have different behavior than their explicit counterparts.
+
+NAME is the command name.  VALUE-EXPRESSION is an expression
+whose value is to be accumulated."
 
   (let* ((splitting-implicit-vars
           (or loopy-split-implied-accumulation-results
@@ -485,9 +460,9 @@ have different behavior than their explicit counterparts."
                                              "-result")
                                    "loopy-result")))))
     `((loopy--loop-vars . (,value-holder ,(cl-case name
-                                                ((sum count)    0)
-                                                ((max maximize) -1.0e+INF)
-                                                ((min minimize) +1.0e+INF))))
+                                            ((sum count)    0)
+                                            ((max maximize) -1.0e+INF)
+                                            ((min minimize) +1.0e+INF))))
       ,@(cl-ecase name
           ;; NOTE: Some commands have different behavior when a
           ;;       variable is not specified.
@@ -604,6 +579,138 @@ CONDITIONS is the remaining optional conditions."
                            condition
                          `(or ,condition ,@conditions))
                       nil (go loopy--non-returning-exit-tag)))))))
+
+;;;; Destructuring
+
+(defun loopy--destructure-for-generalized-command (var value-expression)
+  "Destructure for commands that use generalized (`setf'-able) places.
+
+Return a list of instructions for naming these `setf'-able places.
+
+VAR are the variables into to which to destructure the value of
+VALUE-EXPRESSION."
+  (let ((destructurings
+         (loopy--destructure-generalized-variables var value-expression))
+        (instructions nil))
+    (dolist (destructuring destructurings)
+      (push (cons 'loopy--generalized-vars
+                  destructuring)
+            instructions))
+    (nreverse instructions)))
+
+(defun loopy--destructure-generalized-variables (var value-expression)
+  "Destructure `setf'-able places.
+
+Returns a list of variable-value pairs (not dotted), suitable for
+substituting into `cl-symbol-macrolet'.
+
+VAR are the variables into to which to destructure the value of
+VALUE-EXPRESSION."
+  (cl-typecase var
+    ;; Check if `var' is a single symbol.
+    (symbol
+     ;; Return a list of lists, even for only one symbol.
+     `((,(if (eq var '_) (gensym "destructuring-ref-") var)
+        ,value-expression)))
+    (list
+     ;; If `var' is not proper, then the end of `var' can't be `car'-ed
+     ;; safely, as it is just a symbol and not a list.  Therefore, if `var'
+     ;; is still non-nil after the `pop'-ing, we know to set the remaining
+     ;; symbol that is now `var' to some Nth `cdr'.
+     (let ((destructured-values) (index 0))
+       (while (car-safe var)
+         (push (loopy--destructure-generalized-variables
+                (pop var) `(nth ,index ,value-expression))
+               destructured-values)
+         (setq index (1+ index)))
+       (when var
+         (push (loopy--destructure-generalized-variables
+                var `(nthcdr ,index ,value-expression))
+               destructured-values))
+       (apply #'append (nreverse destructured-values))))
+    (array
+     (cl-loop for symbol-or-seq across var
+              for index from 0
+              append (loopy--destructure-generalized-variables
+                      symbol-or-seq `(aref ,value-expression ,index))))
+    (t
+     (error "Don't know how to destructure this: %s" var))))
+
+;; Note that function `loopy--destructure-variables-default' is defined in
+;; 'loop.el', as it is also used for `with' variables.
+(defun loopy--destructure-for-iteration-command (var value-expression)
+  "Destructure VALUE-EXPRESSION according to VAR for a loop command.
+
+Note that this does not apply to commands which use generalized
+variables (`setf'-able places).  For that, see the function
+`loopy--destructure-for-generalized-command'.
+
+Return a list of instructions for initializing the variables and
+destructuring into them in the loop body."
+  (let ((destructurings
+         (funcall (or loopy--destructuring-function
+                      loopy-default-destructuring-function)
+                  var value-expression))
+        (instructions nil))
+    (dolist (destructuring destructurings)
+      (push `(loopy--loop-vars . (,(cl-first destructuring) nil))
+            instructions))
+    (cons `(loopy--main-body
+            . (setq ,@(apply #'append destructurings)))
+          instructions)))
+
+(cl-defun loopy--destructure-for-accumulation-command-instructions
+    ((name var val))
+  "Return instructions for destructuring accumulation commands.
+
+Unlike `loopy--destructure-for-iteration-command', this function
+does destructuring and returns instructions.
+
+NAME is the name of the command.  VAR is a variable name.  VAL is a value."
+  (cl-etypecase var
+    (list
+     (let ((value-holder (gensym (concat (symbol-name name) "-destructuring-list-")))
+           (is-proper-list (proper-list-p var))
+           (normalized-reverse-var))
+       (let ((instructions `(((loopy--loop-vars . (,value-holder nil))
+                              (loopy--main-body . (setq ,value-holder ,val))))))
+         ;; If `var' is a list, always create a "normalized" variable
+         ;; list, since proper lists are easier to work with, as many
+         ;; looping/mapping functions expect them.
+         (while (car-safe var)
+           (push (pop var) normalized-reverse-var))
+         ;; If the last element in `var' was a dotted pair, then
+         ;; `var' is now a single symbol, which must still be added
+         ;; to the normalized `var' list.
+         (when var (push var normalized-reverse-var))
+
+         (dolist (symbol-or-seq (reverse (cl-rest normalized-reverse-var)))
+           (push (loopy--parse-accumulation-commands
+                  (list name symbol-or-seq `(pop ,value-holder)))
+                 instructions))
+
+         ;; Decide what to do for final assignment.
+         (push (loopy--parse-accumulation-commands
+                (list name (cl-first normalized-reverse-var)
+                      (if is-proper-list
+                          `(pop ,value-holder)
+                        value-holder)))
+               instructions)
+
+         (apply #'append (nreverse instructions)))))
+
+    (array
+     (let* ((value-holder (gensym (concat (symbol-name name) "-destructuring-array-")))
+            (instructions
+             `(((loopy--loop-vars . (,value-holder nil))
+                (loopy--main-body . (setq ,value-holder ,val))))))
+       (cl-loop for symbol-or-seq across var
+                for index from 0
+                do (push (loopy--parse-accumulation-commands
+                          (list
+                           name symbol-or-seq `(aref ,value-holder ,index)))
+                         instructions))
+       (apply #'append (nreverse instructions))))))
 
 ;;;; Selecting parsers
 (defun loopy--parse-loop-command (command)

@@ -284,39 +284,9 @@ Accumulation commands can operate on the same variable, and we
   don't want that variable to appear more than once as an implied return."
   (memq var-name loopy--implicit-return))
 
-(defun loopy--get-function-symbol (function-form)
-  "Return the actual symbol described by FUNCTION-FORM.
-
-When a quoted argument is passed to a macro, it can appear
-as `(quote my-var)' or `(function my-func)' inside the body.  For
-expansion, we generally only want the actual symbol."
-  (if (nlistp function-form)
-      function-form
-    (cl-case (car function-form)
-      ((function quote) (cadr function-form))
-      (lambda function-form)
-      (t (error "This function form is unrecognized: %s" function-form)))))
-
-(defun loopy--destructure-for-iteration-command (var value-expression)
-  "Destructure VALUE-EXPRESSION according to VAR for a loop command.
-
-Note that this does not apply to commands which use generalized
-variables (`setf'-able places).  For that, see the function
-`loopy--destructure-for-generalized-command'.
-
-Return a list of instructions for initializing the variables and
-destructuring into them in the loop body."
-  (let ((destructurings
-         (funcall (or loopy--destructuring-function
-                      loopy-default-destructuring-function)
-                  var value-expression))
-        (instructions nil))
-    (dolist (destructuring destructurings)
-      (push `(loopy--loop-vars . (,(cl-first destructuring) nil))
-            instructions))
-    (cons `(loopy--main-body
-            . (setq ,@(apply #'append destructurings)))
-          instructions)))
+;;;; Destructuring functions.
+;; Note that functions which are only used for commands are found in
+;; `loopy-commands.el'.  The functions found here are used generally.
 
 (defun loopy--destructure-variables-default (var value-expression)
   "Destructure VALUE-EXPRESSION according to VAR.
@@ -409,54 +379,6 @@ substituting into a `let*' form or being combined under a
 
        ;; Return the list of instructions.
        (apply #'append (nreverse destructurings))))
-    (t
-     (error "Don't know how to destructure this: %s" var))))
-
-(defun loopy--destructure-for-generalized-command (var value-expression)
-  "Destructure for commands that use generalized (`setf'-able) places.
-
-Return a list of instructions for naming these `setf'-able places."
-  (let ((destructurings
-         (loopy--destructure-generalized-variables var value-expression))
-        (instructions nil))
-    (dolist (destructuring destructurings)
-      (push (cons 'loopy--generalized-vars
-                   destructuring)
-            instructions))
-    (nreverse instructions)))
-
-(defun loopy--destructure-generalized-variables (var value-expression)
-  "Destructure `setf'-able places.
-
-Returns a list of variable-value pairs (not dotted), suitable for
-substituting into `cl-symbol-macrolet'."
-  (cl-typecase var
-    ;; Check if `var' is a single symbol.
-    (symbol
-     ;; Return a list of lists, even for only one symbol.
-     `((,(if (eq var '_) (gensym "destructuring-ref-") var)
-        ,value-expression)))
-    (list
-     ;; If `var' is not proper, then the end of `var' can't be `car'-ed
-     ;; safely, as it is just a symbol and not a list.  Therefore, if `var'
-     ;; is still non-nil after the `pop'-ing, we know to set the remaining
-     ;; symbol that is now `var' to some Nth `cdr'.
-     (let ((destructured-values) (index 0))
-       (while (car-safe var)
-         (push (loopy--destructure-generalized-variables
-                (pop var) `(nth ,index ,value-expression))
-               destructured-values)
-         (setq index (1+ index)))
-       (when var
-         (push (loopy--destructure-generalized-variables
-                var `(nthcdr ,index ,value-expression))
-               destructured-values))
-       (apply #'append (nreverse destructured-values))))
-    (array
-     (cl-loop for symbol-or-seq across var
-              for index from 0
-              append (loopy--destructure-generalized-variables
-                      symbol-or-seq `(aref ,value-expression ,index))))
     (t
      (error "Don't know how to destructure this: %s" var))))
 
