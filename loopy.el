@@ -229,12 +229,36 @@ These run in a `progn'.")
 This has the effect of leaving the loop without immediately
 returning a value.")
 
-(defvar loopy--destructuring-function nil
-  "The destructuring function to use.
+(defvar loopy--basic-destructuring-function nil
+  "The basic destructuring function to use.
+
+The function named by this variable is used to produce lists of
+undotted variable-value pairs, suitable for substituting into a
+`let*' form or being combined under a `setq' form.
+
+The function is used for destructuring in iteration loop
+commands (like `list' or `array') and for destructuring the
+variables given in the `with' macro argument.
+
+Th function is not used for accumulation commands, since those
+commands have their own kind of destructuring.  For that, see the
+variable `loopy--destructuring-accumulation-parser'.
+
 If nil, `loopy-default-destructuring-function'.")
 
-(defvar loopy--accumulation-parser nil
-  "The accumulation parser to use.
+(defvar loopy--destructuring-accumulation-parser nil
+  "The function used to parse destructuring accumulation commands.
+
+Accumulation commands are generally incompatible with the
+destructuring produced by the function named by the variable
+`loopy--basic-destructuring-function'.  Instead, parsers for
+destructuring accumulation commands are able to produce
+instructions however they see fit.
+
+Unlike `loopy--basic-destructuring-function', the function named
+by this variable returns instructions, not a list of
+variable-value pairs.
+
 If nil, `loopy-default-accumulation-parsing-function'.")
 
 (defvar loopy--implicit-accumulation-final-update nil
@@ -478,7 +502,7 @@ see the Info node `(loopy)' distributed with this package."
         (loopy--implicit-return)
 
         ;; -- Variables for constructing code --
-        (loopy--destructuring-function)
+        (loopy--basic-destructuring-function)
         (loopy--skip-used)
         (loopy--tagbody-exit-used)
         (loopy--implicit-accumulation-final-update)

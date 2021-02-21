@@ -48,13 +48,13 @@
 (require 'seq)
 (require 'subr-x)
 
-(defvar loopy--accumulation-parser)
+(defvar loopy--destructuring-accumulation-parser)
 (defvar loopy-default-accumulation-parsing-function)
 (defvar loopy-split-implied-accumulation-results)
 (defvar loopy--split-implied-accumulation-results-internal)
 (defvar loopy--loop-name)
 (defvar loopy-default-destructuring-function)
-(defvar loopy--destructuring-function)
+(defvar loopy--basic-destructuring-function)
 
 
 ;;;; Custom Commands and Parsing
@@ -406,7 +406,7 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
 
 - If no variable named, use `loopy--parse-implicit-accumulation-commands'.
 - If only one variable name given, create a list of instructions here.
-- Otherwise, use the value of `loopy--accumulation-parser'
+- Otherwise, use the value of `loopy--destructuring-accumulation-parser'
   or the value of `loopy-default-accumulation-parsing-function'."
   (cond
    ((= 2 (length accumulation-command))
@@ -434,7 +434,7 @@ VALUE-HOLDER, once VALUE-HOLDER is initialized."
                                ((push-into push) `(push ,val ,var))
                                (sum `(setq ,var (+ ,val ,var))))))))
    (t
-    (funcall (or loopy--accumulation-parser
+    (funcall (or loopy--destructuring-accumulation-parser
                  loopy-default-accumulation-parsing-function)
              accumulation-command))))
 
@@ -648,7 +648,7 @@ variables (`setf'-able places).  For that, see the function
 Return a list of instructions for initializing the variables and
 destructuring into them in the loop body."
   (let ((destructurings
-         (funcall (or loopy--destructuring-function
+         (funcall (or loopy--basic-destructuring-function
                       loopy-default-destructuring-function)
                   var value-expression))
         (instructions nil))
