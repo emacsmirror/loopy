@@ -144,6 +144,18 @@ Each item is of the form (FLAG . FLAG-FUNCTION).")
 (add-to-list 'loopy--flags-setup
              (cons 'split #'loopy--split-flag-setup))
 
+;;;;;; Default
+(defun loopy--default-flag-setup ()
+  "Set `loopy' behavior back to its default state for the loop."
+  (setq loopy--split-implied-accumulation-results nil
+        loopy--basic-destructuring-function
+        #'loopy--destructure-variables-default
+        loopy--destructuring-accumulation-parser
+        #'loopy--parse-destructuring-accumulation-command))
+
+(add-to-list 'loopy--flags-setup
+             (cons 'default #'loopy--default-flag-setup))
+
 ;;;; Important Variables
 ;; These only set in the `loopy' macro, but that might change in the future.  It
 ;; might be cleaner code to modify from the parsing function, after the macro
