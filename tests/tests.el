@@ -16,6 +16,13 @@
                                        (b (+ a 2)))
                                  ((return b))))))))
 
+(ert-deftest with-destructuring ()
+  (should (= -2
+             (eval (quote (loopy (with ((a b) '(1 2))
+                                       ([c d] `[,(1+ a) ,(1+ b)]))
+                                 (loop (return (+ (- a b)
+                                                  (- c d))))))))))
+
 ;;;; Without
 (ert-deftest without ()
   (should (equal '(4 5)

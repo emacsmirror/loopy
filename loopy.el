@@ -483,8 +483,8 @@ see the Info node `(loopy)' distributed with this package."
                    ([&or "finally-return" "return"] form &optional [&rest form]))))
   (let (;; -- Top-level expressions other than loop body --
         (loopy--loop-name)
-        (loopy--with-vars (nreverse (cdr (or (assq 'with body)
-                                             (assq 'let* body)))))
+        (loopy--with-vars (cdr (or (assq 'with body)
+                                   (assq 'let* body))))
         (loopy--without-vars (cdr (or (assq 'without body)
                                       (assq 'no-init body))))
         (loopy--before-do (cdr (or (assq 'before-do body)
@@ -530,6 +530,17 @@ see the Info node `(loopy)' distributed with this package."
             (funcall func)
           (error "Loopy: Flag not defined: %s" flag))))
 
+    ;; Process `with' for destructuring.
+    (when loopy--with-vars
+      (let ((actual-with-vars))
+        (dolist (var loopy--with-vars)
+          ;; Push a list of lists.
+          (push (loopy--destructure-variables (car var)
+                                              (cadr var))
+                actual-with-vars))
+        ;; This will be revered into the correct order after processing any
+        ;; pushes from loop commands.
+        (setq loopy--with-vars (apply #'append (nreverse actual-with-vars)))))
 
     ;; Check the remaining arguments passed to the macro.
 
@@ -576,8 +587,6 @@ see the Info node `(loopy)' distributed with this package."
              (setq loopy--tagbody-exit-used t))
 
             ;; Places users probably shouldn't push to, but can if they want:
-            (loopy--with-vars
-             (push (cdr instruction) loopy--with-vars))
             (loopy--before-do
              (push (cdr instruction) loopy--before-do))
             (loopy--after-do
@@ -593,7 +602,6 @@ see the Info node `(loopy)' distributed with this package."
 
     ;; Make sure the order-dependent lists are in the correct order.
     (setq loopy--main-body (nreverse loopy--main-body)
-          loopy--with-vars (nreverse loopy--with-vars)
           loopy--loop-vars (nreverse loopy--loop-vars)
           loopy--implicit-return (when (consp loopy--implicit-return)
                                    (if (= 1 (length loopy--implicit-return))
