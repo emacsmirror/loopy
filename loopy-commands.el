@@ -658,7 +658,7 @@ destructuring into them in the loop body."
     ((name var val))
   "Return instructions for destructuring accumulation commands.
 
-Unlike `loopy--destructure-for-iteration-command', this function
+Unlike `loopy--destructure-variables-default', this function
 does destructuring and returns instructions.
 
 NAME is the name of the command.  VAR is a variable name.  VAL is a value."
