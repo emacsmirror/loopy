@@ -7,6 +7,7 @@
 
 (require 'cl-lib)
 (require 'ert)
+(require 'dash "./dependecy-links/dash.el")
 (require 'loopy "./loopy.el")
 (require 'loopy-dash "./loopy-dash.el")
 
