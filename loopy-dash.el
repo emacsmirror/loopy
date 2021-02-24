@@ -39,6 +39,7 @@
 
 ;;; Code:
 (require 'dash)
+(require 'cl-lib)
 
 (defvar loopy--basic-destructuring-function)
 (defvar loopy--destructuring-accumulation-parser)
