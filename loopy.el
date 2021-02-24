@@ -192,14 +192,9 @@ of) features.
 NOTE: This functionality might change in the future.")
 
 (defvar loopy--valid-macro-arguments
-  '( flag-on flags-on on flag-off flags-off off
-     with let*
-     without no-init
-     loop
-     before-do before
-     after-do after else-do else
-     finally-do finally
-     finally-return return)
+  '( flag flags with let* without no-init loop before-do before initially-do
+     initially after-do after else-do else finally-do finally finally-return
+     return)
   "List of valid keywords for `loopy' macro arguments.
 
 This variable is used to signal an error instead of silently failing.")
@@ -349,9 +344,11 @@ Accumulation commands can operate on the same variable, and we
 Return a list of variable-value pairs (not dotted), suitable for
 substituting into a `let*' form or being combined under a
 `setq' form."
-  (funcall (or loopy--basic-destructuring-function
-               #'loopy--destructure-variables-default)
-           var value-expression))
+  (if (symbolp var)
+      `((,var ,value-expression))
+    (funcall (or loopy--basic-destructuring-function
+                 loopy-default-destructuring-function)
+             var value-expression)))
 
 (defun loopy--destructure-variables-default (var value-expression)
   "Destructure VALUE-EXPRESSION according to VAR.
@@ -525,7 +522,9 @@ see the Info node `(loopy)' distributed with this package."
         (loopy--without-vars (cdr (or (assq 'without body)
                                       (assq 'no-init body))))
         (loopy--before-do (cdr (or (assq 'before-do body)
-                                   (assq 'before body))))
+                                   (assq 'before body)
+                                   (assq 'initially body)
+                                   (assq 'initially-do body))))
         (loopy--after-do (cdr (or (assq 'after-do body)
                                   (assq 'after body)
                                   (assq 'else-do body)
