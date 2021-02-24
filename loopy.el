@@ -85,7 +85,7 @@
   "Which flags should alter the behavior of `loopy' by default.
 
 This is a list of symbols, each symbol corresponding to a
-function in the variable `loopy--flag-enablers'."
+function in the variable `loopy--flag-settings'."
   :type '(repeat symbol))
 
 ;;;; Flags
@@ -130,20 +130,12 @@ variable-value pairs.
 If nil, use `loopy--parse-destructuring-accumulation-command'.")
 
 ;;;;; For setting up flags
-(defvar loopy--flag-enablers nil
+(defvar loopy--flag-settings nil
   "Alist of functions to run on presence of their respective flag.
 
 These functions will enable features.
 
 Each item is of the form (FLAG . FLAG-ENABLING-FUNCTION).")
-
-(defvar loopy--flag-disablers nil
-  "Alist of functions to run on presence of their respective flag.
-
-These functions will disable (or revert the enabling of)
-features.
-
-Each item is of the form (FLAG . FLAG-DISABLING-FUNCTION).")
 
 ;;;;; Built-in flags
 ;;;;;; Split
@@ -153,11 +145,13 @@ Each item is of the form (FLAG . FLAG-DISABLING-FUNCTION).")
 
 (defun loopy--disable-flag-split ()
   "Set `loopy-split-implied-accumulation-results' to t inside the loop."
-  (setq loopy--split-implied-accumulation-results nil))
+  ;; Currently redundant, but leaves room for possibilities.
+  (if loopy--split-implied-accumulation-results
+      (setq loopy--split-implied-accumulation-results nil)))
 
-(add-to-list 'loopy--flag-enablers (cons 'split #'loopy--enable-flag-split))
-
-(add-to-list 'loopy--flag-disablers (cons 'split #'loopy--disable-flag-split))
+(add-to-list 'loopy--flag-settings (cons 'split #'loopy--enable-flag-split))
+(add-to-list 'loopy--flag-settings (cons '+split #'loopy--enable-flag-split))
+(add-to-list 'loopy--flag-settings (cons '-split #'loopy--disable-flag-split))
 
 ;;;;;; Default
 ;; It doesn't make sense to allow the disabling of this one.
@@ -169,25 +163,15 @@ Each item is of the form (FLAG . FLAG-DISABLING-FUNCTION).")
         loopy--destructuring-accumulation-parser
         #'loopy--parse-destructuring-accumulation-command))
 
-(add-to-list 'loopy--flag-enablers
+(add-to-list 'loopy--flag-settings
              (cons 'default #'loopy--enable-flag-default))
 
 ;;;; Important Variables
 ;; These only set in the `loopy' macro, but that might change in the future.  It
 ;; might be cleaner code to modify from the parsing function, after the macro
 ;; has already set them to nil.
-(defvar loopy--enabled-flags nil
+(defvar loopy--flags nil
   "Symbols/flags whose presence changes the behavior of `loopy'.
-
-The presence of these flags will enable features.
-
-NOTE: This functionality might change in the future.")
-
-(defvar loopy--disabled-flags nil
-  "Symbols/flags whose presence changes the behavior of `loopy'.
-
-The presence of these flags will disable (or revert the enabling
-of) features.
 
 NOTE: This functionality might change in the future.")
 
@@ -562,17 +546,15 @@ see the Info node `(loopy)' distributed with this package."
     ;; Process any flags passed to the macro.  In case of conflicts, the
     ;; processing order is:
     ;;
-    ;; 1. Enabling flags in `loopy-default-flags'.
-    ;; 2. Disabling flags in `loopy--disabled-flags'.
-    ;; 3. Disabling flags in `loop--enabled-flags'.
-    ;;
-    ;; This allows a user to specify default flags, disable some of that
-    ;; behavior, and then still enable some others.
+    ;; 1. Flags in `loopy-default-flags'.
+    ;; 2. Flags in the `flag' macro argument, which can
+    ;;    undo the first group.
 
-    (when-let ((loopy--flags (cdr (or (assq 'flags body)
-                                      (assq 'flag body)))))
-      (dolist (flag loopy--flags)
-        (if-let ((func (cdr (assq flag loopy--flag-enablers))))
+    (when-let ((loopy--all-flags (append loopy-default-flags
+                                     (cdr (or (assq 'flags body)
+                                      (assq 'flag body))))))
+      (dolist (flag loopy--all-flags)
+        (if-let ((func (cdr (assq flag loopy--flag-settings))))
             (funcall func)
           (error "Loopy: Flag not defined: %s" flag))))
 

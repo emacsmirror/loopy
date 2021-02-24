@@ -44,9 +44,9 @@
 
 (defvar loopy--basic-destructuring-function)
 (defvar loopy--destructuring-accumulation-parser)
-(defvar loopy--flags-setup nil)
+(defvar loopy--flag-settings nil)
 
-(defun loopy-pcase--flag-setup ()
+(defun loopy-pcase--enable-flag-pcase ()
   "Make this `loopy' loop use `pcase' destructuring."
   (setq
    loopy--basic-destructuring-function
@@ -54,8 +54,23 @@
    loopy--destructuring-accumulation-parser
    #'loopy-pcase--parse-destructuring-accumulation-command))
 
-(add-to-list 'loopy--flags-setup
-             (cons 'pcase #'loopy-pcase--flag-setup))
+(defun loopy-pcase--disable-flag-pcase ()
+  "Make this `loopy' loop use `pcase' destructuring."
+  (if (eq loopy--basic-destructuring-function
+          #'loopy-pcase--destructure-variables)
+      (setq loopy--basic-destructuring-function
+            #'loopy--destructure-variables-default))
+  (if (eq loopy--destructuring-accumulation-parser
+          #'loopy-pcase--parse-destructuring-accumulation-command)
+      (setq loopy--destructuring-accumulation-parser
+            #'loopy--parse-destructuring-accumulation-command)))
+
+(add-to-list 'loopy--flag-settings
+             (cons 'pcase #'loopy-pcase--enable-flag-pcase))
+(add-to-list 'loopy--flag-settings
+             (cons '+pcase #'loopy-pcase--enable-flag-pcase))
+(add-to-list 'loopy--flag-settings
+             (cons '-pcase #'loopy-pcase--disable-flag-pcase))
 
 (defun loopy-pcase--get-variable-values (var val)
   "Destructure VAL according to VAR using `pcase'.

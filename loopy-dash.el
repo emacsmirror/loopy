@@ -42,7 +42,7 @@
 
 (defvar loopy--basic-destructuring-function)
 (defvar loopy--destructuring-accumulation-parser)
-(defvar loopy--flag-enablers nil)
+(defvar loopy--flag-settings nil)
 
 ;;;###autoload
 (defun loopy-dash--enable-flag-dash ()
@@ -55,14 +55,18 @@
 
 (defun loopy-dash--disable-flag-dash ()
   "Make this `loopy' loop use Dash destructuring."
-  (setq
-   loopy--basic-destructuring-function
-   #'loopy--destructure-variables-default
-   loopy--destructuring-accumulation-parser
-   #'loopy--parse-destructuring-accumulation-command))
+  (if (eq loopy--basic-destructuring-function
+          #'loopy-dash--destructure-variables)
+      (setq loopy--basic-destructuring-function
+            #'loopy--destructure-variables-default))
+  (if (eq loopy--destructuring-accumulation-parser
+          #'loopy-dash--parse-destructuring-accumulation-command)
+      (setq loopy--destructuring-accumulation-parser
+            #'loopy--parse-destructuring-accumulation-command)))
 
-(add-to-list 'loopy--flag-enablers (cons 'dash #'loopy-dash--enable-flag-dash))
-(add-to-list 'loopy--flag-disablers (cons 'dash #'loopy-dash--disable-flag-dash))
+(add-to-list 'loopy--flag-settings (cons 'dash #'loopy-dash--enable-flag-dash))
+(add-to-list 'loopy--flag-settings (cons '+dash #'loopy-dash--enable-flag-dash))
+(add-to-list 'loopy--flag-settings (cons '-dash #'loopy-dash--disable-flag-dash))
 
 ;;;; The actual functions:
 (defun loopy-dash--destructure-variables
