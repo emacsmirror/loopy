@@ -331,7 +331,7 @@ substituting into a `let*' form or being combined under a
   (if (symbolp var)
       `((,var ,value-expression))
     (funcall (or loopy--basic-destructuring-function
-                 loopy-default-destructuring-function)
+                 #'loopy--destructure-variables-default)
              var value-expression)))
 
 (defun loopy--destructure-variables-default (var value-expression)
