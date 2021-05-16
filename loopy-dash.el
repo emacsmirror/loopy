@@ -57,6 +57,7 @@
    loopy--destructuring-accumulation-parser
    #'loopy-dash--parse-destructuring-accumulation-command))
 
+;;;###autoload
 (defun loopy-dash--disable-flag-dash ()
   "Make this `loopy' loop use Dash destructuring."
   (if (eq loopy--destructuring-for-iteration-function
