@@ -665,21 +665,59 @@ is a function by which to update VAR (default `cdr')."
                                 ,value-holder)))
         (loopy--pre-conditions . (consp ,value-holder))))))
 
-(cl-defun loopy--parse-list-command
-    ((_ var val &optional (func #'cdr)) &optional (val-holder (gensym "list-")))
-  "Parse the `list' loop command.
+(defun loopy--list-command-distribute (&rest lists)
+  "Create an expansion for distributing lists.
 
-VAR is a variable name or a list of such names (dotted pair or
-normal).  VAL is a list value.  FUNC is a function used to update
-VAL (default `cdr').  VAL-HOLDER is a variable name that holds
-the list."
+For example, (1 2) and (3 4) would give
+\((1 3) (1 4) (2 3) (2 4)), such that the last list
+is worked through first."
+  (let* ((temp-iter-vars
+          (cl-loop for n from 0 to (1- (length lists))
+                   collect (gensym (format "temp-iter-%d-" n))))
+         (result-var (gensym "list-temp-"))
+         (result `(setq ,result-var (cons (list ,@temp-iter-vars)
+                                          ,result-var))))
+    (cl-loop for n from (1- (length lists)) downto 0
+             do (setq result
+                      `(dolist (,(nth n temp-iter-vars)
+                                ,(loopy--quote-if-car-not-symbol-or-lambda
+                                  (nth n lists)))
+                         ,result)))
+    ;; Return the expression.
+    `(let ((,result-var nil))
+       ,result
+       (nreverse ,result-var))))
+
+(cl-defun loopy--parse-list-command ((_ var val &rest args))
+  "Parse the list command as (list VAR VAL [VALS] &key by).
+
+BY is function to use to update the list.  It defaults to cdr."
   (when loopy--in-sub-level
     (loopy--signal-bad-iter 'list))
-  `((loopy--iteration-vars . (,val-holder ,val))
-    (loopy--latter-body
-     . (setq ,val-holder (,(loopy--get-function-symbol func) ,val-holder)))
-    (loopy--pre-conditions . (consp ,val-holder))
-    ,@(loopy--destructure-for-iteration-command var `(car ,val-holder))))
+
+  (let* ((by-func-given nil)
+         (by-func (if (eq (nth (- (length args) 2) args) :by)
+                      (progn
+                        (setq by-func-given t)
+                        (car (last args)))
+                    #'cdr))
+         (other-vals (if by-func-given
+                         (butlast args 2)
+                       args)))
+
+    (let ((value-holder (gensym "list-")))
+
+      `((loopy--iteration-vars . (,var nil))
+        (loopy--iteration-vars
+         . (,value-holder ,(if (null other-vals)
+                               val
+                             (apply #'loopy--list-command-distribute
+                                    val other-vals))))
+        (loopy--latter-body
+         . (setq ,value-holder (,(loopy--get-function-symbol by-func)
+                                ,value-holder)))
+        (loopy--pre-conditions . (consp ,value-holder))
+        ,@(loopy--destructure-for-iteration-command var `(car ,value-holder))))))
 
 (cl-defun loopy--parse-list-ref-command
     ((_ var val &optional (func #'cdr)) &optional (val-holder (gensym "list-ref-")))

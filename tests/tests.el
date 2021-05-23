@@ -591,6 +591,20 @@ implicit variable without knowing it's name, even for named loops."
            (eval (quote (loopy (list (a (b (c))) '((1 (1 (2))) (5 (5 (6)))))
                                (finally-return (list a b c)))))))))
 
+(ert-deftest list-multi-list ()
+  (should (equal '((1 4) (1 5) (1 6) (2 4) (2 5) (2 6) (3 4) (3 5) (3 6))
+                 (eval (quote (loopy (list i '(1 2 3) '(4 5 6))
+                                     (collect i))))))
+
+  (should (equal '((1 7) (1 8) (1 9) (2 7) (2 8) (2 9))
+                 (cl-labels ((fx () '(7 8 9)))
+                   (loopy (list i '(1 2) (fx))
+                          (collect i)))))
+
+  (should (equal '((10 13) (10 15) (11 14) (12 13) (12 15))
+                 (eval (quote (loopy (list i '(10 11 12) '(13 14 15) :by #'cddr)
+                                     (collect i)))))))
+
 ;;;;; List Ref
 (ert-deftest list-ref ()
   (should (equal  '(7 7 7)
