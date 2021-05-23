@@ -186,6 +186,13 @@ If not, then it is possible that FORM is a variable."
        (or (eq (car form-or-symbol) 'quote)
            (eq (car form-or-symbol) 'function))))
 
+(defun loopy--quote-if-car-not-symbol-or-lambda (list)
+  "Apply a heuristic to decide if LIST should be quoted."
+  (if (or (symbolp (car-safe list))
+          (eq (car-safe list) 'lambda))
+      list
+    `(quote ,list)))
+
 (defun loopy--extract-main-body (instructions)
   "Extract main-body expressions from INSTRUCTIONS.
 
