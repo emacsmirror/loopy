@@ -610,6 +610,13 @@ implicit variable without knowing it's name, even for named loops."
                  (eval (quote (loopy (list i '(10 11 12) '(13 14 15) :by #'cddr)
                                      (collect i)))))))
 
+(ert-deftest list-multi-list-destructuring ()
+  (should (equal '((1 1 2 2) (4 5 4 5))
+                 (eval (quote (loopy (list (i j) '(1 2) '(4 5))
+                                     (collect c1 i)
+                                     (collect c2 j)
+                                     (finally-return c1 c2)))))))
+
 ;;;;; List Ref
 (ert-deftest list-ref ()
   (should (equal  '(7 7 7)
