@@ -597,9 +597,9 @@ implicit variable without knowing it's name, even for named loops."
                                      (collect i))))))
 
   (should (equal '((1 7) (1 8) (1 9) (2 7) (2 8) (2 9))
-                 (cl-labels ((fx () '(7 8 9)))
-                   (loopy (list i '(1 2) (fx))
-                          (collect i)))))
+                 (eval (quote (cl-labels ((fx () '(7 8 9)))
+                                (loopy (list i '(1 2) (fx))
+                                       (collect i)))))))
 
   (should (equal '((10 13) (10 15) (11 14) (12 13) (12 15))
                  (eval (quote (loopy (list i '(10 11 12) '(13 14 15) :by #'cddr)
