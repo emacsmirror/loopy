@@ -707,8 +707,7 @@ BY is function to use to update the list.  It defaults to cdr."
 
     (let ((value-holder (gensym "list-")))
 
-      `((loopy--iteration-vars . (,var nil))
-        (loopy--iteration-vars
+      `((loopy--iteration-vars
          . (,value-holder ,(if (null other-vals)
                                val
                              (apply #'loopy--list-command-distribute
