@@ -8,6 +8,11 @@
 (require 'ert)
 (require 'loopy "./loopy.el")
 
+;;; Check for ELC files, which can mess up testing.
+(ert-deftest no-elc-in-cwd ()
+  (should (cl-loop for f in (directory-files ".")
+                   never (string-match-p "\\.elc\\'" f))))
+
 ;;; Variables
 (ert-deftest first-iteration ()
   (should (equal '(1 2 3)
