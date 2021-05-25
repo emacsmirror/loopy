@@ -606,8 +606,46 @@ command are inserted into a `cond' special form."
           (nreverse full-instructions))))
 
 ;;;;; Iteration
-(cl-defun loopy--parse-array-command ((_ var val))
-  "Parse the `array' command.
+(defun loopy--iteration-commands-distribute-sequence-elements
+    (seq1 remaining-seqs &optional coerce-type)
+  "Distribute the elements of the sequences.
+
+The elements of SEQ1 and those of the sequences in the list
+REMAINING-SEQS are distributed into a list of lists.  If
+COERCE-TYPE is given, then coerce the resulting list into
+a COERCE-TYPE of lists via `cl-coerce'.
+
+For example, [1 3] and [2 4] gives ((1 2) (1 4) (3 2) (3 4)).
+
+See also `loopy--list-command-distribute', which creates expanded
+code specifically for distributing list elements."
+  (let ((result))
+    (cond
+     ((or (null remaining-seqs) (nlistp remaining-seqs))
+      (error "Second argument must be non-empty list of sequences: %s"
+             remaining-seqs))
+
+     ((= 1 (length remaining-seqs))
+      (mapc (lambda (i)
+              (mapc (lambda (j) (push (list i j) result))
+                    (cl-first remaining-seqs)))
+            seq1))
+
+     (t
+      (mapc (lambda (i)
+              (mapc (lambda (j) (push (cons i j) result))
+                    (loopy--iteration-commands-distribute-sequence-elements
+                     (cl-first remaining-seqs) (cl-rest remaining-seqs))))
+            seq1)))
+
+    ;; We only want to coerce into a new type after creating the entire new
+    ;; sequence.
+    (if coerce-type
+        (cl-coerce (nreverse result) coerce-type)
+      (nreverse result))))
+
+(cl-defun loopy--parse-array-command ((_ var val &rest vals))
+  "Parse the `array' command as (array VAR VAL [VALS])
 
 - VAR is a variable name.
 - VAL is an array value.
