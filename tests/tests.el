@@ -472,6 +472,27 @@ implicit variable without knowing it's name, even for named loops."
              (loopy (array [a (b c)] [[1 (2 3)] [4 (5 6)]])
                     (finally-return a b c))))))))
 
+(ert-deftest array-multi-array ()
+  (should (equal '((1 3) (1 4) (2 3) (2 4))
+                 (loopy (array i [1 2] [3 4])
+                        (collect i))))
+
+  (should (equal '((1 3) (2 3))
+                 (loopy (array i [1 2] [3 4] :by 2)
+                        (collect i))))
+
+  ;; Just to check how quoting is handled.
+  (should (equal '((1 3) (1 4) (2 3) (2 4))
+                 (loopy (array i `[1 ,(1+ 1)] [3 4])
+                        (collect i)))))
+
+(ert-deftest array-multi-array-destructuring ()
+  (should (equal '((1 1 2 2) (3 4 3 4))
+                 (eval (quote (loopy (array (i j) [1 2] [3 4])
+                                     (collect c1 i)
+                                     (collect c2 j)
+                                     (finally-return c1 c2)))))))
+
 ;;;;; Array Ref
 (ert-deftest array-ref ()
   (should (equal "aaa"

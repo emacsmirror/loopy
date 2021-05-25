@@ -666,17 +666,38 @@ and =cl-lib= ([[info:cl]]) libraries and Emacs's regular looping and mapping fea
    The available iteration commands are:
 
    #+findex: array, string, across
-   - =(array|string|across VAR EXPR)= :: Loop through the elements of the array
-     =EXPR=.  In Emacs Lisp, strings are arrays whose elements are characters.
+   - =(array|string|across VAR EXPR [EXPRS] &key by)= :: Loop through the
+     elements of the array =EXPR=.  In Emacs Lisp, strings are arrays whose
+     elements are characters.
+
+     If multiple arrays are given, then the elements of these arrays are
+     distributed into an array of lists.
+
+     =by= is the increment used to select elements in the array, and defaults
+     to 1.  If multiple arrays are given, then the increment applies to the
+     array of distributed elements.
 
      #+BEGIN_SRC emacs-lisp
        (loopy (array i [1 2 3])
               (do (message "%d" i)))
 
+       ;; => (1 3)
+       (loopy (array i [1 2 3 4] :by 2)
+              (collect i))
+
        ;; Collects the integer values representing each character.
        ;; => (97 98 99)
        (loopy (string c "abc")
               (collect c))
+
+       ;; This is the same as using [(1 3) (1 4) (2 3) (2 4)].
+       ;; => ((1 3) (1 4) (2 3) (2 4))
+       (loopy (array i [1 2] [3 4])
+              (collect i))
+
+       ;; => ((1 3) (2 3))
+       (loopy (array i [1 2] [3 4] :by 2)
+              (collect i))
      #+END_SRC
 
    #+findex: array-ref, arrayf, string-ref, stringf, across-ref

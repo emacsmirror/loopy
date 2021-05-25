@@ -644,25 +644,38 @@ code specifically for distributing list elements."
         (cl-coerce (nreverse result) coerce-type)
       (nreverse result))))
 
-(cl-defun loopy--parse-array-command ((_ var val &rest vals))
-  "Parse the `array' command as (array VAR VAL [VALS])
+(cl-defun loopy--parse-array-command ((_ var val &rest args))
+  "Parse the `array' command as (array VAR VAL [VALS] &key by)
 
-- VAR is a variable name.
-- VAL is an array value.
-- Optional VALUE-HOLDER holds the array value.
-- Optional INDEX-HOLDER holds the index value."
+- VAR is a variable name.  VAL is an array value.  by is a
+- numeric increment to use when moving between elements in the
+  list.  The default is 1."
   (when loopy--in-sub-level
     (loopy--signal-bad-iter 'array))
   (let ((value-holder (gensym "array-"))
         (index-holder (gensym "array-index-"))
         (length-holder (gensym "array-length-")))
-    `((loopy--iteration-vars . (,value-holder ,val))
-      (loopy--iteration-vars . (,index-holder 0))
-      (loopy--iteration-vars . (,length-holder (length ,value-holder)))
-      ,@(loopy--destructure-for-iteration-command var
-                                                  `(aref ,value-holder ,index-holder))
-      (loopy--latter-body    . (setq ,index-holder (1+ ,index-holder)))
-      (loopy--pre-conditions . (< ,index-holder ,length-holder)))))
+    (let* ((by-increment-given nil)
+           (by-increment (if (eq (nth (- (length args) 2) args) :by)
+                             (progn
+                               (setq by-increment-given t)
+                               (car (last args)))
+                           1))
+           (other-arrays (if by-increment-given
+                             (butlast args 2)
+                           args)))
+      `((loopy--iteration-vars
+         . (,value-holder ,(if (null other-arrays)
+                               val
+                             `(loopy--iteration-commands-distribute-sequence-elements
+                               ,val (list ,@other-arrays) 'array))))
+        (loopy--iteration-vars . (,index-holder 0))
+        (loopy--iteration-vars . (,length-holder (length ,value-holder)))
+        ,@(loopy--destructure-for-iteration-command
+           var `(aref ,value-holder ,index-holder))
+        (loopy--latter-body    . (setq ,index-holder (+ ,by-increment
+                                                        ,index-holder)))
+        (loopy--pre-conditions . (< ,index-holder ,length-holder))))))
 
 (cl-defun loopy--parse-array-ref-command ((_ var val))
   "Parse the `array-ref' command by editing the `array' command's instructions.
