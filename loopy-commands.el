@@ -680,8 +680,7 @@ is worked through first."
     (cl-loop for n from (1- (length lists)) downto 0
              do (setq result
                       `(dolist (,(nth n temp-iter-vars)
-                                ,(loopy--quote-if-car-not-symbol-or-lambda
-                                  (nth n lists)))
+                                ,(nth n lists))
                          ,result)))
     ;; Return the expression.
     `(let ((,result-var nil))
