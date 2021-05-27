@@ -617,8 +617,11 @@ a COERCE-TYPE of lists via `cl-coerce'.
 
 For example, [1 3] and [2 4] gives ((1 2) (1 4) (3 2) (3 4)).
 
-See also `loopy--list-command-distribute', which creates expanded
-code specifically for distributing list elements."
+For lists specifically, see the function `loopy--list-command-distribute',
+which creates expanded code specifically for distributing list elements.
+
+For arrays specifically, see the macro
+`loopy--array-command-distribute-elements'."
   (let ((result))
     (cond
      ((or (null remaining-seqs) (nlistp remaining-seqs))
@@ -644,6 +647,26 @@ code specifically for distributing list elements."
         (cl-coerce (nreverse result) coerce-type)
       (nreverse result))))
 
+(defmacro loopy--array-command-distribute-elements (&rest arrays)
+  "Distribute the elements of the ARRAYS into an array of lists.
+
+For example, [1 2] and [3 4] gives ((1 3) (1 4) (2 3) (2 4))."
+  (let ((vars (cl-loop for _ in arrays
+                       collect (gensym "array-var-")))
+        (reverse-order (reverse arrays)))
+    (cl-loop with expansion = `(cl-loop for ,(cl-first vars)
+                                        across ,(cl-first reverse-order)
+                                        do (setq result
+                                                 (cons (list ,@(reverse vars))
+                                                       result)))
+             for var in (cl-rest vars)
+             for array in (cl-rest reverse-order)
+             do (setq expansion `(cl-loop for ,var across ,array
+                                          do ,expansion))
+             finally return `(let ((result nil))
+                               ,expansion
+                               (vconcat (nreverse result))))))
+
 (cl-defun loopy--parse-array-command ((_ var val &rest args))
   "Parse the `array' command as (array VAR VAL [VALS] &key by)
 
@@ -667,8 +690,8 @@ code specifically for distributing list elements."
       `((loopy--iteration-vars
          . (,value-holder ,(if (null other-arrays)
                                val
-                             `(loopy--iteration-commands-distribute-sequence-elements
-                               ,val (list ,@other-arrays) 'array))))
+                             `(loopy--array-command-distribute-elements
+                               ,val ,@other-arrays))))
         (loopy--iteration-vars . (,index-holder 0))
         (loopy--iteration-vars . (,length-holder (length ,value-holder)))
         ,@(loopy--destructure-for-iteration-command
