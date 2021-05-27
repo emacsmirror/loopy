@@ -916,11 +916,30 @@ an integer, to be used if a variable name is provided."
         (loopy--latter-body . (setq ,value-holder (1+ ,value-holder)))
         (loopy--pre-conditions . (< ,value-holder ,var-or-count))))))
 
-(cl-defun loopy--parse-seq-command ((_ var val))
-  "Parse the `seq' loop command.
+(defmacro loopy--seq-command-distribute-elements (&rest sequences)
+  "Distribute the elements of SEQUENCES into a vector of lists.
 
-VAR is a variable name.  VAL is a sequence value.  VALUE-HOLDER
-holds VAL.  INDEX-HOLDER holds an index that point into VALUE-HOLDER."
+For example, [1 2] and (3 4) give [(1 3) (1 4) (2 3) (2 4)]."
+  (let ((vars (cl-loop for _ in sequences
+                       collect (gensym "seq-var-")))
+        (reverse-order (reverse sequences)))
+    (cl-loop with expansion = `(cl-loop for ,(cl-first vars)
+                                        being the elements of ,(cl-first reverse-order)
+                                        do (setq result
+                                                 (cons (list ,@(reverse vars))
+                                                       result)))
+             for var in (cl-rest vars)
+             for sequence in (cl-rest reverse-order)
+             do (setq expansion `(cl-loop for ,var being the elements of ,sequence
+                                          do ,expansion))
+             finally return `(let ((result nil))
+                               ,expansion
+                               (vconcat (nreverse result))))))
+
+(cl-defun loopy--parse-seq-command ((_ var val &rest vals))
+  "Parse the `seq' loop command as (seq VAR EXPR [EXPRS]).
+
+VAR is a variable name.  VAL is a sequence value."
   ;; NOTE: `cl-loop' just combines the logic for lists and arrays, and
   ;;       just checks the type for each iteration, so we do that too.
   (when loopy--in-sub-level
@@ -928,7 +947,11 @@ holds VAL.  INDEX-HOLDER holds an index that point into VALUE-HOLDER."
   (let ((value-holder (gensym "seq-"))
         (index-holder (gensym "seq-index-"))
         (length-holder (gensym "seq-length-")))
-    `((loopy--iteration-vars . (,value-holder ,val))
+    `((loopy--iteration-vars
+       . (,value-holder ,(if vals
+                             `(loopy--seq-command-distribute-elements
+                               ,val ,@vals)
+                           val)))
       (loopy--iteration-vars . (,index-holder 0))
       (loopy--iteration-vars . (,length-holder (length ,value-holder)))
       ,@(loopy--destructure-for-iteration-command
