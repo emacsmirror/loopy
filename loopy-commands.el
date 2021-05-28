@@ -983,27 +983,65 @@ For example, [1 2] and (3 4) give [(1 3) (1 4) (2 3) (2 4)]."
                                (vconcat (nreverse result))))))
 
 (loopy--defiteration seq
-  "Parse the `seq' loop command as (seq VAR EXPR [EXPRS])."
-  ;; :keywords (:by)
+  "Parse the `seq' command as (seq VAR EXPR [EXPRS] &key by start end down index).
+
+BY is a numeric step to use, similar that for `array'.  START is
+the starting index to use.  END is the inclusive ending index,
+which cannot be longer than the sequence.  DOWN is whether index is
+decreasing.  INDEX is the variable to use to hold the index."
+  :keywords (:by :start :end :down :index)
   :instructions
   (let ((value-holder (gensym "seq-"))
-        (index-holder (gensym "seq-index-"))
-        (length-holder (gensym "seq-length-")))
+        (index-holder (or (plist-get opts :index)
+                          (gensym "seq-index-")))
+        (end-index-holder (gensym "seq-end-index-"))
+        (by-step (or (plist-get opts :by) 1))
+        (starting-index (plist-get opts :start))
+        (ending-index (plist-get opts :end))
+        (going-down (plist-get opts :down)))
     `((loopy--iteration-vars
        . (,value-holder ,(if other-vals
                              `(loopy--seq-command-distribute-elements
                                ,val ,@other-vals)
                            val)))
-      (loopy--iteration-vars . (,index-holder 0))
-      (loopy--iteration-vars . (,length-holder (length ,value-holder)))
-      ,@(loopy--destructure-for-iteration-command
-         var `(if (consp ,value-holder)
-                  (pop ,value-holder)
-                (aref ,value-holder ,index-holder)))
-      (loopy--latter-body   . (setq ,index-holder (1+ ,index-holder)))
-      (loopy--pre-conditions
-       . (and ,value-holder (or (consp ,value-holder)
-                                (< ,index-holder ,length-holder)))))))
+      (loopy--iteration-vars
+       . (,index-holder ,(or starting-index
+                             (if going-down
+                                 `(1- (length ,value-holder))
+                               0))))
+      (loopy--iteration-vars
+       . (,end-index-holder ,(if ending-index
+                                 ;; The ending index is inclusive.
+                                 (if going-down
+                                     (1- ending-index)
+                                   (1+ ending-index))
+                               (if going-down
+                                   -1
+                                 `(length ,value-holder)))))
+      (loopy--latter-body . (setq ,index-holder
+                                  (,(if going-down '- '+)
+                                   ,index-holder
+                                   ,by-step)))
+      ;; Optimize for the case of traversing from start to end, as done in
+      ;; `cl-loop'.  Currently, all other case use `elt'.
+      ,@(cond
+         ((and (not going-down)
+               (= 1 by-step)
+               (eql 0 starting-index))
+          `(,@(loopy--destructure-for-iteration-command
+               var `(if (consp ,value-holder)
+                        (pop ,value-holder)
+                      (aref ,value-holder ,index-holder)))
+            (loopy--pre-conditions
+             . (and ,value-holder (or (consp ,value-holder)
+                                      (< ,index-holder ,end-index-holder))))))
+
+         (t
+          `(,@(loopy--destructure-for-iteration-command
+               var `(elt ,value-holder ,index-holder))
+            (loopy--pre-conditions . (,(if going-down '> '<)
+                                      ,index-holder
+                                      ,end-index-holder))))))))
 
 (cl-defun loopy--parse-seq-index-command ((_ var val))
   "Parse the `seq-index' command.

@@ -887,6 +887,55 @@ implicit variable without knowing it's name, even for named loops."
                                               (setf k 9))
                                           (finally-return my-seq))))))))
 
+(ert-deftest seq-keywords-up ()
+  (should-error (eval (quote (loopy (seq i [0 1 2 3 4 5] :cat 2)
+                                    (collect i)))))
+
+  (should (equal '(0 2 4)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5] :by 2)
+                                     (collect i))))))
+
+  (should (equal '(1 3 5)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5] :by 2 :start 1)
+                                     (collect i))))))
+
+  (should (equal '(1 3 5)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10]
+                                          :by 2 :start 1 :end 5)
+                                     (collect i))))))
+
+  ;; Make sure it cuts of correctly.
+  (should (equal '(1 3)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10]
+                                          :by 2 :start 1 :end 4)
+                                     (collect i)))))))
+
+(ert-deftest seq-keywords-down ()
+  (should (equal '(5 4 3 2 1)
+                 (eval (quote (loopy (seq i [1 2 3 4 5] :down t)
+                                     (collect i))))))
+  (should (equal '(10 8 6 4 2)
+                 (eval (quote (loopy (seq i
+                                          [1 2 3 4 5 6 7 8 9 10]
+                                          :down t :by 2)
+                                     (collect i))))))
+
+  (should (equal '(5 3 1)
+                 (eval (quote (loopy (seq i
+                                          [0 1 2 3 4 5 6 7 8 9]
+                                          :down t :by 2
+                                          :start 5)
+                                     (collect i)))))))
+
+(ert-deftest seq-multi-seq ()
+  (should (equal '((1 3) (1 4) (2 3) (2 4))
+                 (eval (quote (loopy (seq i [1 2] '(3 4))
+                                     (collect i))))))
+
+  (should (equal '((1 3) (2 3))
+                 (eval (quote (loopy (seq i [1 2] '(3 4) :by 2)
+                                     (collect i)))))))
+
 ;;;;; Seq Index
 (ert-deftest seq-index ()
   (should (equal '(0 1 2 3)
