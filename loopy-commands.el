@@ -1096,10 +1096,18 @@ decreasing.  INDEX is the variable to use to hold the index."
                                (if going-down
                                    -1
                                  `(length ,value-holder)))))
-      (loopy--latter-body . (setq ,index-holder
-                                  (,(if going-down '- '+)
-                                   ,index-holder
-                                   ,by-step)))
+      ;; The increment should remain static throughout the loop.
+      ,@(if (numberp by-step)
+            `((loopy--latter-body . (setq ,index-holder
+                                          (,(if going-down '- '+)
+                                           ,index-holder
+                                           ,by-step))))
+          (let ((by-value-holder (gensym "seq-step-")))
+            `((loopy--iteration-vars . (,by-value-holder ,by-step))
+              (loopy--latter-body . (setq ,index-holder
+                                          (,(if going-down '- '+)
+                                           ,index-holder
+                                           ,by-value-holder))))))
       ;; Optimize for the case of traversing from start to end, as done in
       ;; `cl-loop'.  Currently, all other case use `elt'.
       ,@(cond
