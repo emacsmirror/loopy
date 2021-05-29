@@ -645,15 +645,14 @@ command are inserted into a `cond' special form."
 
 ;;;;; Iteration
 (cl-defmacro loopy--defiteration
-    (name doc-string &key keywords instructions multi-seq)
+    (name doc-string &key keywords multi-val instructions)
   "Define an interation command parser for NAME.
 
 KEYWORDS are the keywords used by the command.  INSTRUCTIONS are
-the command's instructions.  MULTI-SEQ is whether the command
-distributes the elements of multiple sequences (such as in `list'
-and `seq').  DOC-STRING is the documentation string for the
-produced parsing function.  It should describe the arguments of
-the loop command.
+the command's instructions. MULTI-VAL is whether the command can
+take optional arguments that are not keyword arguments.
+DOC-STRING is the documentation string for the produced parsing
+function.  It should describe the arguments of the loop command.
 
 There are several values automatically bound to variables, which
 you can use in the instructions:
@@ -670,7 +669,7 @@ you can use in the instructions:
    after `var' and `val'.
 
 - `other-vals' is a list of other sequences found in `args',
-   if MULTI-SEQ is non-nil.
+   if MULTI-VAL is non-nil.
 
 - `opts' is a list of keyword arguments and their values,
   found in `args' after the elements of `other-vals'.
@@ -678,7 +677,7 @@ you can use in the instructions:
   The first keyword in `args' determines the start of
   the optional keyword arguments.
 
-  If MULTI-SEQ is non-nil (i.e., no other values are allowed),
+  If MULTI-VAL is non-nil (i.e., no other values are allowed),
   then these keyword variables should be referenced directly
   instead of through the property list `opts'."
 
@@ -709,10 +708,10 @@ you can use in the instructions:
     `(cl-defun ,(intern (format "loopy--parse-%s-command" name))
          (( &whole cmd name var val
             ,@(if keywords
-                  (if multi-seq
+                  (if multi-val
                       '(&rest args)
                     `(&key ,@var-keys))
-                (when multi-seq
+                (when multi-val
                   '(&rest other-vals)))))
        ,doc-string
 
@@ -720,7 +719,7 @@ you can use in the instructions:
          (loopy--signal-bad-iter (quote ,name)))
 
        (let* ,(if keywords
-                  (if multi-seq
+                  (if multi-val
                       '((other-vals nil)
                         (opts nil))
                     ;; These can be referred to directly, but we'll keep
@@ -733,7 +732,7 @@ you can use in the instructions:
          ;; We only want to run this code if the values of `opts' and
          ;; `other-vals' are contained in `args'.
          ,@(cond
-            ((and multi-seq keywords)
+            ((and multi-val keywords)
              `(;; Set `opts' as starting from the first keyword and `other-vals'
                ;; as everything before that.
                (cl-loop with other-val-holding = nil
@@ -748,7 +747,7 @@ you can use in the instructions:
                                         (quote ,keywords))
                  (error "Wrong number of arguments or wrong keywords: %s" cmd)))))
 
-         (ignore ,(if multi-seq 'other-vals)
+         (ignore ,(if multi-val 'other-vals)
                  ,(if keywords 'opts))
          ,instructions))))
 
@@ -816,7 +815,7 @@ For example, [1 2] and [3 4] gives ((1 3) (1 4) (2 3) (2 4))."
 
 (loopy--defiteration array
   "Parse the `array' command as (array VAR VAL [VALS] &key by)."
-  :multi-seq t
+  :multi-val t
   :keywords (:by)
   :instructions
   (let ((value-holder (gensym "array-"))
@@ -905,7 +904,7 @@ is worked through first."
   "Parse the list command as (list VAR VAL [VALS] &key by).
 
 BY is function to use to update the list.  It defaults to `cdr'."
-  :multi-seq t
+  :multi-val t
   :keywords (:by)
   :instructions
   (let* ((by-func (or (plist-get opts :by)
@@ -1080,7 +1079,7 @@ the starting index to use.  END is the inclusive ending index,
 which cannot be longer than the sequence.  DOWN is whether index is
 decreasing.  INDEX is the variable to use to hold the index."
   :keywords (:by :start :end :down :index)
-  :multi-seq t
+  :multi-val t
   :instructions
   (let ((value-holder (gensym "seq-"))
         (index-holder (or (plist-get opts :index)
