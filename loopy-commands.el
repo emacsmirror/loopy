@@ -648,13 +648,26 @@ command are inserted into a `cond' special form."
     (name doc-string &key keywords multi-val instructions)
   "Define an interation command parser for NAME.
 
+An iteration command made with this macro has the layout of
+(command-name variable-name value [values] [keys]).  That is,
+each command will always require a variable name and a value.
+Some commands will have additional non-keyword arguments, which
+will be either required or optional.  Some commands will have
+keyword arguments, which, as in functions, are always optional.
+
+Not all iteration loop commands are written using this macro.
+This macro is for iteration commands that have the above
+structure.
+
 - NAME is the primary name of the loop command.  This creates a
   parsing function \"loopy--parse-NAME-command\".
 
 - DOC-STRING is the documentation string for the produced parsing
   function.  It should describe the arguments of the loop command.
 
-- KEYWORDS are the keywords used by the command.
+- KEYWORDS is an unquoted list of colon-prefixed keywords used by
+  the command.
+
 - MULTI-VAL is whether the command can take other arguments that
   are not keyword arguments.  This is one of nil, t, or an
   unquoted list of numbers.
@@ -672,8 +685,9 @@ command are inserted into a `cond' special form."
   single expression, such as a list of instructions or an
   expression capable of producing said instructions.
 
-There are several values automatically bound to variables, which
-you can use in the instructions:
+In the expanded parsing function, there are several values
+automatically bound to variables, which can be used in
+instructions:
 
 - `name' is the name of the command.
 
@@ -684,9 +698,11 @@ you can use in the instructions:
 - `val' is the sequence over which to iterate.
 
 - `args' is a list of the remaining arguments of the command
-   after `var' and `val'.
+   after `var' and `val'.  If either MULTI-VAL or KEYWORDS are
+   nil, then this variable is not bound.  In that case, use the
+   below two variables.
 
-- `other-vals' is a list of other sequences found in `args',
+- `other-vals' is a list of additional values found in `args',
    if MULTI-VAL is non-nil.
 
 - `opts' is a list of keyword arguments and their values,
