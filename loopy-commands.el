@@ -647,15 +647,16 @@ There are several values automatically bound to variables, which
 you can use in the instructions:
 
 - `name' is the name of the command.
-- `cmd' is the entire command.
-- `args' is the arguments of the command.
-- `var' is the variable to be used by the command.  This can be
-  explicitly given, `loopy-result', or automatically generated.
-- `val' is the value to be accumulated.
-- `other-vals' is a list of other sequences.
-- `opts' is the list of optional arguments that were given.
-  The first keyword after `val' or sequences in `other-vals'
-  determines the start of the optional keyword arguments."
+- `cmd' is the entire command expression.
+- `var' is the variable to be used by the command.
+- `val' is the sequence over which to iterate.
+- `args' is a list of the remaining arguments of the command
+   after `var' and `val'.
+- `other-vals' is a list of other sequences found in `args'.
+- `opts' is a list of keyword arguments and their values,
+  found in `args' after the elements of `other-vals'.
+  The first keyword in `args' determines the start of
+  the optional keyword arguments."
 
   (declare (indent defun) (doc-string 2))
 
