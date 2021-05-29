@@ -924,20 +924,18 @@ BY is function to use to update the list.  It defaults to `cdr'."
            var `(car ,value-holder))))))
 
 ;;;;;; List Ref
-(cl-defun loopy--parse-list-ref-command
-    ((_ var val &optional (func #'cdr)) &optional (val-holder (gensym "list-ref-")))
-  "Parse the `list-ref' loop command, editing the `list' commands instructions.
-
-VAR is the name of a setf-able place.  VAL is a list value.  FUNC
-is a function used to update VAL (default `cdr').  VAL-HOLDER is
-a variable name that holds the list."
-  (when loopy--in-sub-level
-    (loopy--signal-bad-iter 'list-ref))
-  `((loopy--iteration-vars . (,val-holder ,val))
-    ,@(loopy--destructure-for-generalized-command var `(car ,val-holder))
-    (loopy--latter-body . (setq ,val-holder (,(loopy--get-function-symbol func)
-                                             ,val-holder)))
-    (loopy--pre-conditions . (consp ,val-holder))))
+(loopy--defiteration list-ref
+  "Parse the `list-ref' loop command, editing the `list' commands instructions."
+  :keywords (:by)
+  :instructions
+  (let ((val-holder (gensym "list-ref"))
+        (by-func (or by #'cdr)))
+    `((loopy--iteration-vars . (,val-holder ,val))
+      ,@(loopy--destructure-for-generalized-command var `(car ,val-holder))
+      (loopy--latter-body . (setq ,val-holder (,(loopy--get-function-symbol
+                                                 by-func)
+                                               ,val-holder)))
+      (loopy--pre-conditions . (consp ,val-holder)))))
 
 ;;;;;; Map
 (cl-defun loopy--parse-map-command ((_ var val))
