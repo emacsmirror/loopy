@@ -648,11 +648,26 @@ command are inserted into a `cond' special form."
     (name doc-string &key keywords multi-val instructions)
   "Define an interation command parser for NAME.
 
-KEYWORDS are the keywords used by the command.  INSTRUCTIONS are
-the command's instructions. MULTI-VAL is whether the command can
-take optional arguments that are not keyword arguments.
-DOC-STRING is the documentation string for the produced parsing
-function.  It should describe the arguments of the loop command.
+- NAME is the primary name of the loop command.  This creates a
+  parsing function \"loopy--parse-NAME-command\".
+
+- DOC-STRING is the documentation string for the produced parsing
+  function.  It should describe the arguments of the loop command.
+
+- KEYWORDS are the keywords used by the command.
+
+- MULTI-VAL is whether the command can take optional arguments
+  that are not keyword arguments.  If it is a list of numbers,
+  then the number of other values allowed must be a member of the
+  list or 0.  For example, (1 3) means that a command can only
+  take 0, 1, or 3 other values besides the primary value.  If a
+  command /requires/ a certain number of additional non-keyword
+  arguments, one can always check the number manually while
+  producing instructions (i.e, in the INSTRUCTIONS argument).
+
+- INSTRUCTIONS are the command's instructions.  This should be a
+  single expression, such as a list of instructions or an
+  expression capable of producing said instructions.
 
 There are several values automatically bound to variables, which
 you can use in the instructions:
@@ -747,7 +762,14 @@ you can use in the instructions:
                                         (quote ,keywords))
                  (error "Wrong number of arguments or wrong keywords: %s" cmd)))))
 
-         (ignore ,(if multi-val 'other-vals)
+         ,(when (consp multi-val)
+            `(unless (cl-member (length other-vals)
+                                (quote (0 ,@multi-val))
+                                :test #'=)
+               (error "Wrong number of arguments or wrong keywords: %s" cmd)))
+
+         (ignore name
+                 ,(if multi-val 'other-vals)
                  ,(if keywords 'opts))
          ,instructions))))
 
