@@ -655,15 +655,18 @@ command are inserted into a `cond' special form."
   function.  It should describe the arguments of the loop command.
 
 - KEYWORDS are the keywords used by the command.
+- MULTI-VAL is whether the command can take other arguments that
+  are not keyword arguments.  This is one of nil, t, or an
+  unquoted list of numbers.
 
-- MULTI-VAL is whether the command can take optional arguments
-  that are not keyword arguments.  If it is a list of numbers,
-  then the number of other values allowed must be a member of the
-  list or 0.  For example, (1 3) means that a command can only
-  take 0, 1, or 3 other values besides the primary value.  If a
-  command /requires/ a certain number of additional non-keyword
-  arguments, one can always check the number manually while
-  producing instructions (i.e, in the INSTRUCTIONS argument).
+  If a list of numbers, then those numbers describe the valid
+  amounts of additional (non-keyword) arguments of the command.
+  For example, (0 1) means that command has 1 optional
+  non-keyword argument.  (1 3) means the command requires either
+  1 or 3 additional non-keyword arguments.
+
+  If t, no check if performed and the command takes any number of
+  optional additional arguments.
 
 - INSTRUCTIONS are the command's instructions.  This should be a
   single expression, such as a list of instructions or an
@@ -764,7 +767,7 @@ you can use in the instructions:
 
          ,(when (consp multi-val)
             `(unless (cl-member (length other-vals)
-                                (quote (0 ,@multi-val))
+                                (quote ,multi-val)
                                 :test #'=)
                (error "Wrong number of arguments or wrong keywords: %s" cmd)))
 
@@ -982,7 +985,7 @@ than END.  BY is the positive value used to increment VAR from
 START to END.  IF DOWN is given, end the loop when the value of
 VAR is less than END."
   :keywords (:by :down)
-  :multi-val (1)
+  :multi-val (0 1)
   :instructions
   (let ((end (cl-first other-vals))
         (down (plist-get opts :down))
@@ -1005,7 +1008,7 @@ VAR is less than END."
   "Parse the `nums-up' command as (nums-up START [END] &key by).
 
 See `loopy--parse-nums-command' for more."
-  :multi-val (1)
+  :multi-val (0 1)
   :keywords (:by)
   :instructions (loopy--parse-loop-command `(nums ,var ,val ,@args)))
 
@@ -1014,7 +1017,7 @@ See `loopy--parse-nums-command' for more."
   "Parse the `nums-down' command as (nums-up START [END] &key by).
 
 See `loopy--parse-nums-command' for more."
-  :multi-val (1)
+  :multi-val (0 1)
   :keywords (:by)
   :instructions
   (loopy--parse-loop-command `(nums ,var ,val ,@args :down t)))
