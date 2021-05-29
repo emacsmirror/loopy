@@ -43,6 +43,36 @@
 ;; `(loopy)'.
 
 ;;; Code:
+
+;; NOTE:
+;;
+;; For more easily finding loop commands using Imenu, you might wish to do
+;; something like the below, which should work for most definitions.
+;;
+;; (progn
+;;   (push (list "Loop Commands"
+;;               (rx (seq bol
+;;                        (zero-or-more (syntax whitespace))
+;;                        "(loopy--def"
+;;                        (or "iteration" "accumulation")
+;;                        (one-or-more (syntax whitespace))
+;;                        (group (one-or-more (or (syntax word)
+;;                                                (syntax symbol)
+;;                                                (seq "\\" nonl))))))
+;;               1)
+;;         imenu-generic-expression)
+;;   (push (list "Loop Commands"
+;;               (rx (seq bol
+;;                        (zero-or-more (syntax whitespace))
+;;                        "(defun loopy--parse-"
+;;                        (group (one-or-more (or (syntax word)
+;;                                                (syntax symbol)
+;;                                                (seq "\\" nonl))))
+;;                        "-command"))
+;;               1)
+;;         imenu-generic-expression))
+
+
 ;; Cant require `loopy', as that would be recursive.
 (require 'cl-lib)
 (require 'seq)
