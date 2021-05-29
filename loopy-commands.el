@@ -703,27 +703,6 @@ you can use in the instructions:
        (ignore other-vals opts)
        ,instructions)))
 
-(loopy--defiteration list
-  "Parse the list command as (list VAR VAL [VALS] &key by).
-
-BY is function to use to update the list.  It defaults to `cdr'."
-  :keywords (:by)
-  :instructions
-  (let* ((by-func (or (plist-get opts :by)
-                      'cdr)))
-    (let ((value-holder (gensym "list-")))
-      `((loopy--iteration-vars
-         . (,value-holder ,(if (null other-vals)
-                               val
-                             (apply #'loopy--list-command-distribute
-                                    val other-vals))))
-        (loopy--latter-body
-         . (setq ,value-holder (,(loopy--get-function-symbol by-func)
-                                ,value-holder)))
-        (loopy--pre-conditions . (consp ,value-holder))
-        ,@(loopy--destructure-for-iteration-command
-           var `(car ,value-holder))))))
-
 (defun loopy--iteration-commands-distribute-sequence-elements
     (seq1 remaining-seqs &optional coerce-type)
   "Distribute the elements of the sequences.
@@ -867,6 +846,28 @@ is worked through first."
     `(let ((,result-var nil))
        ,result
        (nreverse ,result-var))))
+
+(loopy--defiteration list
+  "Parse the list command as (list VAR VAL [VALS] &key by).
+
+BY is function to use to update the list.  It defaults to `cdr'."
+  :keywords (:by)
+  :instructions
+  (let* ((by-func (or (plist-get opts :by)
+                      'cdr)))
+    (let ((value-holder (gensym "list-")))
+      `((loopy--iteration-vars
+         . (,value-holder ,(if (null other-vals)
+                               val
+                             (apply #'loopy--list-command-distribute
+                                    val other-vals))))
+        (loopy--latter-body
+         . (setq ,value-holder (,(loopy--get-function-symbol by-func)
+                                ,value-holder)))
+        (loopy--pre-conditions . (consp ,value-holder))
+        ,@(loopy--destructure-for-iteration-command
+           var `(car ,value-holder))))))
+
 
 (cl-defun loopy--parse-list-ref-command
     ((_ var val &optional (func #'cdr)) &optional (val-holder (gensym "list-ref-")))
