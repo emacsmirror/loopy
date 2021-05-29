@@ -974,84 +974,50 @@ vector using the library `map.el'."
       (loopy--latter-body . (setq ,value-holder (cdr ,value-holder))))))
 
 ;;;;;; Nums
-(cl-defun loopy--parse-nums-command ((&whole cmd _ var start &rest args))
-  "Parse the `nums' command as (nums VAR START [END] &key BY DOWN).
+(loopy--defiteration nums
+  "Parse the `nums' command as (nums VAR START [END] &key by down).
 
 If END is given, end the loop when the value of VAR is greater
 than END.  BY is the positive value used to increment VAR from
 START to END.  IF DOWN is given, end the loop when the value of
 VAR is less than END."
-  (when loopy--in-sub-level
-    (loopy--signal-bad-iter 'nums))
-
-  ;; Verify args
-  (when args
-    (unless (and (if (keywordp (cl-first args))
-                     (cl-member (length args) '(2 4) :test #'=)
-                   (cl-member (length args) '(1 3 5) :test #'=))
-                 (loopy--valid-keywords-p '(:by :down)
-                                           (if (keywordp (cl-first args))
-                                               args
-                                             (cl-rest args))))
-      (error "Bad arguments to `nums': %s" cmd)))
-
-
-  (let ((end (unless (keywordp (cl-first args))
-               (cl-first args))))
-    (let ((down (plist-get (if end (cdr args) args) :down))
-          (by   (plist-get (if end (cdr args) args) :by))
-          (increment-val-holder (gensym "nums-increment")))
-
-      `((loopy--iteration-vars . (,var ,start))
-        ,(when by
-           `(loopy--iteration-vars . (,increment-val-holder ,by)))
-        ,(when end
-           `(loopy--pre-conditions . (,(if down #'>= #'<=)
-                                      ,var ,end)))
-        (loopy--latter-body . (setq ,var ,(cond
-                                           (by   `(,(if down #'- #'+)
-                                                   ,var ,increment-val-holder))
-                                           (down `(1- ,var))
-                                           (t    `(1+ ,var)))))))))
+  :keywords (:by :down)
+  :multi-val (1)
+  :instructions
+  (let ((end (cl-first other-vals))
+        (down (plist-get opts :down))
+        (by (plist-get opts :by))
+        (increment-val-holder (gensym "nums-increment")))
+    `((loopy--iteration-vars . (,var ,val))
+      ,(when by
+         `(loopy--iteration-vars . (,increment-val-holder ,by)))
+      ,(when end
+         `(loopy--pre-conditions . (,(if down #'>= #'<=)
+                                    ,var ,end)))
+      (loopy--latter-body . (setq ,var ,(cond
+                                         (by   `(,(if down #'- #'+)
+                                                 ,var ,increment-val-holder))
+                                         (down `(1- ,var))
+                                         (t    `(1+ ,var))))))))
 
 ;;;;;; Nums Up
-(cl-defun loopy--parse-nums-up-command ((&whole cmd _ var start &rest args))
-  "Parse the `nums-up' command as (nums-up START [END] &key by)."
-  (when loopy--in-sub-level
-    (loopy--signal-bad-iter 'nums-up))
+(loopy--defiteration nums-up
+  "Parse the `nums-up' command as (nums-up START [END] &key by).
 
-  (when args
-    (let ((end-given (not (keywordp (cl-first args)))))
-      (unless (and (if end-given
-                       (cl-member (length args) '(1 3) :test #'=)
-                     (= 2 (length args)))
-                   (loopy--valid-keywords-p '(:by)
-                                             (if end-given
-                                                 (cl-rest args)
-                                               args)))
-        (error "Bad arguments to `nums-up': %s" cmd))))
-
-  (loopy--parse-loop-command `(nums ,var ,start ,@args)))
+See `loopy--parse-nums-command' for more."
+  :multi-val (1)
+  :keywords (:by)
+  :instructions (loopy--parse-loop-command `(nums ,var ,val ,@args)))
 
 ;;;;;; Nums Down
-(cl-defun loopy--parse-nums-down-command ((&whole cmd _ var start &rest args))
-  "Parse the `nums-down' command as (nums-up START [END] &key by)."
-  (when loopy--in-sub-level
-    (loopy--signal-bad-iter 'nums-up))
+(loopy--defiteration nums-down
+  "Parse the `nums-down' command as (nums-up START [END] &key by).
 
-  (when args
-    (let ((end-given (not (keywordp (cl-first args)))))
-      (unless (and (if end-given
-                       (cl-member (length args) '(1 3) :test #'=)
-                     (= 2 (length args)))
-                   (loopy--valid-keywords-p '(:by)
-                                             (if end-given
-                                                 (cl-rest args)
-                                               args)))
-        (error "Bad arguments to `nums-down': %s" cmd))))
-
-  (loopy--parse-loop-command `(nums ,var ,start ,@args :down t)))
-
+See `loopy--parse-nums-command' for more."
+  :multi-val (1)
+  :keywords (:by)
+  :instructions
+  (loopy--parse-loop-command `(nums ,var ,val ,@args :down t)))
 
 ;;;;;; Repeat
 (cl-defun loopy--parse-repeat-command ((_ var-or-count &optional count))
