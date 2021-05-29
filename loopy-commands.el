@@ -308,6 +308,7 @@ must sometimes create a sequence to be destructured."
 
 ;;;; Included parsing functions.
 ;;;;; Misc.
+;;;;;; Sub Loop
 (cl-defun loopy--parse-sub-loop-command ((_ &rest body))
   "Parse the `loop' or `sub-loop' command.
 
@@ -424,6 +425,7 @@ BODY is one or more loop commands."
             non-wrapped-instructions))))
 
 ;;;;; Genereric Evaluation
+;;;;;; Expr
 (cl-defun loopy--parse-expr-command ((_ var &rest vals))
   "Parse the `expr' command.
 
@@ -485,6 +487,7 @@ BODY is one or more loop commands."
              needed-instructions)
           needed-instructions)))))
 
+;;;;;; Prev Expr
 (cl-defun loopy--parse-prev-expr-command ((_ var val &key init back))
   "Parse the `prev-expr' command as (prev-expr VAR VAL &key init back).
 
@@ -537,6 +540,7 @@ This command does not wait for VAL to change before updating VAR."
                                            for hv in holding-vars
                                            collect (list hv pvar)))))))))
 
+;;;;;; Group
 (cl-defun loopy--parse-group-command ((_ &rest body))
   "Parse the `group' loop command.
 
@@ -551,6 +555,7 @@ BODY is one or more commands to be grouped by a `progn' form."
     (cons `(loopy--main-body . (progn ,@(nreverse progn-body)))
           (nreverse full-instructions))))
 
+;;;;;; Do
 (cl-defun loopy--parse-do-command ((_ &rest expressions))
   "Parse the `do' loop command.
 
@@ -560,6 +565,7 @@ the loop literally (not even in a `progn')."
           expressions))
 
 ;;;;; Conditionals
+;;;;;; If
 (cl-defun loopy--parse-if-command
     ((_ condition &optional if-true &rest if-false))
   "Parse the `if' loop command.  This takes the entire command.
@@ -592,6 +598,7 @@ the loop literally (not even in a `progn')."
                 ,@(nreverse if-false-main-body)))
           (nreverse full-instructions))))
 
+;;;;;; Cond
 (cl-defun loopy--parse-cond-command ((_ &rest clauses))
   "Parse the `cond' command.  This works like the `cond' special form.
 
@@ -618,6 +625,7 @@ command are inserted into a `cond' special form."
     (cons `(loopy--main-body . ,(cons 'cond (nreverse actual-cond-clauses)))
           (nreverse full-instructions))))
 
+;;;;;; When Unless
 (cl-defun loopy--parse-when-unless-command ((name condition &rest body))
   "Parse `when' and `unless' commands.
 
@@ -744,6 +752,7 @@ For arrays specifically, see the macro
         (cl-coerce (nreverse result) coerce-type)
       (nreverse result))))
 
+;;;;;; Array
 (defmacro loopy--array-command-distribute-elements (&rest arrays)
   "Distribute the elements of the ARRAYS into an array of lists.
 
@@ -786,6 +795,7 @@ For example, [1 2] and [3 4] gives ((1 3) (1 4) (2 3) (2 4))."
                                                       ,index-holder)))
       (loopy--pre-conditions . (< ,index-holder ,length-holder)))))
 
+;;;;;; Array Ref
 (cl-defun loopy--parse-array-ref-command ((_ var val))
   "Parse the `array-ref' command by editing the `array' command's instructions.
 
@@ -804,6 +814,7 @@ holds the array value.  INDEX-HOLDER holds the index value."
       (loopy--latter-body    . (setq ,index-holder (1+ ,index-holder)))
       (loopy--pre-conditions . (< ,index-holder ,length-holder)))))
 
+;;;;;; Cons
 (cl-defun loopy--parse-cons-command ((_ var val &optional (func #'cdr)))
   "Parse the `cons' loop command.
 
@@ -825,6 +836,7 @@ is a function by which to update VAR (default `cdr')."
                                 ,value-holder)))
         (loopy--pre-conditions . (consp ,value-holder))))))
 
+;;;;;; List
 (defun loopy--list-command-distribute (&rest lists)
   "Create an expansion for distributing lists.
 
@@ -868,7 +880,7 @@ BY is function to use to update the list.  It defaults to `cdr'."
         ,@(loopy--destructure-for-iteration-command
            var `(car ,value-holder))))))
 
-
+;;;;;; List Ref
 (cl-defun loopy--parse-list-ref-command
     ((_ var val &optional (func #'cdr)) &optional (val-holder (gensym "list-ref-")))
   "Parse the `list-ref' loop command, editing the `list' commands instructions.
@@ -884,6 +896,7 @@ a variable name that holds the list."
                                              ,val-holder)))
     (loopy--pre-conditions . (consp ,val-holder))))
 
+;;;;;; Map
 (cl-defun loopy--parse-map-command ((_ var val))
   "Parse the `map' loop command.
 
@@ -898,6 +911,7 @@ vector using the library `map.el'."
       (loopy--pre-conditions . (consp ,value-holder))
       (loopy--latter-body . (setq ,value-holder (cdr ,value-holder))))))
 
+;;;;;; Nums
 (cl-defun loopy--parse-nums-command ((&whole cmd _ var start &rest args))
   "Parse the `nums' command as (nums VAR START [END] &key BY DOWN).
 
@@ -938,6 +952,7 @@ VAR is less than END."
                                            (down `(1- ,var))
                                            (t    `(1+ ,var)))))))))
 
+;;;;;; Nums Up
 (cl-defun loopy--parse-nums-up-command ((&whole cmd _ var start &rest args))
   "Parse the `nums-up' command as (nums-up START [END] &key by)."
   (when loopy--in-sub-level
@@ -956,7 +971,7 @@ VAR is less than END."
 
   (loopy--parse-loop-command `(nums ,var ,start ,@args)))
 
-
+;;;;;; Nums Down
 (cl-defun loopy--parse-nums-down-command ((&whole cmd _ var start &rest args))
   "Parse the `nums-down' command as (nums-up START [END] &key by)."
   (when loopy--in-sub-level
@@ -976,6 +991,7 @@ VAR is less than END."
   (loopy--parse-loop-command `(nums ,var ,start ,@args :down t)))
 
 
+;;;;;; Repeat
 (cl-defun loopy--parse-repeat-command ((_ var-or-count &optional count))
   "Parse the `repeat' loop command.
 
@@ -994,6 +1010,7 @@ an integer, to be used if a variable name is provided."
         (loopy--latter-body . (setq ,value-holder (1+ ,value-holder)))
         (loopy--pre-conditions . (< ,value-holder ,var-or-count))))))
 
+;;;;;; Seq
 (defmacro loopy--seq-command-distribute-elements (&rest sequences)
   "Distribute the elements of SEQUENCES into a vector of lists.
 
@@ -1075,6 +1092,7 @@ decreasing.  INDEX is the variable to use to hold the index."
                                       ,index-holder
                                       ,end-index-holder))))))))
 
+;;;;;; Seq Index
 (cl-defun loopy--parse-seq-index-command ((_ var val))
   "Parse the `seq-index' command.
 
@@ -1094,6 +1112,7 @@ This command does not support destructuring."
       (loopy--latter-body    . (setq ,index-holder (1+ ,index-holder)))
       (loopy--pre-conditions . (< ,index-holder ,length-holder)))))
 
+;;;;;; Seq Ref
 (cl-defun loopy--parse-seq-ref-command ((_ var val))
   "Parse the `seq-ref' loop command.
 
@@ -1277,6 +1296,7 @@ the inputs to test."
                      (cl-return y)))))
         `(cl-member x ,var :test ,test))))
 
+;;;;;; Accumulate
 (loopy--defaccumulation accumulate
   "Parse the `accumulate command' as (accumulate VAR VAL FUNC &key init)."
   :keywords (init)
@@ -1296,6 +1316,7 @@ the inputs to test."
                                                       ,val ,var)))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Adjoin
 (loopy--defaccumulation adjoin
   "Parse the `adjoin' command as (adjoin VAR VAL &key test key result-type at)
 
@@ -1368,6 +1389,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
                                                         result-type))))))))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Append
 (loopy--defaccumulation append
   "Parse the `append' command as (append VAR VAL &key at)."
   :keywords (at)
@@ -1404,6 +1426,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
                     (error "Bad `:at' position: %s" cmd))))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Collect
 (loopy--defaccumulation collect
   "Parse the `collect' command as (collect VAR VAL &key result-type at)."
   :keywords (result-type at)
@@ -1461,6 +1484,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
                    (error "Bad `:at' position: %s" cmd))))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Concat
 (loopy--defaccumulation concat
   "Parse the `concat' command as (concat VAR VAL &key at)."
   :keywords (at)
@@ -1493,6 +1517,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
                                     (error "Bad `:at' position: %s" cmd)))))))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Count
 (loopy--defaccumulation count
   "Parse the `count' command as (count VAR VAL)."
   ;; This is same as implicit behavior, so we only need to specify the explicit.
@@ -1501,6 +1526,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
               (loopy--main-body . (if ,val (setq ,var (1+ ,var))))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Find
 (loopy--defaccumulation find
   "Parse a command of the form `(finding EXPR TEST &key ON-FAILURE)'."
   :num-args 3
@@ -1536,6 +1562,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
                      . (,var . (if ,var nil (setq ,var ,on-failure)))))
                 (loopy--implicit-return   . ,var))))
 
+;;;;;; Max
 (loopy--defaccumulation max
   "Parse the `max' command as (max VAR VAL)."
   :explicit `((loopy--accumulation-vars
@@ -1543,6 +1570,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
               (loopy--main-body . (setq ,var (max ,val ,var)))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Min
 (loopy--defaccumulation min
   "Parse the `min' command as (min VAR VAL)."
   :explicit `((loopy--accumulation-vars
@@ -1550,6 +1578,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
               (loopy--main-body . (setq ,var (min ,val ,var)))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Multiply
 (loopy--defaccumulation multiply
   "Parse the `multiply' command as (multiply VAR VAL)."
   :explicit `((loopy--accumulation-vars
@@ -1557,6 +1586,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
               (loopy--main-body . (setq ,var (* ,val ,var)))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Nconc
 (loopy--defaccumulation nconc
   "Parse the `nconc' command as (nconc VAR VAL &key at)."
   :keywords (at)
@@ -1587,6 +1617,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
                     (error "Bad `:at' position: %s" cmd))))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Nunion
 (loopy--defaccumulation nunion
   "Parse the `nunion' command as (nunion VAR VAL &key test key at)."
   :keywords (test key at)
@@ -1618,6 +1649,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
                       (error "Bad `:at' position: %s" cmd)))))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Prepend
 (loopy--defaccumulation prepend
   "Parse the `prepend' command as (prepend VAR VAL)."
   :explicit `((loopy--accumulation-vars
@@ -1632,6 +1664,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
                                                     ,var)))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Push Into
 (loopy--defaccumulation push-into
   "Parse the `push' command as (push VAR VAL)."
   :explicit `((loopy--accumulation-vars
@@ -1639,6 +1672,7 @@ RESULT-TYPE can be used to `cl-coerce' the return value."
               (loopy--main-body . (setq ,var (cons ,val  ,var)))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Reduce
 (loopy--defaccumulation reduce
   "Parse the `reduce' command as (reduce VAR VAL FUNC &key init).
 
@@ -1660,6 +1694,7 @@ With INIT, initialize VAR to INIT.  Otherwise, VAR starts as nil."
                                         (funcall ,(cl-third args) ,var ,val)))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Sum
 (loopy--defaccumulation sum
   "Parse the `sum' command as (sum VAR VAL)."
   ;; This is same as implicit behavior, so we only need to specify the explicit.
@@ -1668,6 +1703,7 @@ With INIT, initialize VAR to INIT.  Otherwise, VAR starts as nil."
               (loopy--main-body . (setq ,var (+ ,val ,var)))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Union
 (loopy--defaccumulation union
   "Parse the `union' command as (union VAR VAL &key test key at)."
   :keywords (test key at)
@@ -1699,6 +1735,7 @@ With INIT, initialize VAR to INIT.  Otherwise, VAR starts as nil."
                       (error "Bad `:at' position: %s" cmd)))))
               (loopy--implicit-return . ,var)))
 
+;;;;;; Vconcat
 (loopy--defaccumulation vconcat
   "Parse the `vconcat' command as (vconcat VAR VAL &key at)."
   :keywords (at)
@@ -1732,7 +1769,8 @@ With INIT, initialize VAR to INIT.  Otherwise, VAR starts as nil."
               (loopy--implicit-return . ,var)))
 
 
-;;;; Boolean Commands
+;;;;; Boolean Commands
+;;;;;; Always
 (cl-defun loopy--parse-always-command ((_ condition &rest other-conditions))
   "Parse a command of the form `(always CONDITION [CONDITIONS])'.
 
@@ -1755,6 +1793,7 @@ or t if the command is never evaluated."
 			    (unless ,return-val
 			      (cl-return-from ,loopy--loop-name nil)))))))
 
+;;;;;; Never
 (cl-defun loopy--parse-never-command ((_ condition &rest other-conditions))
   "Parse a command of the form `(never CONDITION [CONDITIONS])'.
 
@@ -1773,6 +1812,7 @@ Otherwise, `loopy' should return t."
                                    condition)
                             (cl-return-from ,loopy--loop-name nil))))))
 
+;;;;;; Thereis
 (cl-defun loopy--parse-thereis-command ((_ condition &rest other-conditions))
   "Parse the `thereis' command as (thereis CONDITION [CONDITIONS]).'
 
@@ -1788,6 +1828,7 @@ Otherwise the loop continues and nil is returned."
 
 
 ;;;;; Exiting and Skipping
+;;;;;; Early Exit
 (cl-defun loopy--parse-early-exit-commands ((&whole command name &rest args))
   "Parse the  `return' and `return-from' loop commands.
 
@@ -1816,16 +1857,19 @@ a loop name, return values, or a list of both."
                   ((= 2 arg-length) (cl-second args))
                   (t                `(list ,@(cl-rest args))))))))))))
 
+;;;;;; Leave
 (cl-defun loopy--parse-leave-command (_)
   "Parse the `leave' command."
   '((loopy--tagbody-exit-used . t)
     (loopy--main-body . (go loopy--non-returning-exit-tag))))
 
+;;;;;; Skip
 (cl-defun loopy--parse-skip-command (_)
   "Parse the `skip' loop command."
   '((loopy--skip-used . t)
     (loopy--main-body . (go loopy--continue-tag))))
 
+;;;;;; While Until
 (cl-defun loopy--parse-while-until-commands ((name condition &rest conditions))
   "Parse the `while' and `until' commands.
 
