@@ -730,7 +730,7 @@ instructions:
 
   ;; Check that `instructions' given.
   (unless instructions
-    (error "Instructions required."))
+    (error "Instructions required"))
 
   ;; Store the variable names of the keyword arguments so we only have to
   ;; compute them one.  E.g., "by" from ":by".
@@ -764,22 +764,23 @@ instructions:
                 nil)
 
          ;; We only want to run this code if the values of `opts' and
-         ;; `other-vals' are contained in `args'.
-         ,@(cond
-            ((and multi-val keywords)
+         ;; `other-vals' are contained in `args'.  For other cases, the
+         ;; function arguments perform this step for us.
+         ,@(when (and multi-val keywords)
              `(;; Set `opts' as starting from the first keyword and `other-vals'
                ;; as everything before that.
                (cl-loop with other-val-holding = nil
-                        for cons on args
-                        for arg = (car cons)
+                        for cons-cell on args
+                        for arg = (car cons-cell)
                         until (keywordp arg)
                         do (push arg other-val-holding)
-                        finally do (setq opts cons
+                        finally do (setq opts cons-cell
                                          other-vals (nreverse other-val-holding)))
+
                ;; Validate any keyword arguments:
                (when (cl-set-difference (loopy--every-other opts)
                                         (quote ,keywords))
-                 (error "Wrong number of arguments or wrong keywords: %s" cmd)))))
+                 (error "Wrong number of arguments or wrong keywords: %s" cmd))))
 
          ,(when (consp multi-val)
             `(unless (cl-member (length other-vals)
@@ -788,8 +789,10 @@ instructions:
                (error "Wrong number of arguments or wrong keywords: %s" cmd)))
 
          (ignore name
+                 ;; We can only ignore variables if they're defined.
                  ,(if multi-val 'other-vals)
                  ,(if keywords 'opts))
+
          ,instructions))))
 
 (defun loopy--iteration-commands-distribute-sequence-elements
