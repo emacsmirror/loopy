@@ -306,6 +306,26 @@ must sometimes create a sequence to be destructured."
                          collect (loopy--mimic-init-structure i val))
                 'array))))
 
+;; TODO: Would this be more useful as a `pcase' macro?
+(defmacro loopy--plist-bind (bindings plist &rest body)
+  "Destructure PLIST into BINDINGS, surrounding BODY.
+
+BINDINGS is of the form (KEY VAR KEY VAR ...).  VAR can be a list
+of two elements: a variable name and a default value, similar to
+what one would use for `cl-defun'.
+
+This function is similar in use to `cl-destructuring-bind'."
+  (declare (indent 2))
+  (let ((value-holder (gensym "plist-let-")))
+    `(let* ((,value-holder ,plist)
+            ,@(cl-loop for (key var . _) on bindings by #'cddr
+                       if (consp var)
+                       collect `(,(cl-first var)
+                                 (or (plist-get ,key ,value-holder)
+                                     ,(cl-second var)))
+                       else collect `(,var (plist-get ,value-holder ,key))))
+       ,@body)))
+
 ;;;; Included parsing functions.
 ;;;;; Misc.
 ;;;;;; Sub Loop
