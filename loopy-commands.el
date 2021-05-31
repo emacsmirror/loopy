@@ -834,10 +834,10 @@ iteration command.  The supported keywords are:
 - above (exclusive)
 - below (exclusive)"
 
-  (loopy--plist-bind ( :from (from 0) :upfrom (upfrom 0) :downfrom (downfrom 0)
+  (loopy--plist-bind ( :from from :upfrom upfrom :downfrom downfrom
                        :to to :upto upto :downto downto
                        :above above :below below
-                       :by (by 1))
+                       :by by)
       plist
     ;; Check the inputs:
     (when (or (< 1 (cl-count-if #'identity (list from upfrom downfrom)))
