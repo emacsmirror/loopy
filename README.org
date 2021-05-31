@@ -8,6 +8,11 @@
 # Some parsers require this option to export footnotes.
 #+options: f:t
 
+# MELPA Badges
+=loopy=: [[https://melpa.org/#/loopy][file:https://melpa.org/packages/loopy-badge.svg]] \\
+=loopy-dash=: [[https://melpa.org/#/loopy-dash][file:https://melpa.org/packages/loopy-dash-badge.svg]]
+
+
 ~loopy~ is a macro meant for iterating and looping.  It is similar in usage to
 [[https://www.gnu.org/software/emacs/manual/html_node/cl/Loop-Facility.html#Loop-Facility][~cl-loop~]] but uses symbolic expressions rather than keywords.
 
