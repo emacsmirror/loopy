@@ -815,6 +815,46 @@ instructions:
 
          ,instructions))))
 
+(defun loopy--find-start-by-end-dir-vals (plist)
+  "Find the starting index, ending index, step, and if decreasing from PLIST.
+
+The values are returned in a list in that order as a plist.  The
+returned ending index is always exclusive.  For example, if
+`:downfrom' and `:above' are given, then the index should always
+be greater than the ending index during the loop.  This
+assumption simplifies things.
+
+PLIST contains the keyword arguments passed to a sequence
+iteration command.  The supported keywords are:
+
+- from, upfrom (inclusive)
+- downfrom (inclusive)
+- to, upto (inclusive)
+- downto (inclusive)
+- above (exclusive)
+- below (exclusive)"
+
+  (loopy--plist-bind ( :from (from 0) :upfrom (upfrom 0) :downfrom (downfrom 0)
+                       :to to :upto upto :downto downto
+                       :above above :below below
+                       :by (by 1))
+      plist
+    ;; Check the inputs:
+    (when (or (< 1 (cl-count-if #'identity (list from upfrom downfrom)))
+              (< 1 (cl-count-if #'identity (list to upto downto above below))))
+      (error "Conflicting arguments: %s" plist))
+
+    (let ((decreasing (or downfrom downto)))
+      (list :start (or from upfrom downfrom)
+            :by by
+            :end (cond
+                  (above above)
+                  (below below)
+                  (to `(,(if decreasing '1- '1+) ,to))
+                  (upto `(1+ ,upto))
+                  (downto `(1- ,downto)))
+            :decreasing (or downfrom downto)))))
+
 (defun loopy--iteration-commands-distribute-sequence-elements
     (seq1 remaining-seqs &optional coerce-type)
   "Distribute the elements of the sequences.
