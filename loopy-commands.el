@@ -665,7 +665,7 @@ command are inserted into a `cond' special form."
 
 ;;;;; Iteration
 (cl-defmacro loopy--defiteration
-    (name doc-string &key keywords multi-val instructions)
+    (name doc-string &key keywords (required-vals 1) other-vals instructions)
   "Define an interation command parser for NAME.
 
 An iteration command made with this macro has the layout of
@@ -688,7 +688,16 @@ structure.
 - KEYWORDS is an unquoted list of colon-prefixed keywords used by
   the command.
 
-- MULTI-VAL is whether the command can take other arguments that
+- REQUIRED-VALS is the number of required values.  For most
+  iteration commands, this is one.  This can be one nil (or
+  zero), a non-zero number, or an unquoted list of variable
+  names.
+
+  If a list of variable names, those names are used in the
+  function definition.  Otherwise, the variables are named
+  following the naming scheme \"valNUM\".
+
+- OTHER-VALS is whether the command can take other arguments that
   are not keyword arguments.  This is one of nil, t, or an
   unquoted list of numbers.
 
@@ -697,6 +706,11 @@ structure.
   For example, (0 1) means that command has 1 optional
   non-keyword argument.  (1 3) means the command requires either
   1 or 3 additional non-keyword arguments.
+
+  This means that if a command has no required arguments, but
+  several optional non-keyword arguments, you can set
+  REQUIRED-VALS to 0 and OTHER-VALS to a list of 0 and some
+  integer.
 
   If t, no check if performed and the command takes any number of
   optional additional arguments.
@@ -715,15 +729,17 @@ instructions:
 
 - `var' is the variable to be used by the command.
 
-- `val' is the sequence over which to iterate.
+- `val' is the required value (generally, the sequence over which
+  to iterate). If there are multiple required values, they are
+  instead named according to the value of REQUIRED-VALS.
 
 - `args' is a list of the remaining arguments of the command
-   after `var' and `val'.  If either MULTI-VAL or KEYWORDS are
+   after `var' and `val'.  If either OTHER-VALS or KEYWORDS are
    nil, then this variable is not bound.  In that case, use the
    below two variables.
 
 - `other-vals' is a list of additional values found in `args',
-   if MULTI-VAL is non-nil.
+   if OTHER-VALS is non-nil.
 
 - `opts' is a list of keyword arguments and their values,
   found in `args' after the elements of `other-vals'.
@@ -731,7 +747,7 @@ instructions:
   The first keyword in `args' determines the start of
   the optional keyword arguments.
 
-  If MULTI-VAL is non-nil (i.e., no other values are allowed),
+  If OTHER-VALS is non-nil (i.e., no other values are allowed),
   then these keyword variables should be referenced directly
   instead of through the property list `opts'."
 
@@ -760,12 +776,25 @@ instructions:
                              collect (intern (substring (symbol-name sym) 1))))))
 
     `(cl-defun ,(intern (format "loopy--parse-%s-command" name))
-         (( &whole cmd name var val
+         (( &whole cmd name var
+            ,@(cond
+               ((eq 1 required-vals)
+                '(val))
+               ((or (eq required-vals nil)
+                    (eq required-vals 0))
+                nil)
+               ((consp required-vals)
+                required-vals)
+               ((integerp required-vals)
+                (cl-loop for i from 1 to required-vals
+                         collect (intern (format "val%d" i))))
+               (t
+                (error "Bad value for `required-vals': %s" required-vals)))
             ,@(if keywords
-                  (if multi-val
+                  (if other-vals
                       '(&rest args)
                     `(&key ,@var-keys))
-                (when multi-val
+                (when other-vals
                   '(&rest other-vals)))))
        ,doc-string
 
@@ -773,7 +802,7 @@ instructions:
          (loopy--signal-bad-iter (quote ,name)))
 
        (let* ,(if keywords
-                  (if multi-val
+                  (if other-vals
                       '((other-vals nil)
                         (opts nil))
                     ;; These can be referred to directly, but we'll keep
@@ -786,7 +815,7 @@ instructions:
          ;; We only want to run this code if the values of `opts' and
          ;; `other-vals' are contained in `args'.  For other cases, the
          ;; function arguments perform this step for us.
-         ,@(when (and multi-val keywords)
+         ,@(when (and other-vals keywords)
              `(;; Set `opts' as starting from the first keyword and `other-vals'
                ;; as everything before that.
                (cl-loop with other-val-holding = nil
@@ -802,21 +831,21 @@ instructions:
                                         (quote ,keywords))
                  (error "Wrong number of arguments or wrong keywords: %s" cmd))))
 
-         ,(when (consp multi-val)
+         ,(when (consp other-vals)
             `(unless (cl-member (length other-vals)
-                                (quote ,multi-val)
+                                (quote ,other-vals)
                                 :test #'=)
                (error "Wrong number of arguments or wrong keywords: %s" cmd)))
 
          (ignore name
                  ;; We can only ignore variables if they're defined.
-                 ,(if multi-val 'other-vals)
+                 ,(if other-vals 'other-vals)
                  ,(if keywords 'opts))
 
          ,instructions))))
 
 (defun loopy--find-start-by-end-dir-vals (plist)
-  "Find the starting index, ending index, step, and if decreasing from PLIST.
+  "Find the numeric start, end, and step, and if decreasing from PLIST.
 
 The values are returned in a list in that order as a plist.  The
 returned ending index is always exclusive.  For example, if
@@ -919,7 +948,7 @@ For example, [1 2] and [3 4] gives ((1 3) (1 4) (2 3) (2 4))."
 
 (loopy--defiteration array
   "Parse the `array' command as (array VAR VAL [VALS] &key by)."
-  :multi-val t
+  :other-vals t
   :keywords (:by)
   :instructions
   (let ((value-holder (gensym "array-"))
@@ -1008,7 +1037,7 @@ is worked through first."
   "Parse the list command as (list VAR VAL [VALS] &key by).
 
 BY is function to use to update the list.  It defaults to `cdr'."
-  :multi-val t
+  :other-vals t
   :keywords (:by)
   :instructions
   (let* ((by-func (or (plist-get opts :by)
@@ -1064,7 +1093,7 @@ than END.  BY is the positive value used to increment VAR from
 START to END.  IF DOWN is given, end the loop when the value of
 VAR is less than END."
   :keywords (:by :down)
-  :multi-val (0 1)
+  :other-vals (0 1)
   :instructions
   (let ((end (cl-first other-vals))
         (down (plist-get opts :down))
@@ -1087,7 +1116,7 @@ VAR is less than END."
   "Parse the `nums-up' command as (nums-up START [END] &key by).
 
 See `loopy--parse-nums-command' for more."
-  :multi-val (0 1)
+  :other-vals (0 1)
   :keywords (:by)
   :instructions (loopy--parse-loop-command `(nums ,var ,val ,@args)))
 
@@ -1096,7 +1125,7 @@ See `loopy--parse-nums-command' for more."
   "Parse the `nums-down' command as (nums-up START [END] &key by).
 
 See `loopy--parse-nums-command' for more."
-  :multi-val (0 1)
+  :other-vals (0 1)
   :keywords (:by)
   :instructions
   (loopy--parse-loop-command `(nums ,var ,val ,@args :down t)))
@@ -1149,7 +1178,7 @@ the starting index to use.  END is the inclusive ending index,
 which cannot be longer than the sequence.  DOWN is whether index is
 decreasing.  INDEX is the variable to use to hold the index."
   :keywords (:by :start :end :down :index)
-  :multi-val t
+  :other-vals t
   :instructions
   (let ((value-holder (gensym "seq-"))
         (index-holder (or (plist-get opts :index)
