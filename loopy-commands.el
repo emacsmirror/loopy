@@ -845,13 +845,9 @@ instructions:
          ,instructions))))
 
 (defun loopy--find-start-by-end-dir-vals (plist)
-  "Find the numeric start, end, and step, and if decreasing from PLIST.
+  "Find the numeric start, end, and step, direction, and inclusivity.
 
-The values are returned in a list in that order as a plist.  The
-returned ending index is always exclusive.  For example, if
-`:downfrom' and `:above' are given, then the index should always
-be greater than the ending index during the loop.  This
-assumption simplifies things.
+The values are returned in a list in that order as a plist.
 
 PLIST contains the keyword arguments passed to a sequence
 iteration command.  The supported keywords are:
@@ -886,13 +882,9 @@ iteration command.  The supported keywords are:
 
       (list :start (or from upfrom downfrom)
             :by by
-            :end (cond
-                  (above above)
-                  (below below)
-                  (to `(,(if decreasing '1- '1+) ,to))
-                  (upto `(1+ ,upto))
-                  (downto `(1- ,downto)))
-            :decreasing decreasing))))
+            :end (or to downto above below upto)
+            :decreasing decreasing
+            :inclusive (not (or above below))))))
 
 (defun loopy--iteration-commands-distribute-sequence-elements
     (seq1 remaining-seqs &optional coerce-type)
