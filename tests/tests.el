@@ -797,7 +797,25 @@ implicit variable without knowing it's name, even for named loops."
 
   (should (equal nil
                  (eval (quote (loopy (nums i :above 3)
-                                     (collect i)))))))
+                                     (collect i))))))
+  (should (equal '(0 1.5 3.0)
+                 (loopy (nums i 0 3 :by 1.5)
+                        (collect i))))
+
+  (should (equal '(0 1.5 3.0 4.5)
+                 (eval (quote (loopy (nums i 0 5 :by 1.5)
+                                     (collect i))))))
+
+  ;; NOTE: It remains to be seen how well this test works.
+  (progn
+    (cl-float-limits)
+    (should (cl-every (lambda (x y) (> cl-float-epsilon (- x y)))
+                      '(0.5 0.3 0.1 -0.1 -0.3 -0.5)
+                      (eval (quote (loopy (nums i
+                                                :downfrom 0.5
+                                                :above -0.7
+                                                :by 0.2)
+                                          (collect i))))))))
 
 ;;;;; Nums-Down
 (ert-deftest nums-down ()

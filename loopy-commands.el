@@ -1102,7 +1102,7 @@ VAR is less than END."
   (seq-let (explicit-start explicit-end) other-vals
 
     (loopy--plist-bind ( :start key-start :end key-end :by (by 1)
-                         :decreasing decreasing)
+                         :decreasing decreasing :inclusive inclusive)
 
         (loopy--find-start-by-end-dir-vals opts)
 
@@ -1111,22 +1111,19 @@ VAR is less than END."
                 (and explicit-end key-end))
         (error "Conflicting commands given: %s" cmd))
 
-      ;; Make sure explicit end is exclusive.  Values gotten from
-      ;; `loopy--find-start-by-end-dir-vals' are already exclusive.
-      (when explicit-end
-        (setq explicit-end (if decreasing
-                               `(1- ,explicit-end)
-                             `(1+ ,explicit-end))))
-
       (let ((increment-val-holder (gensym "nums-increment"))
             (end (or explicit-end key-end))
+            (end-val-holder (gensym "nums-end"))
             (start (or explicit-start key-start 0)))
 
         `((loopy--iteration-vars . (,var ,start))
           (loopy--iteration-vars . (,increment-val-holder ,by))
-          ,(when end
-             `(loopy--pre-conditions . (,(if decreasing #'> #'<)
-                                        ,var ,end)))
+          ,@(when end
+              `((loopy--iteration-vars . (,end-val-holder ,end))
+                (loopy--pre-conditions . (,(if inclusive
+                                               (if decreasing #'>= #'<=)
+                                             (if decreasing #'> #'<))
+                                          ,var ,end-val-holder))))
           (loopy--latter-body . (setq ,var ,(cond
                                              (by   `(,(if decreasing #'- #'+)
                                                      ,var ,increment-val-holder))
