@@ -321,7 +321,7 @@ This function is similar in use to `cl-destructuring-bind'."
             ,@(cl-loop for (key var . _) on bindings by #'cddr
                        if (consp var)
                        collect `(,(cl-first var)
-                                 (or (plist-get ,key ,value-holder)
+                                 (or (plist-get ,value-holder ,key)
                                      ,(cl-second var)))
                        else collect `(,var (plist-get ,value-holder ,key))))
        ,@body)))
