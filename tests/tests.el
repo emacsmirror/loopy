@@ -741,14 +741,15 @@ implicit variable without knowing it's name, even for named loops."
 
   (should (equal '(1 2 3 4 5)
                  (eval (quote (loopy (number i 1 5)
-                                     (collect i))))))
+                                     (collect i)))))))
 
+(ert-deftest nums-keywords ()
   (should (equal '(1 3 5)
                  (eval (quote (loopy (nums i 1 5 :by 2)
                                      (collect i))))))
 
   (should (equal '(5 3 1)
-                 (eval (quote (loopy (nums i 5 1 :by 2 :down t)
+                 (eval (quote (loopy (nums i 5 :downto 1 :by 2)
                                      (collect i))))))
 
   (should (equal '(0 7 14)
@@ -758,7 +759,44 @@ implicit variable without knowing it's name, even for named loops."
 
   (should (equal '(0 -7 -14 -21 -28 -35 -42)
                  (eval (quote (loopy (repeat 7)
-                                     (nums i 0 :by 7 :down t)
+                                     (nums i :downfrom 0 :by 7)
+                                     (collect i))))))
+  (should (equal '(7 8 9)
+                 (eval (quote (loopy (repeat 3)
+                                     (nums i :upfrom 7)
+                                     (collect i))))))
+
+  (should (equal '(7 8 9)
+                 (eval (quote (loopy (repeat 3)
+                                     (nums i :from 7)
+                                     (collect i))))))
+
+  (should (equal '(0 1 2 3 4 5 6 7)
+                 (eval (quote (loopy (nums i :upto 7)
+                                     (collect i))))))
+
+  (should (equal '(0 1 2 3 4 5 6 7)
+                 (eval (quote (loopy (nums i :to 7)
+                                     (collect i))))))
+
+  (should (equal '(0 -1 -2 -3 -4 -5 -6 -7)
+                 (eval (quote (loopy (nums i :downto -7)
+                                     (collect i))))))
+
+  (should (equal '(0 1 2 3 4 5 6)
+                 (eval (quote (loopy (nums i :above 7)
+                                     (collect i))))))
+
+  (should (equal '(0 -1 -2 -3 -4 -5 -6)
+                 (eval (quote (loopy (nums i :above -7)
+                                     (collect i))))))
+
+  (should (equal '(0 1 2)
+                 (eval (quote (loopy (nums i :below 3)
+                                     (collect i))))))
+
+  (should (equal nil
+                 (eval (quote (loopy (nums i :above 3)
                                      (collect i)))))))
 
 ;;;;; Nums-Down
