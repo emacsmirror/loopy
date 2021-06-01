@@ -870,10 +870,20 @@ iteration command.  The supported keywords are:
       plist
     ;; Check the inputs:
     (when (or (< 1 (cl-count-if #'identity (list from upfrom downfrom)))
-              (< 1 (cl-count-if #'identity (list to upto downto above below))))
+              (< 1 (cl-count-if #'identity (list to upto downto above below)))
+              (and downfrom below)
+              (and upfrom above))
       (error "Conflicting arguments: %s" plist))
 
-    (let ((decreasing (or downfrom downto)))
+    (let ((decreasing (or downfrom downto above)))
+
+      ;; Check directions  for above and below.
+      ;; :above is only for when the value is decreasing.
+      ;; :below is only for when the value in increasing.
+      (when (or (and below decreasing)
+                (and above (not decreasing)))
+        (error "Conflicting arguments: %s" plist))
+
       (list :start (or from upfrom downfrom)
             :by by
             :end (cond
@@ -882,7 +892,7 @@ iteration command.  The supported keywords are:
                   (to `(,(if decreasing '1- '1+) ,to))
                   (upto `(1+ ,upto))
                   (downto `(1- ,downto)))
-            :decreasing (or downfrom downto)))))
+            :decreasing decreasing))))
 
 (defun loopy--iteration-commands-distribute-sequence-elements
     (seq1 remaining-seqs &optional coerce-type)
