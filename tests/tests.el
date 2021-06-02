@@ -817,10 +817,6 @@ implicit variable without knowing it's name, even for named loops."
                  (eval (quote (loopy (nums i :downto -7)
                                      (collect i))))))
 
-  (should (equal '(0 1 2 3 4 5 6)
-                 (eval (quote (loopy (nums i :above 7)
-                                     (collect i))))))
-
   (should (equal '(0 -1 -2 -3 -4 -5 -6)
                  (eval (quote (loopy (nums i :above -7)
                                      (collect i))))))
