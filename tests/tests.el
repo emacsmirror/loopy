@@ -973,44 +973,38 @@ implicit variable without knowing it's name, even for named loops."
                                               (setf k 9))
                                           (finally-return my-seq))))))))
 
-(ert-deftest seq-keywords-up ()
-  (should-error (eval (quote (loopy (seq i [0 1 2 3 4 5] :cat 2)
-                                    (collect i)))))
+(ert-deftest seq-keywords ()
+  (should (equal '((0 . 4) (1 . 3) (2 . 2) (3 . 1) (4 . 0))
+                 (eval (quote (loopy (seq i [4 3 2 1 0] :index cat)
+                                     (collect (cons cat i)))))))
 
-  (should (equal '(0 2 4)
-                 (eval (quote (loopy (seq i [0 1 2 3 4 5] :by 2)
+  (should (equal '(0 2 4 6 8 10)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10] :by 2)
                                      (collect i))))))
 
-  (should (equal '(1 3 5)
-                 (eval (quote (loopy (seq i [0 1 2 3 4 5] :by 2 :start 1)
-                                     (collect i))))))
-
-  (should (equal '(1 3 5)
+  (should (equal '(8 6 4 2)
                  (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10]
-                                          :by 2 :start 1 :end 5)
+                                          :from 8 :downto 1 :by 2)
                                      (collect i))))))
 
-  ;; Make sure it cuts of correctly.
-  (should (equal '(1 3)
-                 (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10]
-                                          :by 2 :start 1 :end 4)
-                                     (collect i)))))))
-
-(ert-deftest seq-keywords-down ()
-  (should (equal '(5 4 3 2 1)
-                 (eval (quote (loopy (seq i [1 2 3 4 5] :down t)
-                                     (collect i))))))
-  (should (equal '(10 8 6 4 2)
-                 (eval (quote (loopy (seq i
-                                          [1 2 3 4 5 6 7 8 9 10]
-                                          :down t :by 2)
+  (should (equal '(0 1 2 3 4 5 6 7)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10] :upto 7)
                                      (collect i))))))
 
-  (should (equal '(5 3 1)
-                 (eval (quote (loopy (seq i
-                                          [0 1 2 3 4 5 6 7 8 9]
-                                          :down t :by 2
-                                          :start 5)
+  (should (equal '(0 1 2 3 4 5 6 7)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10] :to 7)
+                                     (collect i))))))
+
+  (should (equal '(10 9 8 7 6 5 4 3)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10] :downto 3)
+                                     (collect i))))))
+
+  (should (equal '(10 9 8)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10] :above 7)
+                                     (collect i))))))
+
+  (should (equal '(0 1 2)
+                 (eval (quote (loopy (seq i [0 1 2 3 4 5 6 7 8 9 10] :below 3)
                                      (collect i)))))))
 
 (ert-deftest seq-multi-seq ()

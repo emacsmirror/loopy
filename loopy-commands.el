@@ -1225,68 +1225,68 @@ BY is a numeric step to use, similar that for `array'.  START is
 the starting index to use.  END is the inclusive ending index,
 which cannot be longer than the sequence.  DOWN is whether index is
 decreasing.  INDEX is the variable to use to hold the index."
-  :keywords (:by :start :end :down :index)
+  :keywords (:index :by :from :downfrom :upfrom :to :downto :upto :above :below)
   :other-vals t
   :instructions
   (let ((value-holder (gensym "seq-"))
         (index-holder (or (plist-get opts :index)
                           (gensym "seq-index-")))
         (end-index-holder (gensym "seq-end-index-"))
-        (by-step (or (plist-get opts :by) 1))
-        (starting-index (plist-get opts :start))
-        (ending-index (plist-get opts :end))
-        (going-down (plist-get opts :down)))
-    `((loopy--iteration-vars
-       . (,value-holder ,(if other-vals
-                             `(loopy--seq-command-distribute-elements
-                               ,val ,@other-vals)
-                           val)))
-      (loopy--iteration-vars
-       . (,index-holder ,(or starting-index
-                             (if going-down
-                                 `(1- (length ,value-holder))
-                               0))))
-      (loopy--iteration-vars
-       . (,end-index-holder ,(if ending-index
-                                 ;; The ending index is inclusive.
-                                 (if going-down
-                                     (1- ending-index)
-                                   (1+ ending-index))
-                               (if going-down
-                                   -1
-                                 `(length ,value-holder)))))
-      ;; The increment should remain static throughout the loop.
-      ,@(if (numberp by-step)
-            `((loopy--latter-body . (setq ,index-holder
-                                          (,(if going-down '- '+)
-                                           ,index-holder
-                                           ,by-step))))
-          (let ((by-value-holder (gensym "seq-step-")))
-            `((loopy--iteration-vars . (,by-value-holder ,by-step))
-              (loopy--latter-body . (setq ,index-holder
-                                          (,(if going-down '- '+)
-                                           ,index-holder
-                                           ,by-value-holder))))))
-      ;; Optimize for the case of traversing from start to end, as done in
-      ;; `cl-loop'.  Currently, all other case use `elt'.
-      ,@(cond
-         ((and (not going-down)
-               (= 1 by-step)
-               (eql 0 starting-index))
-          `(,@(loopy--destructure-for-iteration-command
-               var `(if (consp ,value-holder)
-                        (pop ,value-holder)
-                      (aref ,value-holder ,index-holder)))
-            (loopy--pre-conditions
-             . (and ,value-holder (or (consp ,value-holder)
-                                      (< ,index-holder ,end-index-holder))))))
+        (increment-holder (gensym "seq-increment-")))
 
-         (t
-          `(,@(loopy--destructure-for-iteration-command
-               var `(elt ,value-holder ,index-holder))
-            (loopy--pre-conditions . (,(if going-down '> '<)
-                                      ,index-holder
-                                      ,end-index-holder))))))))
+    (loopy--plist-bind ( :start starting-index :end ending-index :by (by 1)
+                         :decreasing going-down :inclusive inclusive)
+
+        (loopy--find-start-by-end-dir-vals opts)
+
+
+      `((loopy--iteration-vars . (,increment-holder ,by))
+        (loopy--iteration-vars
+         . (,value-holder ,(if other-vals
+                               `(loopy--seq-command-distribute-elements
+                                 ,val ,@other-vals)
+                             val)))
+        (loopy--iteration-vars
+         . (,index-holder ,(or starting-index (if going-down
+                                                  `(1- (length ,value-holder))
+                                                0))))
+        (loopy--iteration-vars
+         . (,end-index-holder ,(or ending-index (if going-down
+                                                    -1
+                                                  `(length ,value-holder)))))
+        (loopy--latter-body . (setq ,index-holder (,(if going-down '- '+)
+                                                   ,index-holder
+                                                   ,increment-holder)))
+
+        ;; Optimize for the case of traversing from start to end, as done in
+        ;; `cl-loop'.  Currently, all other case use `elt'.
+        ,@(cond
+           ((and (not going-down)
+                 (= 1 by)
+                 (or (eql 0 starting-index)
+                     (null starting-index)))
+
+            `(,@(loopy--destructure-for-iteration-command
+                 var `(if (consp ,value-holder)
+                          (pop ,value-holder)
+                        (aref ,value-holder ,index-holder)))
+              (loopy--pre-conditions
+               . (and ,value-holder
+                      ,(if ending-index
+                           `(,(if inclusive #'<= #'<)
+                             ,index-holder ,end-index-holder)
+                         `(or (consp ,value-holder)
+                              (< ,index-holder ,end-index-holder)))))))
+
+           (t
+            `(,@(loopy--destructure-for-iteration-command
+                 var `(elt ,value-holder ,index-holder))
+              (loopy--pre-conditions . (,(if (or (null ending-index)
+                                                 (not inclusive))
+                                             (if going-down '> '<)
+                                           (if going-down '>= '<=))
+                                        ,index-holder
+                                        ,end-index-holder)))))))))
 
 ;;;;;; Seq Index
 (cl-defun loopy--parse-seq-index-command ((_ var val))
