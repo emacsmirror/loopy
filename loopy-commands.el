@@ -949,27 +949,49 @@ For example, [1 2] and [3 4] gives ((1 3) (1 4) (2 3) (2 4))."
                                (vconcat (nreverse result))))))
 
 (loopy--defiteration array
-  "Parse the `array' command as (array VAR VAL [VALS] &key by)."
+  "Parse the `array' command as (array VAR VAL [VALS] &key KEYS).
+
+Available keys are `by', `from', `downfrom', `upfrom', `to',
+`downto', `upto', `above', `below', and `index'."
   :other-vals t
-  :keywords (:by)
+  :keywords (:index
+             :by :from :downfrom :upfrom :to :downto :upto :above :below)
   :instructions
   (let ((value-holder (gensym "array-"))
-        (index-holder (gensym "array-index-"))
-        (length-holder (gensym "array-length-"))
-        (by-increment (or (plist-get opts :by)
-                          1)))
-    `((loopy--iteration-vars
-       . (,value-holder ,(if (null other-vals)
-                             val
-                           `(loopy--array-command-distribute-elements
-                             ,val ,@other-vals))))
-      (loopy--iteration-vars . (,index-holder 0))
-      (loopy--iteration-vars . (,length-holder (length ,value-holder)))
-      ,@(loopy--destructure-for-iteration-command
-         var `(aref ,value-holder ,index-holder))
-      (loopy--latter-body    . (setq ,index-holder (+ ,by-increment
-                                                      ,index-holder)))
-      (loopy--pre-conditions . (< ,index-holder ,length-holder)))))
+        (index-holder (or (plist-get opts :index)
+                          (gensym "array-index-")))
+        (end-holder (gensym "array-end-"))
+        (increment-holder (gensym "array-increment")))
+
+    (loopy--plist-bind ( :start key-start :end key-end :by (by 1)
+                         :decreasing decreasing :inclusive inclusive)
+
+        (loopy--find-start-by-end-dir-vals opts)
+
+      `((loopy--iteration-vars . (,increment-holder ,by))
+        (loopy--iteration-vars
+         . (,value-holder ,(if (null other-vals)
+                               val
+                             `(loopy--array-command-distribute-elements
+                               ,val ,@other-vals))))
+        (loopy--iteration-vars . (,end-holder ,(or key-end
+                                                   (if decreasing
+                                                       -1
+                                                     `(length ,value-holder)))))
+        (loopy--iteration-vars . (,index-holder ,(or key-start
+                                                     (if decreasing
+                                                         `(1- (length ,value-holder))
+                                                       0))))
+        ,@(loopy--destructure-for-iteration-command
+           var `(aref ,value-holder ,index-holder))
+        (loopy--latter-body    . (setq ,index-holder (,(if decreasing #'- #'+)
+                                                      ,index-holder
+                                                      ,increment-holder)))
+        (loopy--pre-conditions . (,(if (or (null key-end)
+                                           (not inclusive))
+                                       (if decreasing #'> #'<)
+                                     (if decreasing #'>= #'<=))
+                                  ,index-holder ,end-holder))))))
 
 ;;;;;; Array Ref
 (cl-defun loopy--parse-array-ref-command ((_ var val))
