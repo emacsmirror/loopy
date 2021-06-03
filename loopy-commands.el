@@ -951,8 +951,17 @@ For example, [1 2] and [3 4] gives ((1 3) (1 4) (2 3) (2 4))."
 (loopy--defiteration array
   "Parse the `array' command as (array VAR VAL [VALS] &key KEYS).
 
-Available keys are `by', `from', `downfrom', `upfrom', `to',
-`downto', `upto', `above', `below', and `index'."
+KEYS is one or several of `:index', `:by', `:from', `:downfrom',
+`:upfrom', `:to', `:downto', `:upto', `:above', or `:below'.
+
+- `:index' names a variable used to store the accessed index of
+  the array.
+- `:by' is the increment step size as a positive value.
+- `:from', `:downfrom', and `:upfrom' name the starting index
+- `:to', `:downto', and `:upto' name the ending index (inclusive)
+- `:below' and `:above' name an exclusive ending index.
+
+`:downto' and `:downfrom' make the index decrease instead of increase."
   :other-vals t
   :keywords (:index
              :by :from :downfrom :upfrom :to :downto :upto :above :below)
@@ -1110,12 +1119,22 @@ vector using the library `map.el'."
 
 ;;;;;; Nums
 (loopy--defiteration nums
-  "Parse the `nums' command as (nums VAR START [END] &key by down).
+  "Parse the `nums' command as (nums VAR [START [END]] &key KEYS).
 
-If END is given, end the loop when the value of VAR is greater
-than END.  BY is the positive value used to increment VAR from
-START to END.  IF DOWN is given, end the loop when the value of
-VAR is less than END."
+- START is the starting index, if given.
+- END is the ending index (inclusive), if given.
+
+KEYS is one or several of `:index', `:by', `:from', `:downfrom',
+`:upfrom', `:to', `:downto', `:upto', `:above', or `:below'.
+
+- `:index' names a variable used to store the accessed index of
+  the sequence.
+- `:by' is the increment step size as a positive value.
+- `:from', `:downfrom', and `:upfrom' name the starting index
+- `:to', `:downto', and `:upto' name the ending index (inclusive)
+- `:below' and `:above' name an exclusive ending index.
+
+`:downto' and `:downfrom' make the index decrease instead of increase."
   :keywords (:by :from :downfrom :upfrom :to :downto :upto :above :below)
   :required-vals 0
   :other-vals (0 1 2)
@@ -1156,7 +1175,11 @@ VAR is less than END."
 (loopy--defiteration nums-up
   "Parse the `nums-up' command as (nums-up START [END] &key by).
 
-See `loopy--parse-nums-command' for more."
+This is for increasing indices.
+
+- START is the starting index.
+- END is the ending index (inclusive), if given.
+- BY is the step size."
   :other-vals (0 1)
   :keywords (:by)
   :instructions
@@ -1169,7 +1192,12 @@ See `loopy--parse-nums-command' for more."
 (loopy--defiteration nums-down
   "Parse the `nums-down' command as (nums-up START [END] &key by).
 
-See `loopy--parse-nums-command' for more."
+This is for decreasing indices.
+
+- START is the starting index.
+- END is the ending index (inclusive), if given.
+- BY is the step size. Even though the index value is decreasing,
+  this should still be a positive value."
   :other-vals (0 1)
   :keywords (:by)
   :instructions
@@ -1219,12 +1247,19 @@ For example, [1 2] and (3 4) give [(1 3) (1 4) (2 3) (2 4)]."
                                (vconcat (nreverse result))))))
 
 (loopy--defiteration seq
-  "Parse the `seq' command as (seq VAR EXPR [EXPRS] &key by start end down index).
+  "Parse the `seq' command as (seq VAR EXPR [EXPRS] &key KEYS).
 
-BY is a numeric step to use, similar that for `array'.  START is
-the starting index to use.  END is the inclusive ending index,
-which cannot be longer than the sequence.  DOWN is whether index is
-decreasing.  INDEX is the variable to use to hold the index."
+KEYS is one or several of `:index', `:by', `:from', `:downfrom',
+`:upfrom', `:to', `:downto', `:upto', `:above', or `:below'.
+
+- `:index' names a variable used to store the accessed index of
+  the sequence.
+- `:by' is the increment step size as a positive value.
+- `:from', `:downfrom', and `:upfrom' name the starting index
+- `:to', `:downto', and `:upto' name the ending index (inclusive)
+- `:below' and `:above' name an exclusive ending index.
+
+`:downto' and `:downfrom' make the index decrease instead of increase."
   :keywords (:index :by :from :downfrom :upfrom :to :downto :upto :above :below)
   :other-vals t
   :instructions
